@@ -1,6 +1,6 @@
 {
   "name": "Mediary",
-  "description": "A medical diary and health tracking application.",
+  "description": "A calm, warm media journal for logging and reviewing movies, TV shows, video games, and books.",
   "permissions": [],
   "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

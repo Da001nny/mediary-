@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Work_Sans } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/context/AuthContext";
 
 const fraunces = Fraunces({
   variable: "--font-fraunces",
@@ -17,11 +18,11 @@ const workSans = Work_Sans({
 export const metadata: Metadata = {
   title: "meDiary — Slow Coffee-Shop Media Logging",
   description:
-    "Log, review, and curate movies, TV shows, video games, and books in a warm, slow coffee-shop aesthetic.",
+    "A calm, warm media journal for logging and reviewing movies, TV shows, video games, and books.",
   openGraph: {
-    title: "meDiary — Media Diary",
+    title: "meDiary — Slow Coffee-Shop Media Logging",
     description:
-      "Log, review, and curate movies, TV shows, video games, and books.",
+      "A calm, warm media journal for logging and reviewing movies, TV shows, video games, and books.",
   },
 };
 
@@ -37,7 +38,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col font-sans selection:bg-accent/25 selection:text-text">
-        {children}
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );
