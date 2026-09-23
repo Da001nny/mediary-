@@ -1,0 +1,6 @@
+{
+  "name": "Mediary",
+  "description": "A medical diary and health tracking application.",
+  "permissions": [],
+  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
