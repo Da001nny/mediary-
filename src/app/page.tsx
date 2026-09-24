@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import {
   BookOpen,
   Film,
@@ -24,6 +25,7 @@ import {
   Layers,
   Cpu,
   Globe,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import {
@@ -366,11 +368,22 @@ CREATE POLICY "Users can delete their own profile"
                     <Database className="w-4 h-4 text-accent" />
                     <span>Upserted Record / Response Payload</span>
                   </CardTitle>
-                  {syncTestResult && (
-                    <Badge variant="sage" size="sm">
-                      {syncTestResult.persisted ? "Persisted in Supabase" : "Live Payload Ready"}
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {syncTestResult?.media?.id && (
+                      <Link
+                        href={`/media/${syncTestResult.media.id}`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-accent text-white text-xs font-semibold rounded-md hover:bg-accent/90 transition-colors shadow-xs"
+                      >
+                        <span>Open Title Page</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </Link>
+                    )}
+                    {syncTestResult && (
+                      <Badge variant="sage" size="sm">
+                        {syncTestResult.persisted ? "Persisted in Supabase" : "Live Payload Ready"}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="p-0 flex-1 bg-surface font-mono text-[11px] overflow-auto max-h-[360px]">

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   Search,
   X,
@@ -375,16 +376,26 @@ export function MediaSearchModal({
 
                       <div className="flex items-center gap-2">
                         {syncedItem ? (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => setSelectedItemDetails(syncedItem)}
-                            className="text-xs h-7 gap-1 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>Synced</span>
-                            <ChevronRight className="w-3 h-3" />
-                          </Button>
+                          <div className="flex items-center gap-1.5">
+                            <Link
+                              href={`/media/${syncedItem.id}`}
+                              onClick={onClose}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-accent hover:text-accent/80 bg-accent/10 hover:bg-accent/20 rounded-md transition-colors"
+                            >
+                              <span>View Page</span>
+                              <ChevronRight className="w-3 h-3" />
+                            </Link>
+
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => setSelectedItemDetails(syncedItem)}
+                              className="text-xs h-7 gap-1 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Details</span>
+                            </Button>
+                          </div>
                         ) : (
                           <Button
                             variant="primary"
@@ -427,12 +438,22 @@ export function MediaSearchModal({
                   {selectedItemDetails.title}
                 </h4>
               </div>
-              <button
-                onClick={() => setSelectedItemDetails(null)}
-                className="text-xs text-text-muted hover:text-text underline"
-              >
-                Close details
-              </button>
+              <div className="flex items-center gap-2">
+                <Link
+                  href={`/media/${selectedItemDetails.id}`}
+                  onClick={onClose}
+                  className="inline-flex items-center gap-1 px-3 py-1 bg-accent text-white text-xs font-semibold rounded-md hover:bg-accent/90 transition-colors shadow-xs"
+                >
+                  <span>Go to Media Page</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </Link>
+                <button
+                  onClick={() => setSelectedItemDetails(null)}
+                  className="text-xs text-text-muted hover:text-text underline ml-1 cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
