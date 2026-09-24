@@ -100,3 +100,62 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_new_user();
+
+-- =========================================================
+-- 2. MEDIA (Catalog for Movies, TV, Games, Books)
+-- =========================================================
+CREATE TABLE IF NOT EXISTS public.media (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  type TEXT NOT NULL CHECK (type IN ('movie', 'tv', 'game', 'book')),
+  title TEXT NOT NULL,
+  cover_url TEXT,
+  release_date DATE,
+  genres TEXT[] DEFAULT '{}',
+  synopsis TEXT,
+  type_specific JSONB DEFAULT '{}'::jsonb,
+  external_ids JSONB DEFAULT '{}'::jsonb,
+  watch_providers JSONB DEFAULT '{}'::jsonb,
+  localized_fields JSONB DEFAULT '{}'::jsonb,
+  community_rating_avg NUMERIC,
+  community_rating_count INTEGER DEFAULT 0,
+  last_synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_media_type ON public.media(type);
+CREATE INDEX IF NOT EXISTS idx_media_external_ids ON public.media USING gin (external_ids);
+CREATE INDEX IF NOT EXISTS idx_media_title ON public.media USING gin(to_tsvector('english', title));
+CREATE INDEX IF NOT EXISTS idx_media_release_date ON public.media(release_date);
+
+-- Enable RLS
+ALTER TABLE public.media ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if re-running
+DROP POLICY IF EXISTS "Media items are viewable by everyone" ON public.media;
+DROP POLICY IF EXISTS "Authenticated users can insert media" ON public.media;
+DROP POLICY IF EXISTS "Authenticated users can update media" ON public.media;
+
+-- RLS Policies
+CREATE POLICY "Media items are viewable by everyone"
+  ON public.media
+  FOR SELECT
+  USING (true);
+
+CREATE POLICY "Authenticated users can insert media"
+  ON public.media
+  FOR INSERT
+  WITH CHECK (auth.role() = 'authenticated' OR auth.role() = 'service_role');
+
+CREATE POLICY "Authenticated users can update media"
+  ON public.media
+  FOR UPDATE
+  USING (auth.role() = 'authenticated' OR auth.role() = 'service_role')
+  WITH CHECK (auth.role() = 'authenticated' OR auth.role() = 'service_role');
+
+-- Trigger to update updated_at
+DROP TRIGGER IF EXISTS set_media_updated_at ON public.media;
+CREATE TRIGGER set_media_updated_at
+  BEFORE UPDATE ON public.media
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_updated_at();
+

@@ -18,16 +18,16 @@ import { Badge } from "@/components/ui/Badge";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/context/AuthContext";
 import { AuthModal } from "@/components/auth/AuthModal";
+import { MediaSearchModal } from "@/components/media/MediaSearchModal";
 
 export function TopNav() {
   const { user, profile, signOut, isConfigured } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<"login" | "signup">("login");
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const [isSearchActive, setIsSearchActive] = useState(false);
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
   const profileMenuRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Close profile dropdown when clicking outside
   useEffect(() => {
@@ -43,13 +43,12 @@ export function TopNav() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Global shortcut (⌘K or Ctrl+K) to focus search placeholder
+  // Global shortcut (⌘K or Ctrl+K) to open TMDB search modal
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
-        searchInputRef.current?.focus();
-        setIsSearchActive(true);
+        setIsSearchModalOpen(true);
       }
     }
     window.addEventListener("keydown", handleKeyDown);
@@ -96,43 +95,25 @@ export function TopNav() {
             </div>
           </Link>
 
-          {/* 2. Search Bar Placeholder */}
+          {/* 2. Search Bar Trigger */}
           <div className="flex-1 max-w-md mx-2 sm:mx-6 relative">
-            <div className="relative flex items-center">
-              <div className="absolute left-3 flex items-center pointer-events-none text-text-muted">
+            <button
+              type="button"
+              onClick={() => setIsSearchModalOpen(true)}
+              className="w-full h-9 pl-9 pr-14 text-xs font-sans text-left rounded-md bg-surface text-text border border-border shadow-2xs hover:border-text/30 focus-visible:border-accent focus-visible:ring-1 focus-visible:ring-ring outline-none transition-colors relative flex items-center cursor-pointer group"
+            >
+              <div className="absolute left-3 flex items-center pointer-events-none text-text-muted group-hover:text-text transition-colors">
                 <Search className="w-4 h-4" />
               </div>
-              <input
-                ref={searchInputRef}
-                type="text"
-                placeholder="Search movies, TV shows, games, books..."
-                onFocus={() => setIsSearchActive(true)}
-                onBlur={() => setTimeout(() => setIsSearchActive(false), 200)}
-                className="w-full h-9 pl-9 pr-14 text-xs font-sans rounded-md bg-surface text-text border border-border shadow-2xs placeholder:text-text-muted/60 outline-none transition-colors hover:border-text/25 focus-visible:border-accent focus-visible:ring-1 focus-visible:ring-ring"
-              />
+              <span className="text-text-muted/70 group-hover:text-text-muted truncate">
+                Search TMDB movies & TV shows...
+              </span>
               <div className="absolute right-2 flex items-center pointer-events-none">
                 <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono text-text-muted bg-bg rounded border border-border">
                   ⌘K
                 </kbd>
               </div>
-            </div>
-
-            {/* Quick search focus cue */}
-            {isSearchActive && (
-              <div className="absolute top-11 left-0 right-0 p-3 bg-surface rounded-md border border-border shadow-lg text-xs text-text-muted space-y-1.5 z-50">
-                <div className="flex items-center justify-between text-text font-medium pb-1 border-b border-border">
-                  <span className="font-serif">Universal Media Search</span>
-                  <Badge variant="sage" size="sm">
-                    Coming in Search Phase
-                  </Badge>
-                </div>
-                <p className="text-[11px] leading-relaxed">
-                  Search integration with TMDB (movies/TV), IGDB/RAWG (games), and
-                  Google Books/Open Library will be connected in an upcoming
-                  phase.
-                </p>
-              </div>
-            )}
+            </button>
           </div>
 
           {/* 3. Right Controls: Theme + Profile / Auth */}
@@ -254,6 +235,12 @@ export function TopNav() {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         defaultMode={authModalMode}
+      />
+
+      {/* TMDB Media Search & Sync Modal */}
+      <MediaSearchModal
+        isOpen={isSearchModalOpen}
+        onClose={() => setIsSearchModalOpen(false)}
       />
     </>
   );

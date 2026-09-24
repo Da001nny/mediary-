@@ -19,6 +19,11 @@ import {
   Edit3,
   Copy,
   CheckCircle2,
+  Search,
+  RefreshCw,
+  Layers,
+  Cpu,
+  Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import {
@@ -35,11 +40,21 @@ import { Input } from "@/components/ui/Input";
 import { TopNav } from "@/components/navigation/TopNav";
 import { useAuth } from "@/context/AuthContext";
 import { AuthModal } from "@/components/auth/AuthModal";
+import { MediaSearchModal } from "@/components/media/MediaSearchModal";
 
 export default function DesignFoundationPage() {
   const { user, profile, updateProfile, isConfigured, signOut } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<"login" | "signup">("login");
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+
+  // TMDB sync testing state
+  const [syncTestId, setSyncTestId] = useState("550");
+  const [syncTestType, setSyncTestType] = useState<"movie" | "tv">("movie");
+  const [isSyncTesting, setIsSyncTesting] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [syncTestResult, setSyncTestResult] = useState<any>(null);
+  const [syncTestError, setSyncTestError] = useState<string | null>(null);
 
   const [simulatedLoading, setSimulatedLoading] = useState(false);
   const [buttonClickCount, setButtonClickCount] = useState(0);
@@ -96,6 +111,34 @@ CREATE POLICY "Users can delete their own profile"
     setTimeout(() => setCopiedSql(false), 2000);
   };
 
+  const handleTestSync = async (idToSync?: string, typeToSync?: "movie" | "tv") => {
+    const targetId = idToSync || syncTestId;
+    const targetType = typeToSync || syncTestType;
+
+    setIsSyncTesting(true);
+    setSyncTestError(null);
+    setSyncTestResult(null);
+
+    try {
+      const res = await fetch("/api/tmdb/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: Number(targetId), type: targetType }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || "Sync request failed");
+      }
+      setSyncTestResult(data);
+    } catch (err: unknown) {
+      setSyncTestError(
+        err instanceof Error ? err.message : "Failed to sync media item"
+      );
+    } finally {
+      setIsSyncTesting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-bg text-text selection:bg-accent/25 selection:text-text">
       {/* Top Navigation Bar */}
@@ -132,6 +175,220 @@ CREATE POLICY "Users can delete their own profile"
             ]}
             className="pt-2"
           />
+        </section>
+
+        {/* Phase 3: TMDB Integration & Media Catalog */}
+        <section className="space-y-6">
+          <div className="border-b border-border pb-3 flex items-baseline justify-between flex-wrap gap-2">
+            <div>
+              <div className="inline-flex items-center gap-1.5 text-xs text-accent font-medium mb-1">
+                <Layers className="w-3.5 h-3.5" />
+                <span>Phase 3.0</span>
+              </div>
+              <h2 className="font-serif text-2xl font-semibold text-text">
+                TMDB Search & Media Table Upsert
+              </h2>
+              <p className="text-xs text-text-muted mt-0.5">
+                Fetch full TMDB metadata (cast, crew, watch providers, last_synced_at) and upsert into the public.media table
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setIsSearchModalOpen(true)}
+                leftIcon={<Search className="w-3.5 h-3.5" />}
+              >
+                Launch TMDB Search (⌘K)
+              </Button>
+            </div>
+          </div>
+
+          {/* Tradeoff Explanation Card: Next.js API Route vs Supabase Edge Function */}
+          <Card variant="book" className="bg-surface/80 border-border">
+            <CardHeader>
+              <div className="flex items-center justify-between text-xs text-text-muted mb-1">
+                <span className="uppercase tracking-wider font-mono text-[11px] text-accent">
+                  Architectural Evaluation
+                </span>
+                <span className="font-mono text-[11px]">Next.js API Route vs. Supabase Edge Function</span>
+              </div>
+              <CardTitle className="text-lg">Tradeoff Summary</CardTitle>
+              <CardDescription>
+                We implemented the Next.js API Route architecture (<code className="font-mono text-xs bg-bg px-1 py-0.5 rounded border border-border">/api/tmdb/sync</code> and <code className="font-mono text-xs bg-bg px-1 py-0.5 rounded border border-border">/api/tmdb/search</code>) while also providing the ready-to-deploy Supabase Edge Function in <code className="font-mono text-xs bg-bg px-1 py-0.5 rounded border border-border">supabase/functions/sync-media/index.ts</code>.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div className="p-3.5 rounded-lg border border-border bg-bg/50 space-y-2">
+                  <div className="flex items-center gap-2 text-text font-semibold">
+                    <Globe className="w-4 h-4 text-accent" />
+                    <span>Next.js API Route (Active)</span>
+                  </div>
+                  <ul className="space-y-1.5 text-text-muted list-disc list-inside">
+                    <li><strong className="text-text">Shared TypeScript Types:</strong> Shares exact types (<code className="font-mono text-[11px]">MediaItem</code>, <code className="font-mono text-[11px]">WatchProvidersCountry</code>, <code className="font-mono text-[11px]">CastMember</code>) with the app without duplicate declarations.</li>
+                    <li><strong className="text-text">Zero Additional CLI Setup:</strong> Runs immediately within the Next.js container, utilizing Next.js cookies and environment variables seamlessly.</li>
+                    <li><strong className="text-text">Same-Origin:</strong> No cross-origin CORS overhead or client JWT token forwarding hurdles.</li>
+                  </ul>
+                </div>
+
+                <div className="p-3.5 rounded-lg border border-border bg-bg/50 space-y-2">
+                  <div className="flex items-center gap-2 text-text font-semibold">
+                    <Cpu className="w-4 h-4 text-sage-600 dark:text-sage-400" />
+                    <span>Supabase Edge Function (Template Included)</span>
+                  </div>
+                  <ul className="space-y-1.5 text-text-muted list-disc list-inside">
+                    <li><strong className="text-text">Database Proximity:</strong> Deno edge workers positioned geographically close to the Supabase Postgres instance.</li>
+                    <li><strong className="text-text">Decoupled Workloads:</strong> Can be triggered asynchronously via Postgres Database Webhooks or pg_cron schedules without consuming web server compute.</li>
+                    <li><strong className="text-text">Tradeoff:</strong> Requires separate <code className="font-mono text-[11px]">supabase functions deploy</code> deployment and Deno secrets management.</li>
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Interactive Live Sync Tester */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card variant="book" className="lg:col-span-1 space-y-4 flex flex-col justify-between">
+              <div>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <RefreshCw className="w-4 h-4 text-accent" />
+                    <span>Live Upsert Tester</span>
+                  </CardTitle>
+                  <CardDescription>
+                    Trigger TMDB detail fetch + public.media table upsert with last_synced_at.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Preset quick buttons */}
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-mono text-text-muted uppercase tracking-wider">
+                      Quick Sample Presets:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSyncTestId("550");
+                          setSyncTestType("movie");
+                          handleTestSync("550", "movie");
+                        }}
+                        className="px-2 py-1 text-xs rounded bg-surface border border-border hover:border-accent text-text transition-colors cursor-pointer"
+                      >
+                        Fight Club (550)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSyncTestId("95557");
+                          setSyncTestType("tv");
+                          handleTestSync("95557", "tv");
+                        }}
+                        className="px-2 py-1 text-xs rounded bg-surface border border-border hover:border-accent text-text transition-colors cursor-pointer"
+                      >
+                        Severance (95557)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSyncTestId("94605");
+                          setSyncTestType("tv");
+                          handleTestSync("94605", "tv");
+                        }}
+                        className="px-2 py-1 text-xs rounded bg-surface border border-border hover:border-accent text-text transition-colors cursor-pointer"
+                      >
+                        Arcane (94605)
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Custom ID input */}
+                  <div className="space-y-2 pt-2 border-t border-border">
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <label className="text-[11px] font-mono text-text-muted mb-1 block">
+                          TMDB ID
+                        </label>
+                        <Input
+                          type="number"
+                          value={syncTestId}
+                          onChange={(e) => setSyncTestId(e.target.value)}
+                          placeholder="e.g. 550"
+                        />
+                      </div>
+                      <div className="w-28">
+                        <label className="text-[11px] font-mono text-text-muted mb-1 block">
+                          Type
+                        </label>
+                        <select
+                          value={syncTestType}
+                          onChange={(e) => setSyncTestType(e.target.value as "movie" | "tv")}
+                          className="w-full h-10 px-2.5 rounded-md bg-surface text-text border border-border text-xs focus:ring-1 focus:ring-ring outline-none"
+                        >
+                          <option value="movie">Movie</option>
+                          <option value="tv">TV Show</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <Button
+                      variant="primary"
+                      className="w-full text-xs"
+                      disabled={isSyncTesting || !syncTestId}
+                      onClick={() => handleTestSync()}
+                      leftIcon={
+                        isSyncTesting ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Layers className="w-3.5 h-3.5" />
+                        )
+                      }
+                    >
+                      {isSyncTesting ? "Fetching & Upserting..." : "Sync to `media` Table"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </div>
+
+              {syncTestError && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs rounded-md mx-6 mb-6">
+                  {syncTestError}
+                </div>
+              )}
+            </Card>
+
+            {/* Results Preview Card */}
+            <Card variant="default" className="lg:col-span-2 flex flex-col justify-between overflow-hidden">
+              <CardHeader className="border-b border-border pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-mono flex items-center gap-2">
+                    <Database className="w-4 h-4 text-accent" />
+                    <span>Upserted Record / Response Payload</span>
+                  </CardTitle>
+                  {syncTestResult && (
+                    <Badge variant="sage" size="sm">
+                      {syncTestResult.persisted ? "Persisted in Supabase" : "Live Payload Ready"}
+                    </Badge>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="p-0 flex-1 bg-surface font-mono text-[11px] overflow-auto max-h-[360px]">
+                {syncTestResult ? (
+                  <pre className="p-4 text-text-muted leading-relaxed">
+                    {JSON.stringify(syncTestResult, null, 2)}
+                  </pre>
+                ) : (
+                  <div className="p-8 text-center text-text-muted space-y-2">
+                    <p>Select a quick sample above or enter any TMDB ID to test the sync endpoint.</p>
+                    <p className="text-[10px]">
+                      Endpoint: <code className="text-text">POST /api/tmdb/sync</code>
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </section>
 
         {/* Phase 2: Live Supabase Auth & RLS Card */}
@@ -889,6 +1146,15 @@ CREATE POLICY "Users can delete their own profile"
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         defaultMode={authModalMode}
+      />
+
+      {/* Global TMDB Search & Sync Modal */}
+      <MediaSearchModal
+        isOpen={isSearchModalOpen}
+        onClose={() => setIsSearchModalOpen(false)}
+        onMediaSynced={(media) => {
+          setSyncTestResult({ success: true, persisted: true, media });
+        }}
       />
     </div>
   );
