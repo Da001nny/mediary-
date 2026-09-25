@@ -4,10 +4,10 @@ import React, { forwardRef } from "react";
 import { cn } from "@/lib/utils";
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-  variant?: "subtle" | "caramel" | "sage" | "outline" | "text";
+  variant?: "subtle" | "amber" | "forest" | "caramel" | "sage" | "outline" | "text";
   size?: "sm" | "md";
   dot?: boolean;
-  dotColor?: "caramel" | "sage" | "muted";
+  dotColor?: "amber" | "forest" | "caramel" | "sage" | "muted";
 }
 
 export const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
@@ -17,7 +17,7 @@ export const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
       variant = "subtle",
       size = "md",
       dot = false,
-      dotColor = "caramel",
+      dotColor = "amber",
       children,
       ...props
     },
@@ -29,8 +29,12 @@ export const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
     const variantStyles = {
       subtle:
         "rounded-md bg-surface text-text-muted border border-border shadow-2xs",
+      amber:
+        "rounded-md bg-accent/12 text-accent border border-accent/25 dark:bg-accent/20",
       caramel:
         "rounded-md bg-accent/12 text-accent border border-accent/25 dark:bg-accent/20",
+      forest:
+        "rounded-md bg-accent-secondary/12 text-accent-secondary border border-accent-secondary/30 dark:bg-accent-secondary/20",
       sage:
         "rounded-md bg-accent-secondary/12 text-accent-secondary border border-accent-secondary/30 dark:bg-accent-secondary/20",
       outline:
@@ -45,7 +49,9 @@ export const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
     };
 
     const dotColorStyles = {
+      amber: "bg-accent",
       caramel: "bg-accent",
+      forest: "bg-accent-secondary",
       sage: "bg-accent-secondary",
       muted: "bg-text-muted",
     };

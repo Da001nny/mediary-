@@ -69,10 +69,10 @@ export function ThemeToggle({ className }: { className?: string }) {
             ? "bg-accent text-accent-contrast shadow-2xs"
             : "text-text-muted hover:text-text hover:bg-surface-hover"
         )}
-        title="Light: Warm Oat & Milk Foam"
+        title="Light: Warm Honey Wood"
       >
         <Sun className="w-3.5 h-3.5" />
-        <span>Oat Light</span>
+        <span>Honey Wood</span>
       </button>
 
       <button
@@ -85,10 +85,10 @@ export function ThemeToggle({ className }: { className?: string }) {
             ? "bg-accent text-accent-contrast shadow-2xs"
             : "text-text-muted hover:text-text hover:bg-surface-hover"
         )}
-        title="Dark: Deep Espresso"
+        title="Dark: Cozy Cabin"
       >
         <Moon className="w-3.5 h-3.5" />
-        <span>Espresso Dark</span>
+        <span>Cabin Dark</span>
       </button>
 
       <button

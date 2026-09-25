@@ -246,7 +246,7 @@ export function MediaSearchModal({
             </div>
 
             {isMock && (
-              <Badge variant="caramel" size="sm" className="hidden sm:inline-flex text-[10px]">
+              <Badge variant="amber" size="sm" className="hidden sm:inline-flex text-[10px]">
                 Preview Data (TMDB_API_KEY pending)
               </Badge>
             )}
@@ -337,7 +337,7 @@ export function MediaSearchModal({
                         </h3>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <Badge
-                            variant={item.type === "movie" ? "caramel" : "sage"}
+                            variant={item.type === "movie" ? "amber" : "forest"}
                             size="sm"
                             className="capitalize text-[10px]"
                           >

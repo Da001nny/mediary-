@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "sage" | "outline" | "ghost";
+  variant?: "primary" | "secondary" | "forest" | "sage" | "outline" | "ghost";
   size?: "sm" | "md" | "lg";
   isLoading?: boolean;
   leftIcon?: React.ReactNode;
@@ -36,7 +36,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         "bg-accent text-accent-contrast hover:bg-accent-hover shadow-sm active:bg-accent-hover",
       secondary:
         "bg-surface text-text border border-border hover:bg-surface-hover hover:border-text/25 shadow-xs",
-      sage: "bg-accent-secondary text-[#FDFBF7] hover:bg-accent-secondary-hover shadow-sm",
+      forest:
+        "bg-accent-secondary text-accent-contrast hover:bg-accent-secondary-hover shadow-sm",
+      sage: "bg-accent-secondary text-accent-contrast hover:bg-accent-secondary-hover shadow-sm",
       outline:
         "border border-accent/40 text-accent hover:border-accent hover:bg-accent/10",
       ghost: "text-text hover:bg-surface/75 hover:text-text",

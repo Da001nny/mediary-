@@ -16,11 +16,11 @@ const workSans = Work_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "meDiary — Slow Coffee-Shop Media Logging",
+  title: "meDiary — Slow Media Journal",
   description:
     "A calm, warm media journal for logging and reviewing movies, TV shows, video games, and books.",
   openGraph: {
-    title: "meDiary — Slow Coffee-Shop Media Logging",
+    title: "meDiary — Slow Media Journal",
     description:
       "A calm, warm media journal for logging and reviewing movies, TV shows, video games, and books.",
   },

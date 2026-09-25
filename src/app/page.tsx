@@ -172,7 +172,7 @@ CREATE POLICY "Users can delete their own profile"
               "Email & Google OAuth",
               "TopNav with Search & Profile Menu",
               "Profiles Table RLS Policies",
-              "Oat Beige & Espresso Tokens",
+              "Cozy Cabin Palette (Honey Wood, Matte Charcoal, Amber & Forest Green)",
               "Fraunces & Work Sans",
             ]}
             className="pt-2"
@@ -236,7 +236,7 @@ CREATE POLICY "Users can delete their own profile"
 
                 <div className="p-3.5 rounded-lg border border-border bg-bg/50 space-y-2">
                   <div className="flex items-center gap-2 text-text font-semibold">
-                    <Cpu className="w-4 h-4 text-sage-600 dark:text-sage-400" />
+                    <Cpu className="w-4 h-4 text-accent-secondary" />
                     <span>Supabase Edge Function (Template Included)</span>
                   </div>
                   <ul className="space-y-1.5 text-text-muted list-disc list-inside">
@@ -372,14 +372,14 @@ CREATE POLICY "Users can delete their own profile"
                     {syncTestResult?.media?.id && (
                       <Link
                         href={`/media/${syncTestResult.media.id}`}
-                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-accent text-white text-xs font-semibold rounded-md hover:bg-accent/90 transition-colors shadow-xs"
+                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-accent text-accent-contrast text-xs font-semibold rounded-md hover:bg-accent-hover transition-colors shadow-xs"
                       >
                         <span>Open Title Page</span>
                         <ExternalLink className="w-3.5 h-3.5" />
                       </Link>
                     )}
                     {syncTestResult && (
-                      <Badge variant="sage" size="sm">
+                      <Badge variant="forest" size="sm">
                         {syncTestResult.persisted ? "Persisted in Supabase" : "Live Payload Ready"}
                       </Badge>
                     )}
@@ -417,10 +417,10 @@ CREATE POLICY "Users can delete their own profile"
               </p>
             </div>
             <Badge
-              variant={isConfigured ? "sage" : "caramel"}
+              variant={isConfigured ? "forest" : "amber"}
               size="sm"
               dot
-              dotColor={isConfigured ? "sage" : "caramel"}
+              dotColor={isConfigured ? "forest" : "amber"}
             >
               {isConfigured ? "Supabase Connected" : "Preview Demo Mode"}
             </Badge>
@@ -651,7 +651,7 @@ CREATE POLICY "Users can delete their own profile"
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-            {/* Oat Beige */}
+            {/* Honey Wood */}
             <div className="p-4 rounded-lg bg-surface border border-border flex flex-col justify-between space-y-3 shadow-2xs">
               <div
                 className="w-full h-12 rounded border border-border"
@@ -659,14 +659,14 @@ CREATE POLICY "Users can delete their own profile"
               />
               <div>
                 <p className="text-xs font-semibold text-text">--color-bg</p>
-                <p className="text-[11px] text-text-muted">Warm Oat Beige</p>
+                <p className="text-[11px] text-text-muted">Honey Wood Background</p>
                 <p className="text-[11px] font-mono text-text-muted mt-1">
-                  #EDE4D3 / #241812
+                  #E8D5B5 / #1B1714
                 </p>
               </div>
             </div>
 
-            {/* Milk Foam */}
+            {/* Warm Wood Surface */}
             <div className="p-4 rounded-lg bg-surface border border-border flex flex-col justify-between space-y-3 shadow-2xs">
               <div
                 className="w-full h-12 rounded border border-border"
@@ -676,14 +676,14 @@ CREATE POLICY "Users can delete their own profile"
                 <p className="text-xs font-semibold text-text">
                   --color-surface
                 </p>
-                <p className="text-[11px] text-text-muted">Milk-Foam Cards</p>
+                <p className="text-[11px] text-text-muted">Polished Pine Surface</p>
                 <p className="text-[11px] font-mono text-text-muted mt-1">
-                  #F6F0E4 / #2E211A
+                  #F4E8D3 / #26211C
                 </p>
               </div>
             </div>
 
-            {/* Espresso Brown */}
+            {/* Matte Charcoal */}
             <div className="p-4 rounded-lg bg-surface border border-border flex flex-col justify-between space-y-3 shadow-2xs">
               <div
                 className="w-full h-12 rounded border border-border"
@@ -691,14 +691,14 @@ CREATE POLICY "Users can delete their own profile"
               />
               <div>
                 <p className="text-xs font-semibold text-text">--color-text</p>
-                <p className="text-[11px] text-text-muted">Espresso Brown</p>
+                <p className="text-[11px] text-text-muted">Matte Charcoal Text</p>
                 <p className="text-[11px] font-mono text-text-muted mt-1">
-                  #3E2723 / #F6F0E4
+                  #232526 / #F5EBD9
                 </p>
               </div>
             </div>
 
-            {/* Warm Taupe */}
+            {/* Muted Charcoal / Woodsmoke */}
             <div className="p-4 rounded-lg bg-surface border border-border flex flex-col justify-between space-y-3 shadow-2xs">
               <div
                 className="w-full h-12 rounded border border-border"
@@ -708,14 +708,14 @@ CREATE POLICY "Users can delete their own profile"
                 <p className="text-xs font-semibold text-text">
                   --color-text-muted
                 </p>
-                <p className="text-[11px] text-text-muted">Warm Taupe</p>
+                <p className="text-[11px] text-text-muted">Woodsmoke Charcoal</p>
                 <p className="text-[11px] font-mono text-text-muted mt-1">
-                  #8A7461 / #B39E8C
+                  #5F5C56 / #A99F90
                 </p>
               </div>
             </div>
 
-            {/* Muted Caramel */}
+            {/* Amber Accent */}
             <div className="p-4 rounded-lg bg-surface border border-border flex flex-col justify-between space-y-3 shadow-2xs">
               <div
                 className="w-full h-12 rounded border border-border"
@@ -725,14 +725,14 @@ CREATE POLICY "Users can delete their own profile"
                 <p className="text-xs font-semibold text-text">
                   --color-accent
                 </p>
-                <p className="text-[11px] text-text-muted">Muted Caramel</p>
+                <p className="text-[11px] text-text-muted">Glowing Amber</p>
                 <p className="text-[11px] font-mono text-text-muted mt-1">
-                  #B8834B / #C58E54
+                  #C87414 / #E28B2A
                 </p>
               </div>
             </div>
 
-            {/* Dusty Sage */}
+            {/* Forest Green */}
             <div className="p-4 rounded-lg bg-surface border border-border flex flex-col justify-between space-y-3 shadow-2xs">
               <div
                 className="w-full h-12 rounded border border-border"
@@ -742,9 +742,9 @@ CREATE POLICY "Users can delete their own profile"
                 <p className="text-xs font-semibold text-text">
                   --color-accent-secondary
                 </p>
-                <p className="text-[11px] text-text-muted">Dusty Sage</p>
+                <p className="text-[11px] text-text-muted">Forest Green</p>
                 <p className="text-[11px] font-mono text-text-muted mt-1">
-                  #7C8B6F / #8E9F7F
+                  #2E5E3D / #529369
                 </p>
               </div>
             </div>
@@ -770,7 +770,7 @@ CREATE POLICY "Users can delete their own profile"
           <div className="p-6 rounded-lg bg-surface border border-border space-y-6">
             <div>
               <p className="text-xs uppercase tracking-wider text-text-muted font-medium mb-3">
-                Variants (Primary, Secondary, Sage Highlight, Outline, Ghost)
+                Variants (Primary Amber, Secondary Wood, Forest Highlight, Outline, Ghost)
               </p>
               <div className="flex flex-wrap gap-3 items-center">
                 <Button
@@ -778,7 +778,7 @@ CREATE POLICY "Users can delete their own profile"
                   leftIcon={<Bookmark className="w-4 h-4" />}
                   onClick={() => setButtonClickCount((c) => c + 1)}
                 >
-                  Primary Caramel
+                  Primary Amber
                 </Button>
 
                 <Button
@@ -786,15 +786,15 @@ CREATE POLICY "Users can delete their own profile"
                   leftIcon={<Coffee className="w-4 h-4" />}
                   onClick={() => setButtonClickCount((c) => c + 1)}
                 >
-                  Secondary Milk-Foam
+                  Secondary Wood
                 </Button>
 
                 <Button
-                  variant="sage"
+                  variant="forest"
                   leftIcon={<Heart className="w-4 h-4" />}
                   onClick={() => setButtonClickCount((c) => c + 1)}
                 >
-                  Dusty Sage Highlight
+                  Forest Green Highlight
                 </Button>
 
                 <Button
@@ -802,7 +802,7 @@ CREATE POLICY "Users can delete their own profile"
                   leftIcon={<Compass className="w-4 h-4" />}
                   onClick={() => setButtonClickCount((c) => c + 1)}
                 >
-                  Caramel Outline
+                  Amber Outline
                 </Button>
 
                 <Button
@@ -906,7 +906,7 @@ CREATE POLICY "Users can delete their own profile"
               </CardContent>
               <CardFooter className="justify-between border-t border-border pt-4">
                 <span className="text-xs text-text-muted">Logged yesterday</span>
-                <Badge variant="sage" size="sm" dot dotColor="sage">
+                <Badge variant="forest" size="sm" dot dotColor="forest">
                   Reading
                 </Badge>
               </CardFooter>
@@ -939,7 +939,7 @@ CREATE POLICY "Users can delete their own profile"
               </CardContent>
               <CardFooter className="justify-between border-t border-border pt-4">
                 <span className="text-xs text-text-muted">Favorite</span>
-                <Badge variant="caramel" size="sm" dot dotColor="caramel">
+                <Badge variant="amber" size="sm" dot dotColor="amber">
                   Completed
                 </Badge>
               </CardFooter>
@@ -1005,17 +1005,17 @@ CREATE POLICY "Users can delete their own profile"
           <div className="p-6 rounded-lg bg-surface border border-border space-y-6">
             <div>
               <p className="text-xs uppercase tracking-wider text-text-muted font-medium mb-3">
-                Discrete Editorial Badges (Restrained Milk-Foam, Caramel & Sage)
+                Discrete Editorial Badges (Restrained Honey Wood, Amber & Forest Green)
               </p>
               <div className="flex flex-wrap items-center gap-3">
-                <Badge variant="subtle">Subtle Milk-Foam</Badge>
-                <Badge variant="caramel">Caramel Accent</Badge>
-                <Badge variant="sage">Sage Highlight</Badge>
+                <Badge variant="subtle">Subtle Wood</Badge>
+                <Badge variant="amber">Amber Accent</Badge>
+                <Badge variant="forest">Forest Green Highlight</Badge>
                 <Badge variant="outline">Hairline Outline</Badge>
-                <Badge variant="caramel" dot dotColor="caramel">
+                <Badge variant="amber" dot dotColor="amber">
                   Planned
                 </Badge>
-                <Badge variant="sage" dot dotColor="sage">
+                <Badge variant="forest" dot dotColor="forest">
                   In Progress
                 </Badge>
                 <Badge variant="subtle" dot dotColor="muted">

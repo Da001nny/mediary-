@@ -148,7 +148,7 @@ export function TopNav() {
                         <p className="text-xs font-semibold text-text truncate">
                           {displayName}
                         </p>
-                        <Badge variant="caramel" size="sm">
+                        <Badge variant="amber" size="sm">
                           {profile?.default_privacy || "Public"}
                         </Badge>
                       </div>
