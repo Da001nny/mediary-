@@ -138,6 +138,63 @@ export type Database = {
         };
         Relationships: [];
       };
+      entries: {
+        Row: {
+          id: string;
+          user_id: string;
+          media_id: string;
+          status: "planned" | "in_progress" | "completed" | "dropped" | "on_hold";
+          rating: number | null;
+          review: string | null;
+          privacy: PrivacyLevel;
+          started_at: string | null;
+          completed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          media_id: string;
+          status: "planned" | "in_progress" | "completed" | "dropped" | "on_hold";
+          rating?: number | null;
+          review?: string | null;
+          privacy?: PrivacyLevel;
+          started_at?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          media_id?: string;
+          status?: "planned" | "in_progress" | "completed" | "dropped" | "on_hold";
+          rating?: number | null;
+          review?: string | null;
+          privacy?: PrivacyLevel;
+          started_at?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "entries_media_id_fkey";
+            columns: ["media_id"];
+            isOneToOne: false;
+            referencedRelation: "media";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "entries_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -162,3 +219,5 @@ export type TablesUpdate<T extends keyof Database["public"]["Tables"]> =
   Database["public"]["Tables"][T]["Update"];
 export type Profile = Tables<"profiles">;
 export type MediaItem = Tables<"media">;
+export type MediaEntry = Tables<"entries">;
+export type EntryStatus = "planned" | "in_progress" | "completed" | "dropped" | "on_hold";

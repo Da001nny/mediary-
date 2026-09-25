@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -11,23 +11,84 @@ import {
   Film,
   Tv,
   BookmarkPlus,
+  Edit3,
   Share2,
   Check,
   ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import type { MediaItem } from "@/types/database.types";
+import { Badge } from "@/components/ui/Badge";
+import { useAuth } from "@/context/AuthContext";
+import { AuthModal } from "@/components/auth/AuthModal";
+import { LogEntryModal } from "@/components/media/LogEntryModal";
+import type { MediaItem, MediaEntry } from "@/types/database.types";
 
 interface MediaDetailHeaderProps {
   media: MediaItem;
 }
 
 export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
+  const { user } = useAuth();
   const [isCopied, setIsCopied] = useState(false);
-  const [loggedNotice, setLoggedNotice] = useState(false);
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [userEntry, setUserEntry] = useState<Partial<MediaEntry> | null>(null);
 
   const typeSpecific = (media.type_specific as Record<string, unknown>) || {};
   const externalIds = (media.external_ids as Record<string, unknown>) || {};
+
+  // Fetch existing user entry on mount or when user/media changes
+  useEffect(() => {
+    let isMounted = true;
+
+    async function checkEntry() {
+      // 1. Check local storage first for instant feedback
+      try {
+        if (typeof window !== "undefined") {
+          const stored = localStorage.getItem("mediary_diary_entries");
+          if (stored) {
+            const localEntries = JSON.parse(stored);
+            const found = localEntries.find(
+              (e: { media_id: string }) => e.media_id === media.id
+            );
+            if (found && isMounted) {
+              setUserEntry({
+                id: found.id,
+                media_id: media.id,
+                status: found.status,
+                rating: found.star_rating ?? (found.rating ? found.rating / 20 : null),
+                review: found.notes || null,
+                privacy: found.privacy || "public",
+              });
+            }
+          }
+        }
+      } catch {
+        // Ignore local parse errors
+      }
+
+      // 2. If user is authenticated, query the server API
+      if (user) {
+        try {
+          const res = await fetch(`/api/entries?media_id=${media.id}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.entry && isMounted) {
+              setUserEntry(data.entry);
+            }
+          }
+        } catch (err) {
+          console.error("Failed to load user entry from server:", err);
+        }
+      }
+    }
+
+    checkEntry();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [media.id, user]);
 
   const backdropUrl =
     (typeSpecific.backdrop_url as string | null) ||
@@ -70,38 +131,12 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
     }
   };
 
-  const handleQuickLog = () => {
-    try {
-      if (typeof window !== "undefined") {
-        const stored = localStorage.getItem("mediary_diary_entries");
-        const entries = stored ? JSON.parse(stored) : [];
-        const entryId = `log-${Date.now()}`;
-        const newEntry = {
-          id: entryId,
-          media_id: media.id,
-          title: media.title,
-          type: media.type,
-          cover_url: media.cover_url,
-          release_year: releaseYear,
-          genres: media.genres,
-          status: "completed",
-          rating: media.community_rating_avg ? Math.round(Number(media.community_rating_avg) * 10) : 90,
-          notes: media.synopsis ? `Logged from title page. ${media.synopsis.slice(0, 120)}...` : "Logged in my media journal.",
-          logged_at: new Date().toISOString(),
-          cast: Array.isArray(typeSpecific.cast) ? typeSpecific.cast.slice(0, 5) : [],
-          crew: Array.isArray(typeSpecific.crew) ? typeSpecific.crew.slice(0, 3) : [],
-        };
-        // Add if not already logged
-        if (!entries.some((e: { media_id: string }) => e.media_id === media.id)) {
-          entries.unshift(newEntry);
-          localStorage.setItem("mediary_diary_entries", JSON.stringify(entries));
-        }
-      }
-    } catch (e) {
-      console.error("Failed to save to diary:", e);
+  const handleOpenLogModal = () => {
+    if (!user) {
+      setIsAuthModalOpen(true);
+      return;
     }
-    setLoggedNotice(true);
-    setTimeout(() => setLoggedNotice(false), 5000);
+    setIsLogModalOpen(true);
   };
 
   return (
@@ -293,23 +328,51 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
 
             {/* Action Bar */}
             <div className="flex flex-wrap items-center gap-3 pt-3">
-              <Button
-                variant="primary"
-                onClick={handleQuickLog}
-                className="gap-2 text-xs h-9 cursor-pointer"
-              >
-                <BookmarkPlus className="w-4 h-4" />
-                <span>Log to Diary</span>
-              </Button>
+              {userEntry ? (
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <Badge
+                    variant={userEntry.status === "completed" ? "forest" : "amber"}
+                    size="md"
+                    dot
+                    dotColor={userEntry.status === "completed" ? "forest" : "amber"}
+                    className="capitalize text-xs font-semibold px-2.5 py-1"
+                  >
+                    {userEntry.status?.replace("_", " ")}
+                  </Badge>
 
-              {loggedNotice && (
-                <Link
-                  href="/diary"
-                  className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline animate-in fade-in duration-200 inline-flex items-center gap-1"
+                  {userEntry.rating !== null && userEntry.rating !== undefined && (
+                    <div className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-accent/15 border border-accent/30 text-accent font-bold text-xs shadow-2xs">
+                      <Star className="w-3.5 h-3.5 fill-accent" />
+                      <span>{Number(userEntry.rating).toFixed(1)} / 5</span>
+                    </div>
+                  )}
+
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleOpenLogModal}
+                    className="gap-1.5 text-xs h-9 cursor-pointer"
+                    leftIcon={<Edit3 className="w-3.5 h-3.5 text-accent" />}
+                  >
+                    <span>Edit Log</span>
+                  </Button>
+
+                  <Link
+                    href="/diary"
+                    className="text-xs text-text-muted hover:text-accent underline font-medium ml-1"
+                  >
+                    View in Diary &rarr;
+                  </Link>
+                </div>
+              ) : (
+                <Button
+                  variant="primary"
+                  onClick={handleOpenLogModal}
+                  className="gap-2 text-xs h-9 cursor-pointer shadow-xs"
                 >
-                  <Check className="w-3.5 h-3.5" />
-                  <span>Saved! View in My Diary &rarr;</span>
-                </Link>
+                  <BookmarkPlus className="w-4 h-4" />
+                  <span>Log to Diary</span>
+                </Button>
               )}
 
               {/* External TMDB / IMDb Links */}
@@ -344,6 +407,23 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
           </div>
         </div>
       </div>
+
+      {/* Interactive Logging Modal */}
+      <LogEntryModal
+        isOpen={isLogModalOpen}
+        onClose={() => setIsLogModalOpen(false)}
+        media={media}
+        existingEntry={userEntry}
+        onSaved={(entry) => setUserEntry(entry)}
+        onDeleted={() => setUserEntry(null)}
+      />
+
+      {/* Auth Modal if user is not signed in */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        defaultMode="login"
+      />
     </div>
   );
 }
