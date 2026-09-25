@@ -71,8 +71,37 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
   };
 
   const handleQuickLog = () => {
+    try {
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("mediary_diary_entries");
+        const entries = stored ? JSON.parse(stored) : [];
+        const entryId = `log-${Date.now()}`;
+        const newEntry = {
+          id: entryId,
+          media_id: media.id,
+          title: media.title,
+          type: media.type,
+          cover_url: media.cover_url,
+          release_year: releaseYear,
+          genres: media.genres,
+          status: "completed",
+          rating: media.community_rating_avg ? Math.round(Number(media.community_rating_avg) * 10) : 90,
+          notes: media.synopsis ? `Logged from title page. ${media.synopsis.slice(0, 120)}...` : "Logged in my media journal.",
+          logged_at: new Date().toISOString(),
+          cast: Array.isArray(typeSpecific.cast) ? typeSpecific.cast.slice(0, 5) : [],
+          crew: Array.isArray(typeSpecific.crew) ? typeSpecific.crew.slice(0, 3) : [],
+        };
+        // Add if not already logged
+        if (!entries.some((e: { media_id: string }) => e.media_id === media.id)) {
+          entries.unshift(newEntry);
+          localStorage.setItem("mediary_diary_entries", JSON.stringify(entries));
+        }
+      }
+    } catch (e) {
+      console.error("Failed to save to diary:", e);
+    }
     setLoggedNotice(true);
-    setTimeout(() => setLoggedNotice(false), 3000);
+    setTimeout(() => setLoggedNotice(false), 5000);
   };
 
   return (
@@ -274,9 +303,13 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
               </Button>
 
               {loggedNotice && (
-                <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 animate-in fade-in duration-200">
-                  Ready to log in your journal!
-                </span>
+                <Link
+                  href="/diary"
+                  className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline animate-in fade-in duration-200 inline-flex items-center gap-1"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Saved! View in My Diary &rarr;</span>
+                </Link>
               )}
 
               {/* External TMDB / IMDb Links */}

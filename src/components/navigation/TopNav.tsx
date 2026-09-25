@@ -116,8 +116,16 @@ export function TopNav() {
             </button>
           </div>
 
-          {/* 3. Right Controls: Theme + Profile / Auth */}
+          {/* 3. Right Controls: Diary + Theme + Profile / Auth */}
           <div className="flex items-center gap-3">
+            <Link
+              href="/diary"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-text hover:text-accent rounded-md hover:bg-surface transition-colors cursor-pointer"
+            >
+              <BookMarked className="w-3.5 h-3.5 text-accent" />
+              <span>Diary</span>
+            </Link>
+
             <ThemeToggle className="hidden sm:inline-flex" />
 
             {user ? (
@@ -159,10 +167,14 @@ export function TopNav() {
 
                     {/* Menu items */}
                     <div className="py-1">
-                      <div className="px-4 py-1.5 flex items-center gap-2 text-xs text-text hover:bg-surface-hover transition-colors cursor-pointer">
+                      <Link
+                        href="/diary"
+                        onClick={() => setIsProfileMenuOpen(false)}
+                        className="px-4 py-1.5 flex items-center gap-2 text-xs text-text hover:bg-surface-hover transition-colors cursor-pointer"
+                      >
                         <UserIcon className="w-3.5 h-3.5 text-accent" />
-                        <span>My Media Journal</span>
-                      </div>
+                        <span>My Media Journal / Diary</span>
+                      </Link>
                       <div className="px-4 py-1.5 flex items-center gap-2 text-xs text-text hover:bg-surface-hover transition-colors cursor-pointer">
                         <BookMarked className="w-3.5 h-3.5 text-accent-secondary" />
                         <span>Curated Lists</span>

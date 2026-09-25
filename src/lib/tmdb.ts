@@ -615,3 +615,594 @@ function getMockDetails(tmdbId: number, type: "movie" | "tv"): TMDBTransformedDe
     last_synced_at: new Date().toISOString(),
   };
 }
+
+export interface TMDBPersonCredit {
+  id: number;
+  title: string;
+  original_title?: string | null;
+  type: "movie" | "tv";
+  character?: string;
+  job?: string;
+  department?: string;
+  release_date?: string | null;
+  year?: number | null;
+  poster_path?: string | null;
+  poster_url?: string | null;
+  backdrop_path?: string | null;
+  backdrop_url?: string | null;
+  vote_average: number;
+  vote_count: number;
+  popularity: number;
+  overview?: string;
+}
+
+export interface TMDBPersonDetails {
+  id: number;
+  name: string;
+  biography: string;
+  birthday: string | null;
+  deathday: string | null;
+  place_of_birth: string | null;
+  known_for_department: string;
+  profile_path: string | null;
+  profile_url: string | null;
+  combined_credits: {
+    cast: TMDBPersonCredit[];
+    crew: TMDBPersonCredit[];
+  };
+  known_for: TMDBPersonCredit[];
+  isMock?: boolean;
+}
+
+/**
+ * Fetches full biographical details and filmography (combined movie/tv credits) for a person.
+ */
+export async function fetchTMDBPerson(
+  id: number | string
+): Promise<{ data: TMDBPersonDetails | null; error: string | null; isMock?: boolean }> {
+  const numericId = typeof id === "string" ? parseInt(id, 10) : id;
+  if (!numericId || isNaN(numericId)) {
+    return { data: null, error: "Invalid Person ID provided" };
+  }
+
+  const endpoint = `/person/${numericId}`;
+  const config = getTMDBFetchConfig(endpoint, {
+    append_to_response: "combined_credits,external_ids",
+    language: "en-US",
+  });
+
+  if (!config.apiKeyPresent || !config.url) {
+    const mock = getMockPersonDetails(numericId);
+    return { data: mock, error: null, isMock: true };
+  }
+
+  try {
+    const res = await fetch(config.url, {
+      headers: config.headers,
+      next: { revalidate: 3600 },
+    });
+
+    if (!res.ok) {
+      if (res.status === 404) {
+        return { data: null, error: `Person with ID ${numericId} not found on TMDB` };
+      }
+      if (res.status === 401) {
+        console.warn("TMDB API key unauthorized, returning mock person data.");
+        return { data: getMockPersonDetails(numericId), error: null, isMock: true };
+      }
+      return { data: null, error: `TMDB Person API error: ${res.status} ${res.statusText}` };
+    }
+
+    const raw = await res.json();
+    const profilePath = raw.profile_path || null;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mapCredit = (c: any): TMDBPersonCredit => {
+      const isMovie = c.media_type === "movie";
+      const title = (c.title || c.name || "Untitled") as string;
+      const releaseDate = (c.release_date || c.first_air_date || null) as string | null;
+      const year = releaseDate ? parseInt(releaseDate.slice(0, 4), 10) || null : null;
+      const posterPath = c.poster_path || null;
+      const backdropPath = c.backdrop_path || null;
+
+      return {
+        id: Number(c.id),
+        title,
+        original_title: c.original_title || c.original_name || null,
+        type: isMovie ? "movie" : "tv",
+        character: c.character || undefined,
+        job: c.job || undefined,
+        department: c.department || undefined,
+        release_date: releaseDate,
+        year,
+        poster_path: posterPath,
+        poster_url: posterPath ? `${TMDB_IMAGE_BASE_W342}${posterPath}` : null,
+        backdrop_path: backdropPath,
+        backdrop_url: backdropPath ? `${TMDB_IMAGE_BASE_W500}${backdropPath}` : null,
+        vote_average: Number(c.vote_average || 0),
+        vote_count: Number(c.vote_count || 0),
+        popularity: Number(c.popularity || 0),
+        overview: c.overview || "",
+      };
+    };
+
+    const rawCast = Array.isArray(raw.combined_credits?.cast) ? raw.combined_credits.cast : [];
+    const rawCrew = Array.isArray(raw.combined_credits?.crew) ? raw.combined_credits.crew : [];
+
+    const castCredits: TMDBPersonCredit[] = rawCast.map(mapCredit);
+    const crewCredits: TMDBPersonCredit[] = rawCrew.map(mapCredit);
+
+    // Sort by popularity / vote count for known_for
+    const allCredits = [...castCredits, ...crewCredits];
+    const uniqueCreditsMap = new Map<string, TMDBPersonCredit>();
+    allCredits.forEach((c) => {
+      const key = `${c.type}-${c.id}`;
+      if (!uniqueCreditsMap.has(key) || (c.popularity > (uniqueCreditsMap.get(key)?.popularity || 0))) {
+        uniqueCreditsMap.set(key, c);
+      }
+    });
+
+    const knownFor = Array.from(uniqueCreditsMap.values())
+      .filter((c) => c.poster_url && c.vote_count > 10)
+      .sort((a, b) => b.popularity - a.popularity)
+      .slice(0, 12);
+
+    return {
+      data: {
+        id: numericId,
+        name: raw.name || "Unknown Performer",
+        biography: raw.biography || "",
+        birthday: raw.birthday || null,
+        deathday: raw.deathday || null,
+        place_of_birth: raw.place_of_birth || null,
+        known_for_department: raw.known_for_department || "Acting",
+        profile_path: profilePath,
+        profile_url: profilePath ? `${TMDB_IMAGE_BASE_W500}${profilePath}` : null,
+        combined_credits: {
+          cast: castCredits.sort((a, b) => (b.year || 0) - (a.year || 0)),
+          crew: crewCredits.sort((a, b) => (b.year || 0) - (a.year || 0)),
+        },
+        known_for: knownFor.length > 0 ? knownFor : allCredits.slice(0, 8),
+        isMock: false,
+      },
+      error: null,
+      isMock: false,
+    };
+  } catch (err) {
+    console.error("fetchTMDBPerson exception:", err);
+    return { data: getMockPersonDetails(numericId), error: null, isMock: true };
+  }
+}
+
+function getMockPersonDetails(personId: number): TMDBPersonDetails {
+  const peopleCatalog: Record<number, TMDBPersonDetails> = {
+    287: {
+      id: 287,
+      name: "Brad Pitt",
+      biography:
+        "William Bradley Pitt is an American actor and film producer. He has received multiple accolades, including an Academy Award, a British Academy Film Award, and two Golden Globe Awards for his acting, in addition to another Academy Award and a Primetime Emmy Award as a producer with his production company, Plan B Entertainment.",
+      birthday: "1963-12-18",
+      deathday: null,
+      place_of_birth: "Shawnee, Oklahoma, USA",
+      known_for_department: "Acting",
+      profile_path: "/cckcYc2v0yh1tc9QjRelptsqqoW.jpg",
+      profile_url: "https://image.tmdb.org/t/p/w500/cckcYc2v0yh1tc9QjRelptsqqoW.jpg",
+      combined_credits: {
+        cast: [
+          {
+            id: 550,
+            title: "Fight Club",
+            type: "movie",
+            character: "Tyler Durden",
+            release_date: "1999-10-15",
+            year: 1999,
+            poster_url: "https://image.tmdb.org/t/p/w342/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg",
+            vote_average: 8.4,
+            vote_count: 28410,
+            popularity: 94.3,
+            overview: "An insomniac office worker and a devil-may-care soap maker form an underground fight club that evolves into much more.",
+          },
+          {
+            id: 466272,
+            title: "Once Upon a Time in Hollywood",
+            type: "movie",
+            character: "Cliff Booth",
+            release_date: "2019-07-25",
+            year: 2019,
+            poster_url: "https://image.tmdb.org/t/p/w342/8j58iOzGh90XdHYHG6bY49JkfJD.jpg",
+            vote_average: 7.4,
+            vote_count: 12900,
+            popularity: 78.4,
+            overview: "A faded television actor and his stunt double strive to achieve fame and success in the film industry during the final years of Hollywood's Golden Age in 1969 Los Angeles.",
+          },
+          {
+            id: 16869,
+            title: "Inglourious Basterds",
+            type: "movie",
+            character: "Lt. Aldo Raine",
+            release_date: "2009-08-19",
+            year: 2009,
+            poster_url: "https://image.tmdb.org/t/p/w342/7sfbEnaARXDD5Km007MsbY9KiEH.jpg",
+            vote_average: 8.2,
+            vote_count: 22100,
+            popularity: 88.2,
+            overview: "In German-occupied France during World War II, a group of Jewish-American soldiers known as 'The Basterds' are chosen to cause terror among the Nazi troops.",
+          },
+          {
+            id: 807,
+            title: "Se7en",
+            type: "movie",
+            character: "Detective David Mills",
+            release_date: "1995-09-22",
+            year: 1995,
+            poster_url: "https://image.tmdb.org/t/p/w342/6yoghtyTpznpBik8EngEmJskVUO.jpg",
+            vote_average: 8.4,
+            vote_count: 20800,
+            popularity: 91.5,
+            overview: "Two detectives, a rookie and a veteran, hunt a serial killer who uses the seven deadly sins as his motives.",
+          },
+        ],
+        crew: [],
+      },
+      known_for: [
+        {
+          id: 550,
+          title: "Fight Club",
+          type: "movie",
+          character: "Tyler Durden",
+          release_date: "1999-10-15",
+          year: 1999,
+          poster_url: "https://image.tmdb.org/t/p/w342/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg",
+          vote_average: 8.4,
+          vote_count: 28410,
+          popularity: 94.3,
+        },
+        {
+          id: 807,
+          title: "Se7en",
+          type: "movie",
+          character: "Detective David Mills",
+          release_date: "1995-09-22",
+          year: 1995,
+          poster_url: "https://image.tmdb.org/t/p/w342/6yoghtyTpznpBik8EngEmJskVUO.jpg",
+          vote_average: 8.4,
+          vote_count: 20800,
+          popularity: 91.5,
+        },
+        {
+          id: 16869,
+          title: "Inglourious Basterds",
+          type: "movie",
+          character: "Lt. Aldo Raine",
+          release_date: "2009-08-19",
+          year: 2009,
+          poster_url: "https://image.tmdb.org/t/p/w342/7sfbEnaARXDD5Km007MsbY9KiEH.jpg",
+          vote_average: 8.2,
+          vote_count: 22100,
+          popularity: 88.2,
+        },
+      ],
+      isMock: true,
+    },
+    819: {
+      id: 819,
+      name: "Edward Norton",
+      biography:
+        "Edward Harrison Norton is an American actor and filmmaker. Known for his unconventional roles, he has received numerous accolades, including a Golden Globe Award and nominations for three Academy Awards.",
+      birthday: "1969-08-18",
+      deathday: null,
+      place_of_birth: "Boston, Massachusetts, USA",
+      known_for_department: "Acting",
+      profile_path: "/5XBzD5WuTyVQZeS4VI25LnO2ezl.jpg",
+      profile_url: "https://image.tmdb.org/t/p/w500/5XBzD5WuTyVQZeS4VI25LnO2ezl.jpg",
+      combined_credits: {
+        cast: [
+          {
+            id: 550,
+            title: "Fight Club",
+            type: "movie",
+            character: "The Narrator",
+            release_date: "1999-10-15",
+            year: 1999,
+            poster_url: "https://image.tmdb.org/t/p/w342/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg",
+            vote_average: 8.4,
+            vote_count: 28410,
+            popularity: 94.3,
+          },
+          {
+            id: 73,
+            title: "American History X",
+            type: "movie",
+            character: "Derek Vinyard",
+            release_date: "1998-10-30",
+            year: 1998,
+            poster_url: "https://image.tmdb.org/t/p/w342/c2gsmSQ2Cqv8umQI9SuRXzqIo4W.jpg",
+            vote_average: 8.3,
+            vote_count: 11400,
+            popularity: 62.1,
+          },
+          {
+            id: 194662,
+            title: "Birdman",
+            type: "movie",
+            character: "Mike Shiner",
+            release_date: "2014-10-17",
+            year: 2014,
+            poster_url: "https://image.tmdb.org/t/p/w342/lvWLbgT345BTgf5m49StzQfXk9R.jpg",
+            vote_average: 7.5,
+            vote_count: 12500,
+            popularity: 45.3,
+          },
+          {
+            id: 120467,
+            title: "The Grand Budapest Hotel",
+            type: "movie",
+            character: "Henckels",
+            release_date: "2014-02-26",
+            year: 2014,
+            poster_url: "https://image.tmdb.org/t/p/w342/eWdyYQreja6JGCzqHWX9NZkt5BW.jpg",
+            vote_average: 8.0,
+            vote_count: 14200,
+            popularity: 58.7,
+          },
+        ],
+        crew: [],
+      },
+      known_for: [
+        {
+          id: 550,
+          title: "Fight Club",
+          type: "movie",
+          character: "The Narrator",
+          release_date: "1999-10-15",
+          year: 1999,
+          poster_url: "https://image.tmdb.org/t/p/w342/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg",
+          vote_average: 8.4,
+          vote_count: 28410,
+          popularity: 94.3,
+        },
+        {
+          id: 73,
+          title: "American History X",
+          type: "movie",
+          character: "Derek Vinyard",
+          release_date: "1998-10-30",
+          year: 1998,
+          poster_url: "https://image.tmdb.org/t/p/w342/c2gsmSQ2Cqv8umQI9SuRXzqIo4W.jpg",
+          vote_average: 8.3,
+          vote_count: 11400,
+          popularity: 62.1,
+        },
+      ],
+      isMock: true,
+    },
+    7467: {
+      id: 7467,
+      name: "David Fincher",
+      biography:
+        "David Andrew Leo Fincher is an American film and music video director. His films, most of which are psychological thrillers or biographical dramas, have received 40 Academy Award nominations, including three for him as Best Director.",
+      birthday: "1962-08-28",
+      deathday: null,
+      place_of_birth: "Denver, Colorado, USA",
+      known_for_department: "Directing",
+      profile_path: "/tpEczFclQZeKAflA2fZBAm99BsP.jpg",
+      profile_url: "https://image.tmdb.org/t/p/w500/tpEczFclQZeKAflA2fZBAm99BsP.jpg",
+      combined_credits: {
+        cast: [],
+        crew: [
+          {
+            id: 550,
+            title: "Fight Club",
+            type: "movie",
+            job: "Director",
+            department: "Directing",
+            release_date: "1999-10-15",
+            year: 1999,
+            poster_url: "https://image.tmdb.org/t/p/w342/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg",
+            vote_average: 8.4,
+            vote_count: 28410,
+            popularity: 94.3,
+          },
+          {
+            id: 807,
+            title: "Se7en",
+            type: "movie",
+            job: "Director",
+            department: "Directing",
+            release_date: "1995-09-22",
+            year: 1995,
+            poster_url: "https://image.tmdb.org/t/p/w342/6yoghtyTpznpBik8EngEmJskVUO.jpg",
+            vote_average: 8.4,
+            vote_count: 20800,
+            popularity: 91.5,
+          },
+          {
+            id: 37799,
+            title: "The Social Network",
+            type: "movie",
+            job: "Director",
+            department: "Directing",
+            release_date: "2010-10-01",
+            year: 2010,
+            poster_url: "https://image.tmdb.org/t/p/w342/n0ybibhJtQ5icDqTpTzbRHY3qCH.jpg",
+            vote_average: 7.7,
+            vote_count: 15400,
+            popularity: 64.8,
+          },
+          {
+            id: 210577,
+            title: "Gone Girl",
+            type: "movie",
+            job: "Director",
+            department: "Directing",
+            release_date: "2014-10-01",
+            year: 2014,
+            poster_url: "https://image.tmdb.org/t/p/w342/ts4WwB486S0d20iL4vQfL26K3Q.jpg",
+            vote_average: 8.0,
+            vote_count: 18200,
+            popularity: 76.5,
+          },
+        ],
+      },
+      known_for: [
+        {
+          id: 550,
+          title: "Fight Club",
+          type: "movie",
+          job: "Director",
+          department: "Directing",
+          release_date: "1999-10-15",
+          year: 1999,
+          poster_url: "https://image.tmdb.org/t/p/w342/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg",
+          vote_average: 8.4,
+          vote_count: 28410,
+          popularity: 94.3,
+        },
+        {
+          id: 807,
+          title: "Se7en",
+          type: "movie",
+          job: "Director",
+          department: "Directing",
+          release_date: "1995-09-22",
+          year: 1995,
+          poster_url: "https://image.tmdb.org/t/p/w342/6yoghtyTpznpBik8EngEmJskVUO.jpg",
+          vote_average: 8.4,
+          vote_count: 20800,
+          popularity: 91.5,
+        },
+        {
+          id: 37799,
+          title: "The Social Network",
+          type: "movie",
+          job: "Director",
+          department: "Directing",
+          release_date: "2010-10-01",
+          year: 2010,
+          poster_url: "https://image.tmdb.org/t/p/w342/n0ybibhJtQ5icDqTpTzbRHY3qCH.jpg",
+          vote_average: 7.7,
+          vote_count: 15400,
+          popularity: 64.8,
+        },
+      ],
+      isMock: true,
+    },
+    1283: {
+      id: 1283,
+      name: "Helena Bonham Carter",
+      biography:
+        "Helena Bonham Carter CBE is an English actress. Known for her roles in independent films and large-scale blockbusters, she has received numerous awards and nominations, including a British Academy Film Award and two Academy Award nominations.",
+      birthday: "1966-05-26",
+      deathday: null,
+      place_of_birth: "Islington, London, England, UK",
+      known_for_department: "Acting",
+      profile_path: "/DDeitxkscqbLJ49twjhPDhIPT.jpg",
+      profile_url: "https://image.tmdb.org/t/p/w500/DDeitxkscqbLJ49twjhPDhIPT.jpg",
+      combined_credits: {
+        cast: [
+          {
+            id: 550,
+            title: "Fight Club",
+            type: "movie",
+            character: "Marla Singer",
+            release_date: "1999-10-15",
+            year: 1999,
+            poster_url: "https://image.tmdb.org/t/p/w342/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg",
+            vote_average: 8.4,
+            vote_count: 28410,
+            popularity: 94.3,
+          },
+          {
+            id: 671,
+            title: "Harry Potter and the Order of the Phoenix",
+            type: "movie",
+            character: "Bellatrix Lestrange",
+            release_date: "2007-07-11",
+            year: 2007,
+            poster_url: "https://image.tmdb.org/t/p/w342/5aOyYsW9L984i5Hwz1VlZ6mQ0pW.jpg",
+            vote_average: 7.7,
+            vote_count: 19100,
+            popularity: 110.2,
+          },
+          {
+            id: 45269,
+            title: "The King's Speech",
+            type: "movie",
+            character: "Queen Elizabeth",
+            release_date: "2010-11-26",
+            year: 2010,
+            poster_url: "https://image.tmdb.org/t/p/w342/uQ53yr97v9VwR83YlG0u4pG4.jpg",
+            vote_average: 7.8,
+            vote_count: 9800,
+            popularity: 42.6,
+          },
+        ],
+        crew: [],
+      },
+      known_for: [
+        {
+          id: 550,
+          title: "Fight Club",
+          type: "movie",
+          character: "Marla Singer",
+          release_date: "1999-10-15",
+          year: 1999,
+          poster_url: "https://image.tmdb.org/t/p/w342/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg",
+          vote_average: 8.4,
+          vote_count: 28410,
+          popularity: 94.3,
+        },
+      ],
+      isMock: true,
+    },
+  };
+
+  if (peopleCatalog[personId]) {
+    return peopleCatalog[personId];
+  }
+
+  // Dynamic fallback for any other person
+  return {
+    id: personId,
+    name: `Performer #${personId}`,
+    biography: "Film and television creator featured in notable titles.",
+    birthday: null,
+    deathday: null,
+    place_of_birth: null,
+    known_for_department: "Acting",
+    profile_path: null,
+    profile_url: null,
+    combined_credits: {
+      cast: [
+        {
+          id: 550,
+          title: "Fight Club",
+          type: "movie",
+          character: "Featured Cast",
+          release_date: "1999-10-15",
+          year: 1999,
+          poster_url: "https://image.tmdb.org/t/p/w342/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg",
+          vote_average: 8.4,
+          vote_count: 28410,
+          popularity: 94.3,
+        },
+      ],
+      crew: [],
+    },
+    known_for: [
+      {
+        id: 550,
+        title: "Fight Club",
+        type: "movie",
+        character: "Featured Cast",
+        release_date: "1999-10-15",
+        year: 1999,
+        poster_url: "https://image.tmdb.org/t/p/w342/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg",
+        vote_average: 8.4,
+        vote_count: 28410,
+        popularity: 94.3,
+      },
+    ],
+    isMock: true,
+  };
+}
