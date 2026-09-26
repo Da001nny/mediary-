@@ -32,6 +32,7 @@ export interface DiaryEntry {
   genres?: string[];
   status: "completed" | "in_progress" | "planned" | "dropped";
   rating?: number | null;
+  progress?: Record<string, unknown> | null;
   notes?: string;
   logged_at: string;
   cast?: CastMember[];
@@ -89,6 +90,7 @@ const DEFAULT_SAMPLE_ENTRIES: DiaryEntry[] = [
     genres: ["Drama", "Mystery", "Sci-Fi"],
     status: "in_progress",
     rating: 94,
+    progress: { season: 1, episode: 9 },
     notes:
       "Finished season 1. The waffle party and finale cliffhanger left me breathless. Stellar, unnerving performance by Adam Scott.",
     logged_at: "2026-09-20T14:15:00Z",
@@ -674,7 +676,7 @@ export function DiaryView() {
                           {entry.rating && (
                             <div className="flex items-center gap-1 shrink-0 px-2 py-0.5 rounded bg-accent/15 text-accent font-bold text-xs">
                               <Star className="w-3 h-3 fill-accent" />
-                              <span>{entry.rating}</span>
+                              <span>{entry.rating <= 5 ? Math.round(entry.rating * 20) : entry.rating}</span>
                               <span className="text-[10px] text-text-muted font-normal">/100</span>
                             </div>
                           )}
@@ -695,6 +697,38 @@ export function DiaryView() {
                           >
                             {entry.status.replace("_", " ")}
                           </Badge>
+
+                          {entry.progress && (
+                            (() => {
+                              const p = entry.progress as Record<string, unknown>;
+                              if (entry.type === "tv" && (p.season != null || p.episode != null)) {
+                                return (
+                                  <Badge variant="subtle" size="sm" className="font-mono text-[10px]">
+                                    {p.season != null ? `S${p.season}` : ""}
+                                    {p.season != null && p.episode != null ? " · " : ""}
+                                    {p.episode != null ? `Ep ${p.episode}` : ""}
+                                  </Badge>
+                                );
+                              }
+                              if (entry.type === "game" && (p.hoursPlayed != null || p.completionPct != null)) {
+                                return (
+                                  <Badge variant="subtle" size="sm" className="font-mono text-[10px]">
+                                    {p.hoursPlayed != null ? `${p.hoursPlayed}h` : ""}
+                                    {p.hoursPlayed != null && p.completionPct != null ? " · " : ""}
+                                    {p.completionPct != null ? `${p.completionPct}%` : ""}
+                                  </Badge>
+                                );
+                              }
+                              if (entry.type === "book" && p.pagesRead != null) {
+                                return (
+                                  <Badge variant="subtle" size="sm" className="font-mono text-[10px]">
+                                    p. {String(p.pagesRead)}
+                                  </Badge>
+                                );
+                              }
+                              return null;
+                            })()
+                          )}
 
                           {entry.release_year && (
                             <span className="text-xs font-mono text-text-muted">

@@ -86,6 +86,7 @@ export async function POST(request: NextRequest) {
       media_id,
       status,
       rating,
+      progress,
       review,
       privacy = "public",
       tmdb_id,
@@ -108,16 +109,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (
-      rating !== undefined &&
-      rating !== null &&
-      (typeof rating !== "number" || rating < 0 || rating > 5)
-    ) {
-      return NextResponse.json(
-        { error: "Rating must be a number between 0 and 5 stars" },
-        { status: 400 }
-      );
+    let normalizedRating: number | null = null;
+    if (rating !== undefined && rating !== null) {
+      if (typeof rating !== "number" || rating < 0 || rating > 100) {
+        return NextResponse.json(
+          { error: "Rating must be a normalized number between 0 and 100" },
+          { status: 400 }
+        );
+      }
+      // Support conversion if a legacy 0-5 decimal was sent (e.g. 3.5 -> 70)
+      normalizedRating =
+        rating > 0 && rating <= 5 && !Number.isInteger(rating)
+          ? Math.round(rating * 20)
+          : Math.round(rating);
     }
+
+    const sanitizedProgress =
+      progress && typeof progress === "object" ? progress : {};
 
     if (privacy && !VALID_PRIVACIES.includes(privacy)) {
       return NextResponse.json(
@@ -136,7 +144,8 @@ export async function POST(request: NextRequest) {
         user_id: "demo-user-id",
         media_id,
         status,
-        rating: rating ?? null,
+        rating: normalizedRating,
+        progress: sanitizedProgress,
         review: review ? String(review).trim() : null,
         privacy,
         started_at: status === "in_progress" ? new Date().toISOString() : null,
@@ -208,7 +217,8 @@ export async function POST(request: NextRequest) {
       user_id: user.id,
       media_id: resolvedMediaId,
       status,
-      rating: rating !== undefined && rating !== null ? Number(rating) : null,
+      rating: normalizedRating,
+      progress: sanitizedProgress,
       review: review ? String(review).trim() : null,
       privacy,
       completed_at: status === "completed" ? new Date().toISOString() : null,

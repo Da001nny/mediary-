@@ -144,7 +144,8 @@ export type Database = {
           user_id: string;
           media_id: string;
           status: "planned" | "in_progress" | "completed" | "dropped" | "on_hold";
-          rating: number | null;
+          rating: number | null; // Normalized 0-100 internally
+          progress: Json | MediaProgress | null;
           review: string | null;
           privacy: PrivacyLevel;
           started_at: string | null;
@@ -157,7 +158,8 @@ export type Database = {
           user_id: string;
           media_id: string;
           status: "planned" | "in_progress" | "completed" | "dropped" | "on_hold";
-          rating?: number | null;
+          rating?: number | null; // Normalized 0-100 internally
+          progress?: Json | MediaProgress | null;
           review?: string | null;
           privacy?: PrivacyLevel;
           started_at?: string | null;
@@ -170,7 +172,8 @@ export type Database = {
           user_id?: string;
           media_id?: string;
           status?: "planned" | "in_progress" | "completed" | "dropped" | "on_hold";
-          rating?: number | null;
+          rating?: number | null; // Normalized 0-100 internally
+          progress?: Json | MediaProgress | null;
           review?: string | null;
           privacy?: PrivacyLevel;
           started_at?: string | null;
@@ -221,3 +224,16 @@ export type Profile = Tables<"profiles">;
 export type MediaItem = Tables<"media">;
 export type MediaEntry = Tables<"entries">;
 export type EntryStatus = "planned" | "in_progress" | "completed" | "dropped" | "on_hold";
+
+export interface MediaProgress {
+  // TV Shows
+  season?: number | null;
+  episode?: number | null;
+  // Video Games
+  hoursPlayed?: number | null;
+  completionPct?: number | null;
+  // Books
+  pagesRead?: number | null;
+  // Generic / Extensible
+  [key: string]: unknown;
+}

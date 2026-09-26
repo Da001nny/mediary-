@@ -56,7 +56,8 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
                 id: found.id,
                 media_id: media.id,
                 status: found.status,
-                rating: found.star_rating ?? (found.rating ? found.rating / 20 : null),
+                rating: found.rating ?? (found.star_rating ? Math.round(found.star_rating * 20) : null),
+                progress: found.progress || null,
                 review: found.notes || null,
                 privacy: found.privacy || "public",
               });
@@ -343,8 +344,46 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
                   {userEntry.rating !== null && userEntry.rating !== undefined && (
                     <div className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-accent/15 border border-accent/30 text-accent font-bold text-xs shadow-2xs">
                       <Star className="w-3.5 h-3.5 fill-accent" />
-                      <span>{Number(userEntry.rating).toFixed(1)} / 5</span>
+                      <span>
+                        {(Number(userEntry.rating) > 5
+                          ? Number(userEntry.rating) / 20
+                          : Number(userEntry.rating)
+                        ).toFixed(1)}{" "}
+                        / 5
+                      </span>
                     </div>
+                  )}
+
+                  {userEntry.progress && typeof userEntry.progress === "object" && (
+                    (() => {
+                      const prog = userEntry.progress as Record<string, unknown>;
+                      if (media.type === "tv" && (prog.season != null || prog.episode != null)) {
+                        return (
+                          <Badge variant="subtle" size="md" className="font-mono text-xs">
+                            {prog.season != null ? `S${prog.season}` : ""}
+                            {prog.season != null && prog.episode != null ? " · " : ""}
+                            {prog.episode != null ? `Ep ${prog.episode}` : ""}
+                          </Badge>
+                        );
+                      }
+                      if (media.type === "game" && (prog.hoursPlayed != null || prog.completionPct != null)) {
+                        return (
+                          <Badge variant="subtle" size="md" className="font-mono text-xs">
+                            {prog.hoursPlayed != null ? `${prog.hoursPlayed} hrs` : ""}
+                            {prog.hoursPlayed != null && prog.completionPct != null ? " · " : ""}
+                            {prog.completionPct != null ? `${prog.completionPct}%` : ""}
+                          </Badge>
+                        );
+                      }
+                      if (media.type === "book" && prog.pagesRead != null) {
+                        return (
+                          <Badge variant="subtle" size="md" className="font-mono text-xs">
+                            p. {String(prog.pagesRead)}
+                          </Badge>
+                        );
+                      }
+                      return null;
+                    })()
                   )}
 
                   <Button
