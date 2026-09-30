@@ -49,7 +49,7 @@ const DEFAULT_SAMPLE_ENTRIES: DiaryEntry[] = [
     release_year: 1999,
     genres: ["Drama", "Thriller"],
     status: "completed",
-    rating: 95,
+    rating: 90,
     notes:
       "A masterpiece of nihilistic satire and psychological tension. Brad Pitt and Edward Norton have unmatched chemistry under Fincher's kinetic direction.",
     logged_at: "2026-09-24T18:30:00Z",
@@ -69,7 +69,7 @@ const DEFAULT_SAMPLE_ENTRIES: DiaryEntry[] = [
     release_year: 2014,
     genres: ["Adventure", "Drama", "Sci-Fi"],
     status: "completed",
-    rating: 98,
+    rating: 100,
     notes:
       "The docking scene remains one of the greatest moments in modern cinema. Zimmer's organ score reverberates long after the credits roll.",
     logged_at: "2026-09-22T21:00:00Z",
@@ -89,7 +89,7 @@ const DEFAULT_SAMPLE_ENTRIES: DiaryEntry[] = [
     release_year: 2022,
     genres: ["Drama", "Mystery", "Sci-Fi"],
     status: "in_progress",
-    rating: 94,
+    rating: 90,
     progress: { season: 1, episode: 9 },
     notes:
       "Finished season 1. The waffle party and finale cliffhanger left me breathless. Stellar, unnerving performance by Adam Scott.",
@@ -111,7 +111,7 @@ const DEFAULT_SAMPLE_ENTRIES: DiaryEntry[] = [
     release_year: 2009,
     genres: ["War", "Drama", "Thriller"],
     status: "completed",
-    rating: 92,
+    rating: 80,
     notes:
       "Brad Pitt's Lt. Aldo Raine is endlessly quotable. The opening farmhouse scene is a masterclass in suspense.",
     logged_at: "2026-09-18T19:40:00Z",
@@ -131,7 +131,7 @@ const DEFAULT_SAMPLE_ENTRIES: DiaryEntry[] = [
     release_year: 2001,
     genres: ["Animation", "Family", "Fantasy"],
     status: "completed",
-    rating: 97,
+    rating: 100,
     notes:
       "A quiet morning rewatch. Miyazaki's visual imagination and Joe Hisaishi's gentle piano motifs feel like a warm hug.",
     logged_at: "2026-09-15T09:10:00Z",
@@ -673,11 +673,16 @@ export function DiaryView() {
                             {entry.title}
                           </Link>
 
-                          {entry.rating && (
+                          {entry.rating !== null && entry.rating !== undefined && (
                             <div className="flex items-center gap-1 shrink-0 px-2 py-0.5 rounded bg-accent/15 text-accent font-bold text-xs">
-                              <Star className="w-3 h-3 fill-accent" />
-                              <span>{entry.rating <= 5 ? Math.round(entry.rating * 20) : entry.rating}</span>
-                              <span className="text-[10px] text-text-muted font-normal">/100</span>
+                              <Star className="w-3.5 h-3.5 fill-accent" />
+                              <span>
+                                {(entry.rating > 5
+                                  ? Math.round((entry.rating / 20) * 2) / 2
+                                  : entry.rating
+                                ).toFixed(1)}
+                              </span>
+                              <span className="text-[10px] text-text-muted font-normal">/ 5</span>
                             </div>
                           )}
                         </div>

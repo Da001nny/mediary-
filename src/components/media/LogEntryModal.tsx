@@ -593,7 +593,7 @@ function LogEntryModalContent({
                 <span>Star Rating</span>
                 {starRating !== null && (
                   <span className="text-[11px] font-mono text-accent">
-                    ({starRating.toFixed(1)} / 5 · {starsToStoredRating(starRating)}/100)
+                    ({starRating.toFixed(1)} / 5)
                   </span>
                 )}
               </label>
@@ -655,7 +655,7 @@ function LogEntryModalContent({
               <span className="text-xs font-medium text-text font-sans">
                 {(hoverRating ?? starRating) !== null && (hoverRating ?? starRating)! > 0
                   ? RATING_LABELS[hoverRating ?? starRating!] ||
-                    `${(hoverRating ?? starRating)!.toFixed(1)} / 5.0 (${starsToStoredRating(hoverRating ?? starRating)}/100)`
+                    `${(hoverRating ?? starRating)!.toFixed(1)} / 5.0 Stars`
                   : "No rating set"}
               </span>
             </div>

@@ -346,7 +346,7 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
                       <Star className="w-3.5 h-3.5 fill-accent" />
                       <span>
                         {(Number(userEntry.rating) > 5
-                          ? Number(userEntry.rating) / 20
+                          ? Math.round((Number(userEntry.rating) / 20) * 2) / 2
                           : Number(userEntry.rating)
                         ).toFixed(1)}{" "}
                         / 5
