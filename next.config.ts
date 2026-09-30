@@ -14,6 +14,16 @@ const nextConfig: NextConfig = {
         hostname: "picsum.photos",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "media.rawg.io",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "images.igdb.com",
+        pathname: "/**",
+      },
     ],
   },
 };

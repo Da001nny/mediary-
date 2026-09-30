@@ -8,6 +8,7 @@ import {
   X,
   Film,
   Tv,
+  Gamepad2,
   Star,
   Loader2,
   CheckCircle2,
@@ -19,7 +20,22 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import type { TMDBNormalizedSearchResult } from "@/lib/tmdb";
+import type { RAWGGameSearchResult } from "@/lib/rawg";
 import type { MediaItem, CastMember, CrewMember } from "@/types/database.types";
+
+interface UnifiedSearchResult {
+  id: number;
+  type: "movie" | "tv" | "game";
+  title: string;
+  overview?: string | null;
+  release_date?: string | null;
+  year?: number | null;
+  poster_url?: string | null;
+  vote_average?: number;
+  vote_count?: number;
+  platforms?: string[];
+  genres?: string[];
+}
 
 interface MediaSearchModalProps {
   isOpen: boolean;
@@ -33,12 +49,12 @@ export function MediaSearchModal({
   onMediaSynced,
 }: MediaSearchModalProps) {
   const [query, setQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"all" | "movie" | "tv">("all");
-  const [results, setResults] = useState<TMDBNormalizedSearchResult[]>([]);
+  const [typeFilter, setTypeFilter] = useState<"all" | "movie" | "tv" | "game">("all");
+  const [results, setResults] = useState<UnifiedSearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isMock, setIsMock] = useState(false);
-  const [syncingId, setSyncingId] = useState<number | null>(null);
-  const [syncedMap, setSyncedMap] = useState<Record<number, MediaItem>>({});
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [syncedMap, setSyncedMap] = useState<Record<string, MediaItem>>({});
   const [syncError, setSyncError] = useState<string | null>(null);
   const [selectedItemDetails, setSelectedItemDetails] = useState<MediaItem | null>(null);
 
@@ -90,16 +106,79 @@ export function MediaSearchModal({
     const timer = setTimeout(async () => {
       setIsLoading(true);
       try {
-        const res = await fetch(
-          `/api/tmdb/search?q=${encodeURIComponent(trimmed)}&type=${typeFilter}`
-        );
-        const data = await res.json();
-        if (!cancelled && data.results) {
-          setResults(data.results);
-          setIsMock(Boolean(data.isMock));
+        const promises: Promise<Response>[] = [];
+
+        // TMDB search (movies & tv)
+        if (typeFilter === "all" || typeFilter === "movie" || typeFilter === "tv") {
+          promises.push(
+            fetch(
+              `/api/tmdb/search?q=${encodeURIComponent(trimmed)}&type=${
+                typeFilter === "all" ? "all" : typeFilter
+              }`
+            ).catch(() => new Response(JSON.stringify({ results: [] })))
+          );
+        }
+
+        // RAWG search (games)
+        if (typeFilter === "all" || typeFilter === "game") {
+          promises.push(
+            fetch(`/api/games/search?q=${encodeURIComponent(trimmed)}`).catch(
+              () => new Response(JSON.stringify({ results: [] }))
+            )
+          );
+        }
+
+        const responses = await Promise.all(promises);
+        const combined: UnifiedSearchResult[] = [];
+        let anyMock = false;
+
+        for (const res of responses) {
+          if (res.ok) {
+            const data = await res.json();
+            if (data.isMock) anyMock = true;
+
+            if (Array.isArray(data.results)) {
+              for (const item of data.results) {
+                if (item.type === "game") {
+                  const g = item as RAWGGameSearchResult;
+                  combined.push({
+                    id: g.id,
+                    type: "game",
+                    title: g.title,
+                    overview: g.genres?.join(", ") || "Video Game",
+                    release_date: g.release_date,
+                    year: g.year,
+                    poster_url: g.cover_url,
+                    vote_average: g.rating,
+                    vote_count: g.ratings_count,
+                    platforms: g.platforms,
+                    genres: g.genres,
+                  });
+                } else {
+                  const m = item as TMDBNormalizedSearchResult;
+                  combined.push({
+                    id: m.id,
+                    type: m.type,
+                    title: m.title,
+                    overview: m.overview,
+                    release_date: m.release_date,
+                    year: m.year,
+                    poster_url: m.poster_url || m.poster_thumbnail,
+                    vote_average: m.vote_average,
+                    vote_count: m.vote_count,
+                  });
+                }
+              }
+            }
+          }
+        }
+
+        if (!cancelled) {
+          setResults(combined);
+          setIsMock(anyMock);
         }
       } catch (err) {
-        console.error("TMDB search failed:", err);
+        console.error("Search failed:", err);
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -113,16 +192,23 @@ export function MediaSearchModal({
     };
   }, [query, typeFilter]);
 
-  // Trigger TMDB Sync & Upsert
-  const handleSync = async (item: TMDBNormalizedSearchResult) => {
-    setSyncingId(item.id);
+  // Trigger Sync & Upsert
+  const handleSync = async (item: UnifiedSearchResult) => {
+    const itemKey = `${item.type}-${item.id}`;
+    setSyncingId(itemKey);
     setSyncError(null);
 
     try {
-      const res = await fetch("/api/tmdb/sync", {
+      const endpoint = item.type === "game" ? "/api/games/sync" : "/api/tmdb/sync";
+      const payload =
+        item.type === "game"
+          ? { id: item.id }
+          : { id: item.id, type: item.type };
+
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: item.id, type: item.type }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -132,7 +218,7 @@ export function MediaSearchModal({
       }
 
       if (data.media) {
-        setSyncedMap((prev) => ({ ...prev, [item.id]: data.media }));
+        setSyncedMap((prev) => ({ ...prev, [itemKey]: data.media }));
         setSelectedItemDetails(data.media);
         if (onMediaSynced) {
           onMediaSynced(data.media);
@@ -141,7 +227,7 @@ export function MediaSearchModal({
     } catch (err) {
       console.error("Sync error:", err);
       setSyncError(
-        err instanceof Error ? err.message : "Error connecting to TMDB/Supabase"
+        err instanceof Error ? err.message : "Error connecting to catalog/database"
       );
     } finally {
       setSyncingId(null);
@@ -166,7 +252,7 @@ export function MediaSearchModal({
                 <Search className="w-3.5 h-3.5" />
               </div>
               <h2 id="tmdb-search-title" className="font-serif text-lg font-bold text-text">
-                TMDB Media Search
+                Media Catalog Search
               </h2>
             </div>
             <button
@@ -186,7 +272,7 @@ export function MediaSearchModal({
               type="text"
               value={query}
               onChange={(e) => handleQueryChange(e.target.value)}
-              placeholder="Search movie or TV title (e.g., Fight Club, Severance, Arcane)..."
+              placeholder="Search movies, TV shows, or video games (e.g., Elden Ring, Severance)..."
               className="w-full h-11 pl-10 pr-20 bg-surface text-text text-sm rounded-lg border border-border focus:border-accent focus:ring-1 focus:ring-ring outline-none transition-all placeholder:text-text-muted/60"
             />
             {isLoading ? (
@@ -206,7 +292,7 @@ export function MediaSearchModal({
 
           {/* Filter Bar */}
           <div className="flex items-center justify-between gap-2 pt-1 text-xs">
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-text-muted text-[11px] uppercase tracking-wider font-mono mr-1">
                 Filter:
               </span>
@@ -243,11 +329,22 @@ export function MediaSearchModal({
               >
                 <Tv className="w-3 h-3" /> TV Shows
               </button>
+              <button
+                type="button"
+                onClick={() => setTypeFilter("game")}
+                className={`px-2.5 py-1 rounded-md font-sans text-xs transition-colors cursor-pointer flex items-center gap-1 ${
+                  typeFilter === "game"
+                    ? "bg-accent text-accent-contrast font-medium"
+                    : "bg-bg text-text-muted hover:text-text border border-border"
+                }`}
+              >
+                <Gamepad2 className="w-3 h-3" /> Games
+              </button>
             </div>
 
             {isMock && (
               <Badge variant="amber" size="sm" className="hidden sm:inline-flex text-[10px]">
-                Preview Data (TMDB_API_KEY pending)
+                Preview Data (API Key Pending)
               </Badge>
             )}
           </div>
@@ -274,17 +371,17 @@ export function MediaSearchModal({
                 <Search className="w-6 h-6" />
               </div>
               <p className="font-serif text-text font-medium text-base">
-                Discover titles from The Movie Database
+                Discover Movies, TV Shows & Games
               </p>
               <p className="text-xs text-text-muted max-w-sm mx-auto leading-relaxed">
-                Type any movie or TV show to search live TMDB metadata with poster thumbnails,
-                cast, crew, and streaming providers.
+                Search live TMDB and RAWG metadata with cover art, release details,
+                platforms, developers, and streaming providers.
               </p>
             </div>
           ) : isLoading && results.length === 0 ? (
             <div className="text-center py-12 space-y-2">
               <Loader2 className="w-6 h-6 animate-spin text-accent mx-auto" />
-              <p className="text-xs text-text-muted">Searching TMDB catalog...</p>
+              <p className="text-xs text-text-muted">Searching catalog...</p>
             </div>
           ) : results.length === 0 ? (
             <div className="text-center py-12 space-y-2">
@@ -295,19 +392,20 @@ export function MediaSearchModal({
             </div>
           ) : (
             results.map((item) => {
-              const isSyncing = syncingId === item.id;
-              const syncedItem = syncedMap[item.id];
+              const itemKey = `${item.type}-${item.id}`;
+              const isSyncing = syncingId === itemKey;
+              const syncedItem = syncedMap[itemKey];
 
               return (
                 <div
-                  key={`${item.type}-${item.id}`}
+                  key={itemKey}
                   className="flex gap-3 sm:gap-4 p-3 rounded-lg border border-border bg-bg/40 hover:bg-bg/80 transition-colors group"
                 >
                   {/* Poster Thumbnail */}
                   <div className="relative w-16 h-24 sm:w-20 sm:h-28 rounded-md overflow-hidden bg-surface shrink-0 border border-border shadow-2xs">
-                    {item.poster_url || item.poster_thumbnail ? (
+                    {item.poster_url ? (
                       <Image
-                        src={item.poster_url || item.poster_thumbnail || ""}
+                        src={item.poster_url}
                         alt={item.title}
                         fill
                         sizes="(max-width: 640px) 64px, 80px"
@@ -318,11 +416,13 @@ export function MediaSearchModal({
                       <div className="w-full h-full flex flex-col items-center justify-center p-1 text-center bg-surface text-text-muted">
                         {item.type === "movie" ? (
                           <Film className="w-5 h-5 mb-1 opacity-50" />
-                        ) : (
+                        ) : item.type === "tv" ? (
                           <Tv className="w-5 h-5 mb-1 opacity-50" />
+                        ) : (
+                          <Gamepad2 className="w-5 h-5 mb-1 opacity-50" />
                         )}
                         <span className="text-[9px] font-mono leading-tight line-clamp-2">
-                          No poster
+                          No cover
                         </span>
                       </div>
                     )}
@@ -337,7 +437,13 @@ export function MediaSearchModal({
                         </h3>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <Badge
-                            variant={item.type === "movie" ? "amber" : "forest"}
+                            variant={
+                              item.type === "movie"
+                                ? "amber"
+                                : item.type === "tv"
+                                ? "forest"
+                                : "subtle"
+                            }
                             size="sm"
                             className="capitalize text-[10px]"
                           >
@@ -351,13 +457,34 @@ export function MediaSearchModal({
                         </div>
                       </div>
 
-                      {item.vote_average > 0 && (
+                      {item.vote_average !== undefined && item.vote_average > 0 && (
                         <div className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
                           <Star className="w-3.5 h-3.5 fill-current" />
                           <span>{item.vote_average.toFixed(1)}</span>
-                          <span className="text-[10px] text-text-muted">
-                            ({item.vote_count.toLocaleString()} votes)
-                          </span>
+                          {item.vote_count ? (
+                            <span className="text-[10px] text-text-muted">
+                              ({item.vote_count.toLocaleString()} votes)
+                            </span>
+                          ) : null}
+                        </div>
+                      )}
+
+                      {/* Platforms Preview for Games */}
+                      {item.type === "game" && item.platforms && item.platforms.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-0.5">
+                          {item.platforms.slice(0, 3).map((plat) => (
+                            <span
+                              key={plat}
+                              className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface border border-border text-text-muted"
+                            >
+                              {plat}
+                            </span>
+                          ))}
+                          {item.platforms.length > 3 && (
+                            <span className="text-[10px] text-text-muted">
+                              +{item.platforms.length - 3}
+                            </span>
+                          )}
                         </div>
                       )}
 
@@ -371,7 +498,7 @@ export function MediaSearchModal({
                     {/* Action buttons */}
                     <div className="pt-2 flex items-center justify-between gap-2 border-t border-border/50 mt-2">
                       <span className="text-[10px] font-mono text-text-muted">
-                        TMDB ID: {item.id}
+                        {item.type === "game" ? "RAWG ID" : "TMDB ID"}: {item.id}
                       </span>
 
                       <div className="flex items-center gap-2">
@@ -462,6 +589,67 @@ export function MediaSearchModal({
                   (selectedItemDetails.type_specific as Record<string, unknown>) || {};
                 const externalIds =
                   (selectedItemDetails.external_ids as Record<string, unknown>) || {};
+
+                if (selectedItemDetails.type === "game") {
+                  const platforms = (Array.isArray(typeSpecific.platforms)
+                    ? typeSpecific.platforms
+                    : []) as string[];
+                  const dev =
+                    (Array.isArray(typeSpecific.developers) && typeSpecific.developers[0]) ||
+                    typeSpecific.developer ||
+                    "—";
+                  const pub =
+                    (Array.isArray(typeSpecific.publishers) && typeSpecific.publishers[0]) ||
+                    typeSpecific.publisher ||
+                    "—";
+                  const rawgId = externalIds.rawg_id ? String(externalIds.rawg_id) : "—";
+                  const metacritic = typeSpecific.metacritic;
+
+                  return (
+                    <>
+                      <div className="space-y-1.5 bg-surface p-2.5 rounded-md border border-border">
+                        <span className="font-medium text-text flex items-center gap-1">
+                          <Info className="w-3.5 h-3.5 text-accent" /> Game Specs
+                        </span>
+                        <p className="text-[11px] text-text-muted">
+                          <strong>Type:</strong> Video Game | <strong>RAWG ID:</strong> {rawgId}
+                        </p>
+                        <p className="text-[11px] text-text-muted">
+                          <strong>Developer:</strong> {String(dev)}
+                        </p>
+                        <p className="text-[11px] text-text-muted">
+                          <strong>Publisher:</strong> {String(pub)}
+                        </p>
+                        {typeof metacritic === "number" && (
+                          <p className="text-[11px] text-text-muted">
+                            <strong>Metacritic:</strong> {String(metacritic)}/100
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-1.5 bg-surface p-2.5 rounded-md border border-border">
+                        <span className="font-medium text-text">Platforms ({platforms.length})</span>
+                        <div className="flex flex-wrap gap-1 pt-0.5">
+                          {platforms.slice(0, 6).map((p) => (
+                            <span
+                              key={p}
+                              className="text-[10px] px-1.5 py-0.5 rounded bg-bg border border-border text-text-muted"
+                            >
+                              {p}
+                            </span>
+                          ))}
+                        </div>
+                        {selectedItemDetails.last_synced_at && (
+                          <p className="text-[10px] font-mono text-text-muted pt-1">
+                            <strong>last_synced_at:</strong>{" "}
+                            {new Date(selectedItemDetails.last_synced_at).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  );
+                }
+
                 const castList = (Array.isArray(typeSpecific.cast)
                   ? typeSpecific.cast
                   : []) as CastMember[];

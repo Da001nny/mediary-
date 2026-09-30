@@ -5,9 +5,11 @@ import { TopNav } from "@/components/navigation/TopNav";
 import { MediaDetailHeader } from "@/components/media/MediaDetailHeader";
 import { WatchProvidersSection } from "@/components/media/WatchProvidersSection";
 import { CastCrewSection } from "@/components/media/CastCrewSection";
+import { GameDetailsSection } from "@/components/media/GameDetailsSection";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { fetchTMDBDetails } from "@/lib/tmdb";
+import { fetchRAWGGameDetails, rawgGameToMediaPayload } from "@/lib/rawg";
 import type {
   MediaItem,
   CastMember,
@@ -24,16 +26,15 @@ interface PageProps {
 }
 
 /**
- * Loads a media record by UUID, TMDB ID, or auto-syncs from TMDB on-demand.
+ * Loads a media record by UUID, TMDB ID, RAWG ID, or auto-syncs on-demand.
  */
 async function getMedia(id: string): Promise<MediaItem | null> {
   const supabase = createAdminClient();
-  if (!supabase) return null;
 
   const isUuid =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
-  if (isUuid) {
+  if (isUuid && supabase) {
     const { data } = await supabase
       .from("media")
       .select("*")
@@ -43,9 +44,64 @@ async function getMedia(id: string): Promise<MediaItem | null> {
     if (data) return data as MediaItem;
   }
 
-  // Parse if it's numeric or prefixed like "movie-550" or "tv-95557"
+  // 1. Check for Game prefixes: "game-3498" or "rawg-3498"
+  if (id.startsWith("game-") || id.startsWith("rawg-")) {
+    const rawgId = id.replace(/^(game-|rawg-)/, "");
+    if (supabase) {
+      const { data: byRawg } = await supabase
+        .from("media")
+        .select("*")
+        .filter("external_ids->>rawg_id", "eq", String(rawgId))
+        .maybeSingle();
+
+      if (byRawg) return byRawg as MediaItem;
+    }
+
+    // Not in database: Fetch from RAWG and upsert
+    const { data: gameDetails } = await fetchRAWGGameDetails(rawgId);
+    if (gameDetails) {
+      const payload = rawgGameToMediaPayload(gameDetails);
+
+      if (supabase) {
+        const { data: existingRows } = await supabase
+          .from("media")
+          .select("id")
+          .filter("external_ids->>rawg_id", "eq", String(gameDetails.rawg_id))
+          .limit(1);
+
+        const existingId = existingRows?.[0]?.id;
+        let upsertResult;
+        if (existingId) {
+          upsertResult = await supabase
+            .from("media")
+            .update(payload)
+            .eq("id", existingId)
+            .select()
+            .single();
+        } else {
+          upsertResult = await supabase
+            .from("media")
+            .insert(payload)
+            .select()
+            .single();
+        }
+
+        if (upsertResult?.data) {
+          return upsertResult.data as MediaItem;
+        }
+      }
+
+      // Memory fallback for game
+      return {
+        id: `rawg-game-${gameDetails.rawg_id}`,
+        ...payload,
+      } as MediaItem;
+    }
+  }
+
+  // 2. Parse if it's numeric or prefixed like "movie-550" or "tv-95557"
   let numericId: number | null = null;
-  let type: "movie" | "tv" = "movie";
+  let type: "movie" | "tv" | "game" = "movie";
 
   if (id.startsWith("movie-")) {
     numericId = parseInt(id.replace("movie-", ""), 10);
@@ -58,16 +114,27 @@ async function getMedia(id: string): Promise<MediaItem | null> {
   }
 
   if (numericId && !isNaN(numericId)) {
-    // 1. Try to find in database by external_ids->>tmdb_id
-    const { data: byTmdb } = await supabase
-      .from("media")
-      .select("*")
-      .filter("external_ids->>tmdb_id", "eq", String(numericId))
-      .maybeSingle();
+    if (supabase) {
+      // 1. Try to find in database by external_ids->>tmdb_id
+      const { data: byTmdb } = await supabase
+        .from("media")
+        .select("*")
+        .filter("external_ids->>tmdb_id", "eq", String(numericId))
+        .maybeSingle();
 
-    if (byTmdb) return byTmdb as MediaItem;
+      if (byTmdb) return byTmdb as MediaItem;
 
-    // 2. Not in database yet: Fetch from TMDB and upsert directly into catalog
+      // 2. Try to find by RAWG ID
+      const { data: byRawg } = await supabase
+        .from("media")
+        .select("*")
+        .filter("external_ids->>rawg_id", "eq", String(numericId))
+        .maybeSingle();
+
+      if (byRawg) return byRawg as MediaItem;
+    }
+
+    // 3. Not in database yet: Fetch from TMDB
     const { data: details } = await fetchTMDBDetails(numericId, type);
     if (details) {
       const genreNames = Array.isArray(details.genres)
@@ -110,38 +177,78 @@ async function getMedia(id: string): Promise<MediaItem | null> {
         last_synced_at: new Date().toISOString(),
       };
 
-      // Check if row already exists with this TMDB ID in external_ids
-      const { data: existingRows } = await supabase
-        .from("media")
-        .select("id")
-        .filter("external_ids->>tmdb_id", "eq", String(details.tmdb_id))
-        .limit(1);
-
-      const existingId = existingRows?.[0]?.id;
-
-      let upsertResult;
-      if (existingId) {
-        upsertResult = await supabase
+      if (supabase) {
+        const { data: existingRows } = await supabase
           .from("media")
-          .update(payload)
-          .eq("id", existingId)
-          .select()
-          .single();
-      } else {
-        upsertResult = await supabase
-          .from("media")
-          .insert(payload)
-          .select()
-          .single();
-      }
+          .select("id")
+          .filter("external_ids->>tmdb_id", "eq", String(details.tmdb_id))
+          .limit(1);
 
-      if (upsertResult?.data) {
-        return upsertResult.data as MediaItem;
+        const existingId = existingRows?.[0]?.id;
+
+        let upsertResult;
+        if (existingId) {
+          upsertResult = await supabase
+            .from("media")
+            .update(payload)
+            .eq("id", existingId)
+            .select()
+            .single();
+        } else {
+          upsertResult = await supabase
+            .from("media")
+            .insert(payload)
+            .select()
+            .single();
+        }
+
+        if (upsertResult?.data) {
+          return upsertResult.data as MediaItem;
+        }
       }
 
       // Memory fallback: ensures page renders with complete metadata
       return {
         id: `tmdb-${details.type}-${details.tmdb_id}`,
+        ...payload,
+      } as MediaItem;
+    }
+
+    // 4. Try RAWG for numeric ID
+    const { data: gameDetails } = await fetchRAWGGameDetails(numericId);
+    if (gameDetails) {
+      const payload = rawgGameToMediaPayload(gameDetails);
+      if (supabase) {
+        const { data: existingRows } = await supabase
+          .from("media")
+          .select("id")
+          .filter("external_ids->>rawg_id", "eq", String(gameDetails.rawg_id))
+          .limit(1);
+
+        const existingId = existingRows?.[0]?.id;
+        let upsertResult;
+        if (existingId) {
+          upsertResult = await supabase
+            .from("media")
+            .update(payload)
+            .eq("id", existingId)
+            .select()
+            .single();
+        } else {
+          upsertResult = await supabase
+            .from("media")
+            .insert(payload)
+            .select()
+            .single();
+        }
+
+        if (upsertResult?.data) {
+          return upsertResult.data as MediaItem;
+        }
+      }
+
+      return {
+        id: `rawg-game-${gameDetails.rawg_id}`,
         ...payload,
       } as MediaItem;
     }
@@ -260,14 +367,19 @@ export default async function MediaDetailPage({ params }: PageProps) {
 
         {/* Detail Sections Container */}
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-10">
-          {/* Where to Watch (Watch Providers with Country Selector) */}
-          <WatchProvidersSection
-            watchProviders={watchProviders}
-            defaultRegion={userRegion}
-          />
-
-          {/* Full Cast & Crew Section */}
-          <CastCrewSection cast={cast} crew={crew} />
+          {media.type === "game" ? (
+            /* Game Title Page Sections: Specs, Platforms, Studios, Screenshots */
+            <GameDetailsSection media={media} />
+          ) : (
+            /* Movie/TV Sections: Where to Watch & Full Cast and Crew */
+            <>
+              <WatchProvidersSection
+                watchProviders={watchProviders}
+                defaultRegion={userRegion}
+              />
+              <CastCrewSection cast={cast} crew={crew} />
+            </>
+          )}
 
           {/* Catalog Sync Metadata Footer */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 bg-surface/50 rounded-lg border border-border/70 text-xs text-text-muted">

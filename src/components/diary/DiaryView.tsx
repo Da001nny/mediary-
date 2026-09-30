@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { MediaSearchModal } from "@/components/media/MediaSearchModal";
+import { storedRatingToStars } from "@/lib/rating";
 import type { CastMember, CrewMember } from "@/types/database.types";
 
 export interface DiaryEntry {
@@ -677,10 +678,7 @@ export function DiaryView() {
                             <div className="flex items-center gap-1 shrink-0 px-2 py-0.5 rounded bg-accent/15 text-accent font-bold text-xs">
                               <Star className="w-3.5 h-3.5 fill-accent" />
                               <span>
-                                {(entry.rating > 5
-                                  ? Math.round((entry.rating / 20) * 2) / 2
-                                  : entry.rating
-                                ).toFixed(1)}
+                                {(storedRatingToStars(entry.rating) ?? 0).toFixed(1)}
                               </span>
                               <span className="text-[10px] text-text-muted font-normal">/ 5</span>
                             </div>
@@ -715,12 +713,13 @@ export function DiaryView() {
                                   </Badge>
                                 );
                               }
-                              if (entry.type === "game" && (p.hoursPlayed != null || p.completionPct != null)) {
+                              if (entry.type === "game" && (p.hoursPlayed != null || p.completionPct != null || p.platform != null)) {
                                 return (
                                   <Badge variant="subtle" size="sm" className="font-mono text-[10px]">
                                     {p.hoursPlayed != null ? `${p.hoursPlayed}h` : ""}
                                     {p.hoursPlayed != null && p.completionPct != null ? " · " : ""}
                                     {p.completionPct != null ? `${p.completionPct}%` : ""}
+                                    {p.platform ? ` · ${String(p.platform)}` : ""}
                                   </Badge>
                                 );
                               }

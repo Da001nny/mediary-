@@ -50,9 +50,9 @@ export default function DesignFoundationPage() {
   const [authModalMode, setAuthModalMode] = useState<"login" | "signup">("login");
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
-  // TMDB sync testing state
+  // Media sync testing state
   const [syncTestId, setSyncTestId] = useState("550");
-  const [syncTestType, setSyncTestType] = useState<"movie" | "tv">("movie");
+  const [syncTestType, setSyncTestType] = useState<"movie" | "tv" | "game">("movie");
   const [isSyncTesting, setIsSyncTesting] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [syncTestResult, setSyncTestResult] = useState<any>(null);
@@ -113,7 +113,7 @@ CREATE POLICY "Users can delete their own profile"
     setTimeout(() => setCopiedSql(false), 2000);
   };
 
-  const handleTestSync = async (idToSync?: string, typeToSync?: "movie" | "tv") => {
+  const handleTestSync = async (idToSync?: string, typeToSync?: "movie" | "tv" | "game") => {
     const targetId = idToSync || syncTestId;
     const targetType = typeToSync || syncTestType;
 
@@ -122,10 +122,16 @@ CREATE POLICY "Users can delete their own profile"
     setSyncTestResult(null);
 
     try {
-      const res = await fetch("/api/tmdb/sync", {
+      const endpoint = targetType === "game" ? "/api/games/sync" : "/api/tmdb/sync";
+      const payload =
+        targetType === "game"
+          ? { id: targetId }
+          : { id: Number(targetId), type: targetType };
+
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: Number(targetId), type: targetType }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok || data.error) {
@@ -302,6 +308,28 @@ CREATE POLICY "Users can delete their own profile"
                       >
                         Arcane (94605)
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSyncTestId("3498");
+                          setSyncTestType("game");
+                          handleTestSync("3498", "game");
+                        }}
+                        className="px-2 py-1 text-xs rounded bg-accent/15 border border-accent/40 text-accent font-semibold transition-colors cursor-pointer flex items-center gap-1"
+                      >
+                        <Gamepad2 className="w-3 h-3" /> Elden Ring (3498)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSyncTestId("452634");
+                          setSyncTestType("game");
+                          handleTestSync("452634", "game");
+                        }}
+                        className="px-2 py-1 text-xs rounded bg-surface border border-border hover:border-accent text-text transition-colors cursor-pointer"
+                      >
+                        Baldur&apos;s Gate 3 (452634)
+                      </button>
                     </div>
                   </div>
 
@@ -310,26 +338,27 @@ CREATE POLICY "Users can delete their own profile"
                     <div className="flex gap-2">
                       <div className="flex-1">
                         <label className="text-[11px] font-mono text-text-muted mb-1 block">
-                          TMDB ID
+                          {syncTestType === "game" ? "RAWG ID" : "TMDB ID"}
                         </label>
                         <Input
                           type="number"
                           value={syncTestId}
                           onChange={(e) => setSyncTestId(e.target.value)}
-                          placeholder="e.g. 550"
+                          placeholder={syncTestType === "game" ? "e.g. 3498" : "e.g. 550"}
                         />
                       </div>
-                      <div className="w-28">
+                      <div className="w-32">
                         <label className="text-[11px] font-mono text-text-muted mb-1 block">
                           Type
                         </label>
                         <select
                           value={syncTestType}
-                          onChange={(e) => setSyncTestType(e.target.value as "movie" | "tv")}
-                          className="w-full h-10 px-2.5 rounded-md bg-surface text-text border border-border text-xs focus:ring-1 focus:ring-ring outline-none"
+                          onChange={(e) => setSyncTestType(e.target.value as "movie" | "tv" | "game")}
+                          className="w-full h-10 px-2 rounded-md bg-surface text-text border border-border text-xs focus:ring-1 focus:ring-ring outline-none"
                         >
                           <option value="movie">Movie</option>
                           <option value="tv">TV Show</option>
+                          <option value="game">Video Game</option>
                         </select>
                       </div>
                     </div>
@@ -393,14 +422,115 @@ CREATE POLICY "Users can delete their own profile"
                   </pre>
                 ) : (
                   <div className="p-8 text-center text-text-muted space-y-2">
-                    <p>Select a quick sample above or enter any TMDB ID to test the sync endpoint.</p>
+                    <p>Select a quick sample above or enter any TMDB or RAWG ID to test the sync endpoint.</p>
                     <p className="text-[10px]">
-                      Endpoint: <code className="text-text">POST /api/tmdb/sync</code>
+                      Endpoints: <code className="text-text">POST /api/tmdb/sync</code> and <code className="text-text">POST /api/games/sync</code>
                     </p>
                   </div>
                 )}
               </CardContent>
             </Card>
+          </div>
+
+          {/* Quick Title Jump: Featured Media Titles (Movies, TV & Video Games) */}
+          <div className="pt-2 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-serif text-lg font-semibold text-text flex items-center gap-2">
+                <Gamepad2 className="w-4 h-4 text-accent" />
+                <span>Featured Catalog Titles & Game Pages</span>
+              </h3>
+              <Link
+                href="/diary"
+                className="text-xs text-accent hover:text-accent-hover font-medium flex items-center gap-1"
+              >
+                <span>View My Diary</span>
+                <ExternalLink className="w-3 h-3" />
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              {[
+                {
+                  id: "game-3498",
+                  title: "Elden Ring",
+                  year: "2022",
+                  type: "game",
+                  subtitle: "FromSoftware · RPG",
+                  badge: "Game",
+                },
+                {
+                  id: "game-452634",
+                  title: "Baldur's Gate 3",
+                  year: "2023",
+                  type: "game",
+                  subtitle: "Larian · CRPG",
+                  badge: "Game",
+                },
+                {
+                  id: "game-326243",
+                  title: "Zelda: Tears of Kingdom",
+                  year: "2023",
+                  type: "game",
+                  subtitle: "Nintendo · Adventure",
+                  badge: "Game",
+                },
+                {
+                  id: "game-654",
+                  title: "Stardew Valley",
+                  year: "2016",
+                  type: "game",
+                  subtitle: "ConcernedApe · Sim",
+                  badge: "Game",
+                },
+                {
+                  id: "movie-550",
+                  title: "Fight Club",
+                  year: "1999",
+                  type: "movie",
+                  subtitle: "David Fincher",
+                  badge: "Movie",
+                },
+                {
+                  id: "tv-95557",
+                  title: "Severance",
+                  year: "2022",
+                  type: "tv",
+                  subtitle: "Apple TV+ · S1 & S2",
+                  badge: "TV Series",
+                },
+              ].map((item) => (
+                <Link
+                  key={item.id}
+                  href={`/media/${item.id}`}
+                  className="group p-3 rounded-lg bg-surface border border-border hover:border-accent/60 transition-all flex flex-col justify-between space-y-2 hover:shadow-xs cursor-pointer"
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <Badge
+                      variant={item.type === "game" ? "subtle" : item.type === "movie" ? "amber" : "forest"}
+                      size="sm"
+                      className="text-[9px] uppercase tracking-wider"
+                    >
+                      {item.badge}
+                    </Badge>
+                    <span className="text-[10px] font-mono text-text-muted">{item.year}</span>
+                  </div>
+
+                  <div>
+                    <h4 className="font-serif text-sm font-bold text-text group-hover:text-accent transition-colors line-clamp-1">
+                      {item.title}
+                    </h4>
+                    <p className="text-[11px] text-text-muted line-clamp-1 mt-0.5">
+                      {item.subtitle}
+                    </p>
+                  </div>
+
+                  <span className="text-[10px] font-medium text-accent inline-flex items-center gap-1 pt-1">
+                    <span>Open Title Page</span>
+                    <ExternalLink className="w-2.5 h-2.5" />
+                  </span>
+                </Link>
+              ))}
+            </div>
           </div>
         </section>
 

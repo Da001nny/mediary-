@@ -167,7 +167,12 @@ function LogEntryModalContent({
       : ""
   );
 
-  // Game Progress: { hoursPlayed, completionPct }
+  // Game Progress: { hoursPlayed, completionPct, platform }
+  const typeSpecific = (media.type_specific as Record<string, unknown>) || {};
+  const gamePlatforms = (Array.isArray(typeSpecific.platforms)
+    ? typeSpecific.platforms
+    : []) as string[];
+
   const [gameHours, setGameHours] = useState<string>(() =>
     existingProgress?.hoursPlayed !== undefined && existingProgress.hoursPlayed !== null
       ? String(existingProgress.hoursPlayed)
@@ -176,6 +181,13 @@ function LogEntryModalContent({
   const [gameCompletion, setGameCompletion] = useState<string>(() =>
     existingProgress?.completionPct !== undefined && existingProgress.completionPct !== null
       ? String(existingProgress.completionPct)
+      : ""
+  );
+  const [gamePlatform, setGamePlatform] = useState<string>(() =>
+    typeof existingProgress?.platform === "string"
+      ? existingProgress.platform
+      : typeof typeSpecific?.platform_played_on === "string"
+      ? typeSpecific.platform_played_on
       : ""
   );
 
@@ -236,6 +248,7 @@ function LogEntryModalContent({
         if (h !== null && !isNaN(h)) progressPayload.hoursPlayed = h;
         if (pct !== null && !isNaN(pct))
           progressPayload.completionPct = Math.min(100, Math.max(0, pct));
+        if (gamePlatform.trim()) progressPayload.platform = gamePlatform.trim();
       } else if (media.type === "book") {
         const p = bookPages.trim() ? parseInt(bookPages, 10) : null;
         progressPayload = {};
@@ -557,6 +570,37 @@ function LogEntryModalContent({
                     className="w-full bg-surface border border-border rounded-md px-3 py-1.5 text-xs text-text placeholder:text-text-muted/50 focus:outline-none focus:border-accent"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-medium text-text-muted mb-1">
+                  Platform Played On
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. PC, PlayStation 5, Switch"
+                  value={gamePlatform}
+                  onChange={(e) => setGamePlatform(e.target.value)}
+                  className="w-full bg-surface border border-border rounded-md px-3 py-1.5 text-xs text-text placeholder:text-text-muted/50 focus:outline-none focus:border-accent mb-1.5"
+                />
+                {gamePlatforms.length > 0 && (
+                  <div className="flex flex-wrap gap-1 pt-1">
+                    {gamePlatforms.map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setGamePlatform(p)}
+                        className={`text-[10px] px-2 py-0.5 rounded border transition-colors cursor-pointer ${
+                          gamePlatform === p
+                            ? "bg-accent/20 border-accent text-accent font-semibold"
+                            : "bg-surface border-border text-text-muted hover:text-text"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}

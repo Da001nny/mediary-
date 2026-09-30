@@ -10,6 +10,8 @@ import {
   Star,
   Film,
   Tv,
+  Gamepad2,
+  BookOpen,
   BookmarkPlus,
   Edit3,
   Share2,
@@ -21,6 +23,7 @@ import { Badge } from "@/components/ui/Badge";
 import { useAuth } from "@/context/AuthContext";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { LogEntryModal } from "@/components/media/LogEntryModal";
+import { storedRatingToStars } from "@/lib/rating";
 import type { MediaItem, MediaEntry } from "@/types/database.types";
 
 interface MediaDetailHeaderProps {
@@ -221,11 +224,26 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
             <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-accent">
               <span className="flex items-center gap-1 capitalize font-semibold tracking-wide">
                 {media.type === "movie" ? (
-                  <Film className="w-3.5 h-3.5" />
+                  <>
+                    <Film className="w-3.5 h-3.5" />
+                    <span>Feature Film</span>
+                  </>
+                ) : media.type === "tv" ? (
+                  <>
+                    <Tv className="w-3.5 h-3.5" />
+                    <span>Television Series</span>
+                  </>
+                ) : media.type === "game" ? (
+                  <>
+                    <Gamepad2 className="w-3.5 h-3.5" />
+                    <span>Video Game</span>
+                  </>
                 ) : (
-                  <Tv className="w-3.5 h-3.5" />
+                  <>
+                    <BookOpen className="w-3.5 h-3.5" />
+                    <span>Book</span>
+                  </>
                 )}
-                {media.type === "movie" ? "Feature Film" : "Television Series"}
               </span>
 
               {releaseYear && (
@@ -277,7 +295,9 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
                   <span className="font-bold text-text text-sm">
                     {Number(media.community_rating_avg).toFixed(1)}
                   </span>
-                  <span className="text-text-muted">/ 10</span>
+                  <span className="text-text-muted">
+                    / {media.type === "game" && Number(media.community_rating_avg) <= 5 ? "5" : "10"}
+                  </span>
                   {media.community_rating_count ? (
                     <span className="text-text-muted text-[11px]">
                       ({media.community_rating_count.toLocaleString()} votes)
@@ -345,11 +365,7 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
                     <div className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-accent/15 border border-accent/30 text-accent font-bold text-xs shadow-2xs">
                       <Star className="w-3.5 h-3.5 fill-accent" />
                       <span>
-                        {(Number(userEntry.rating) > 5
-                          ? Math.round((Number(userEntry.rating) / 20) * 2) / 2
-                          : Number(userEntry.rating)
-                        ).toFixed(1)}{" "}
-                        / 5
+                        {(storedRatingToStars(userEntry.rating) ?? 0).toFixed(1)} / 5
                       </span>
                     </div>
                   )}
@@ -366,12 +382,13 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
                           </Badge>
                         );
                       }
-                      if (media.type === "game" && (prog.hoursPlayed != null || prog.completionPct != null)) {
+                      if (media.type === "game" && (prog.hoursPlayed != null || prog.completionPct != null || prog.platform != null)) {
                         return (
                           <Badge variant="subtle" size="md" className="font-mono text-xs">
                             {prog.hoursPlayed != null ? `${prog.hoursPlayed} hrs` : ""}
                             {prog.hoursPlayed != null && prog.completionPct != null ? " · " : ""}
                             {prog.completionPct != null ? `${prog.completionPct}%` : ""}
+                            {prog.platform ? ` · ${String(prog.platform)}` : ""}
                           </Badge>
                         );
                       }
