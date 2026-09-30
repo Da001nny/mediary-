@@ -24,6 +24,16 @@ const nextConfig: NextConfig = {
         hostname: "images.igdb.com",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "books.google.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "http",
+        hostname: "books.google.com",
+        pathname: "/**",
+      },
     ],
   },
 };

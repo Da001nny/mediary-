@@ -6,10 +6,12 @@ import { MediaDetailHeader } from "@/components/media/MediaDetailHeader";
 import { WatchProvidersSection } from "@/components/media/WatchProvidersSection";
 import { CastCrewSection } from "@/components/media/CastCrewSection";
 import { GameDetailsSection } from "@/components/media/GameDetailsSection";
+import { BookDetailsSection } from "@/components/media/BookDetailsSection";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { fetchTMDBDetails } from "@/lib/tmdb";
 import { fetchRAWGGameDetails, rawgGameToMediaPayload } from "@/lib/rawg";
+import { fetchGoogleBookDetails, bookToMediaPayload } from "@/lib/google-books";
 import type {
   MediaItem,
   CastMember,
@@ -44,7 +46,60 @@ async function getMedia(id: string): Promise<MediaItem | null> {
     if (data) return data as MediaItem;
   }
 
-  // 1. Check for Game prefixes: "game-3498" or "rawg-3498"
+  // 1. Check for Book prefixes: "book-" or "gb-"
+  if (id.startsWith("book-") || id.startsWith("gb-")) {
+    const bookId = id.replace(/^(book-|gb-)/i, "");
+    if (supabase) {
+      const { data: byBook } = await supabase
+        .from("media")
+        .select("*")
+        .filter("external_ids->>google_books_id", "eq", bookId)
+        .maybeSingle();
+
+      if (byBook) return byBook as MediaItem;
+    }
+
+    // Not in database: Fetch from Google Books and upsert
+    const { data: bookDetails } = await fetchGoogleBookDetails(bookId);
+    if (bookDetails) {
+      const payload = bookToMediaPayload(bookDetails);
+      if (supabase) {
+        const { data: existingRows } = await supabase
+          .from("media")
+          .select("id")
+          .filter("external_ids->>google_books_id", "eq", bookDetails.google_books_id)
+          .limit(1);
+
+        const existingId = existingRows?.[0]?.id;
+        let upsertResult;
+        if (existingId) {
+          upsertResult = await supabase
+            .from("media")
+            .update(payload)
+            .eq("id", existingId)
+            .select()
+            .single();
+        } else {
+          upsertResult = await supabase
+            .from("media")
+            .insert(payload)
+            .select()
+            .single();
+        }
+
+        if (upsertResult?.data) {
+          return upsertResult.data as MediaItem;
+        }
+      }
+
+      return {
+        id: `book-${bookDetails.google_books_id}`,
+        ...payload,
+      } as MediaItem;
+    }
+  }
+
+  // 2. Check for Game prefixes: "game-3498" or "rawg-3498"
   if (id.startsWith("game-") || id.startsWith("rawg-")) {
     const rawgId = id.replace(/^(game-|rawg-)/, "");
     if (supabase) {
@@ -367,7 +422,10 @@ export default async function MediaDetailPage({ params }: PageProps) {
 
         {/* Detail Sections Container */}
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-10">
-          {media.type === "game" ? (
+          {media.type === "book" ? (
+            /* Book Title Page Sections: Edition, Author, Pages, ISBN */
+            <BookDetailsSection media={media} />
+          ) : media.type === "game" ? (
             /* Game Title Page Sections: Specs, Platforms, Studios, Screenshots */
             <GameDetailsSection media={media} />
           ) : (

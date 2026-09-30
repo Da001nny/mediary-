@@ -9,6 +9,7 @@ import {
   Film,
   Tv,
   Gamepad2,
+  BookOpen,
   Star,
   Loader2,
   CheckCircle2,
@@ -21,11 +22,12 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import type { TMDBNormalizedSearchResult } from "@/lib/tmdb";
 import type { RAWGGameSearchResult } from "@/lib/rawg";
+import type { BookSearchResult } from "@/lib/google-books";
 import type { MediaItem, CastMember, CrewMember } from "@/types/database.types";
 
 interface UnifiedSearchResult {
-  id: number;
-  type: "movie" | "tv" | "game";
+  id: number | string;
+  type: "movie" | "tv" | "game" | "book";
   title: string;
   overview?: string | null;
   release_date?: string | null;
@@ -35,6 +37,9 @@ interface UnifiedSearchResult {
   vote_count?: number;
   platforms?: string[];
   genres?: string[];
+  author?: string | null;
+  page_count?: number | null;
+  isbn?: string | null;
 }
 
 interface MediaSearchModalProps {
@@ -49,7 +54,7 @@ export function MediaSearchModal({
   onMediaSynced,
 }: MediaSearchModalProps) {
   const [query, setQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"all" | "movie" | "tv" | "game">("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "movie" | "tv" | "game" | "book">("all");
   const [results, setResults] = useState<UnifiedSearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isMock, setIsMock] = useState(false);
@@ -128,6 +133,15 @@ export function MediaSearchModal({
           );
         }
 
+        // Google Books search (books)
+        if (typeFilter === "all" || typeFilter === "book") {
+          promises.push(
+            fetch(`/api/books/search?q=${encodeURIComponent(trimmed)}`).catch(
+              () => new Response(JSON.stringify({ results: [] }))
+            )
+          );
+        }
+
         const responses = await Promise.all(promises);
         const combined: UnifiedSearchResult[] = [];
         let anyMock = false;
@@ -153,6 +167,23 @@ export function MediaSearchModal({
                     vote_count: g.ratings_count,
                     platforms: g.platforms,
                     genres: g.genres,
+                  });
+                } else if (item.type === "book") {
+                  const b = item as BookSearchResult;
+                  combined.push({
+                    id: b.id || b.google_books_id,
+                    type: "book",
+                    title: b.title,
+                    overview: b.subtitle || (b.author ? `By ${b.author}` : "Book"),
+                    release_date: b.release_date,
+                    year: b.year,
+                    poster_url: b.cover_url,
+                    vote_average: b.rating ?? undefined,
+                    vote_count: b.ratings_count,
+                    genres: b.genres,
+                    author: b.author,
+                    page_count: b.page_count,
+                    isbn: b.isbn,
                   });
                 } else {
                   const m = item as TMDBNormalizedSearchResult;
@@ -199,11 +230,19 @@ export function MediaSearchModal({
     setSyncError(null);
 
     try {
-      const endpoint = item.type === "game" ? "/api/games/sync" : "/api/tmdb/sync";
-      const payload =
-        item.type === "game"
-          ? { id: item.id }
-          : { id: item.id, type: item.type };
+      let endpoint = "/api/tmdb/sync";
+      let payload: Record<string, unknown> = {
+        id: item.id,
+        type: item.type,
+      };
+
+      if (item.type === "game") {
+        endpoint = "/api/games/sync";
+        payload = { id: item.id };
+      } else if (item.type === "book") {
+        endpoint = "/api/books/sync";
+        payload = { id: String(item.id), google_books_id: String(item.id) };
+      }
 
       const res = await fetch(endpoint, {
         method: "POST",
@@ -272,7 +311,7 @@ export function MediaSearchModal({
               type="text"
               value={query}
               onChange={(e) => handleQueryChange(e.target.value)}
-              placeholder="Search movies, TV shows, or video games (e.g., Elden Ring, Severance)..."
+              placeholder="Search movies, TV shows, games, or books (e.g. Dune, Elden Ring)..."
               className="w-full h-11 pl-10 pr-20 bg-surface text-text text-sm rounded-lg border border-border focus:border-accent focus:ring-1 focus:ring-ring outline-none transition-all placeholder:text-text-muted/60"
             />
             {isLoading ? (
@@ -340,6 +379,17 @@ export function MediaSearchModal({
               >
                 <Gamepad2 className="w-3 h-3" /> Games
               </button>
+              <button
+                type="button"
+                onClick={() => setTypeFilter("book")}
+                className={`px-2.5 py-1 rounded-md font-sans text-xs transition-colors cursor-pointer flex items-center gap-1 ${
+                  typeFilter === "book"
+                    ? "bg-accent text-accent-contrast font-medium"
+                    : "bg-bg text-text-muted hover:text-text border border-border"
+                }`}
+              >
+                <BookOpen className="w-3 h-3" /> Books
+              </button>
             </div>
 
             {isMock && (
@@ -371,11 +421,11 @@ export function MediaSearchModal({
                 <Search className="w-6 h-6" />
               </div>
               <p className="font-serif text-text font-medium text-base">
-                Discover Movies, TV Shows & Games
+                Discover Movies, TV Shows, Games & Books
               </p>
               <p className="text-xs text-text-muted max-w-sm mx-auto leading-relaxed">
-                Search live TMDB and RAWG metadata with cover art, release details,
-                platforms, developers, and streaming providers.
+                Search live TMDB, RAWG, and Google Books metadata with cover art, release details,
+                platforms, developers, and authors.
               </p>
             </div>
           ) : isLoading && results.length === 0 ? (
@@ -418,6 +468,8 @@ export function MediaSearchModal({
                           <Film className="w-5 h-5 mb-1 opacity-50" />
                         ) : item.type === "tv" ? (
                           <Tv className="w-5 h-5 mb-1 opacity-50" />
+                        ) : item.type === "book" ? (
+                          <BookOpen className="w-5 h-5 mb-1 opacity-50" />
                         ) : (
                           <Gamepad2 className="w-5 h-5 mb-1 opacity-50" />
                         )}
@@ -469,6 +521,18 @@ export function MediaSearchModal({
                         </div>
                       )}
 
+                      {/* Author & Pages for Books */}
+                      {item.type === "book" && (
+                        <div className="flex flex-wrap items-center gap-2 pt-0.5 text-xs text-text-muted">
+                          {item.author && <span className="font-medium text-text">{item.author}</span>}
+                          {item.page_count && (
+                            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface border border-border">
+                              {item.page_count} pages
+                            </span>
+                          )}
+                        </div>
+                      )}
+
                       {/* Platforms Preview for Games */}
                       {item.type === "game" && item.platforms && item.platforms.length > 0 && (
                         <div className="flex flex-wrap gap-1 pt-0.5">
@@ -498,7 +562,12 @@ export function MediaSearchModal({
                     {/* Action buttons */}
                     <div className="pt-2 flex items-center justify-between gap-2 border-t border-border/50 mt-2">
                       <span className="text-[10px] font-mono text-text-muted">
-                        {item.type === "game" ? "RAWG ID" : "TMDB ID"}: {item.id}
+                        {item.type === "game"
+                          ? "RAWG ID"
+                          : item.type === "book"
+                          ? "Google Books ID"
+                          : "TMDB ID"}
+                        : {item.id}
                       </span>
 
                       <div className="flex items-center gap-2">
@@ -589,6 +658,64 @@ export function MediaSearchModal({
                   (selectedItemDetails.type_specific as Record<string, unknown>) || {};
                 const externalIds =
                   (selectedItemDetails.external_ids as Record<string, unknown>) || {};
+
+                if (selectedItemDetails.type === "book") {
+                  const author =
+                    typeSpecific.author ||
+                    (Array.isArray(typeSpecific.authors) && typeSpecific.authors[0]) ||
+                    "—";
+                  const pageCount = typeSpecific.page_count || "—";
+                  const isbn =
+                    typeSpecific.isbn ||
+                    typeSpecific.isbn_13 ||
+                    typeSpecific.isbn_10 ||
+                    "—";
+                  const publisher = typeSpecific.publisher || "—";
+                  const series = typeSpecific.series || "—";
+                  const gbId = externalIds.google_books_id
+                    ? String(externalIds.google_books_id)
+                    : "—";
+
+                  return (
+                    <>
+                      <div className="space-y-1.5 bg-surface p-2.5 rounded-md border border-border">
+                        <span className="font-medium text-text flex items-center gap-1">
+                          <Info className="w-3.5 h-3.5 text-accent" /> Book Details
+                        </span>
+                        <p className="text-[11px] text-text-muted">
+                          <strong>Type:</strong> Book | <strong>GB ID:</strong> {gbId}
+                        </p>
+                        <p className="text-[11px] text-text-muted">
+                          <strong>Author:</strong> {String(author)}
+                        </p>
+                        <p className="text-[11px] text-text-muted">
+                          <strong>Pages:</strong> {String(pageCount)}
+                        </p>
+                      </div>
+
+                      <div className="space-y-1.5 bg-surface p-2.5 rounded-md border border-border">
+                        <span className="font-medium text-text">Edition & Publisher</span>
+                        <p className="text-[11px] text-text-muted">
+                          <strong>ISBN:</strong> {String(isbn)}
+                        </p>
+                        <p className="text-[11px] text-text-muted">
+                          <strong>Publisher:</strong> {String(publisher)}
+                        </p>
+                        {series !== "—" && (
+                          <p className="text-[11px] text-text-muted">
+                            <strong>Series:</strong> {String(series)}
+                          </p>
+                        )}
+                        {selectedItemDetails.last_synced_at && (
+                          <p className="text-[10px] font-mono text-text-muted pt-1">
+                            <strong>last_synced_at:</strong>{" "}
+                            {new Date(selectedItemDetails.last_synced_at).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  );
+                }
 
                 if (selectedItemDetails.type === "game") {
                   const platforms = (Array.isArray(typeSpecific.platforms)

@@ -39,6 +39,12 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
 
   const typeSpecific = (media.type_specific as Record<string, unknown>) || {};
   const externalIds = (media.external_ids as Record<string, unknown>) || {};
+  const author =
+    (typeSpecific.author as string) ||
+    (Array.isArray(typeSpecific.authors) ? (typeSpecific.authors[0] as string) : null);
+  const pageCount = (typeSpecific.page_count as number) || null;
+  const bookSubtitle =
+    (typeSpecific.subtitle as string) || (typeSpecific.series as string) || null;
 
   // Fetch existing user entry on mount or when user/media changes
   useEffect(() => {
@@ -271,6 +277,15 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
                   </span>
                 </>
               )}
+
+              {pageCount && (
+                <>
+                  <span aria-hidden="true" className="text-border">·</span>
+                  <span className="text-text-muted flex items-center gap-1">
+                    <BookOpen className="w-3 h-3" /> {pageCount} pages
+                  </span>
+                </>
+              )}
             </div>
 
             {/* Primary Headline */}
@@ -279,9 +294,21 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
                 {media.title}
               </h1>
 
+              {author && media.type === "book" && (
+                <p className="font-serif text-base sm:text-lg text-text-muted/90 mt-1">
+                  by <span className="text-text font-semibold">{author}</span>
+                </p>
+              )}
+
               {tagline && (
                 <p className="font-serif italic text-base sm:text-lg text-text-muted/90 mt-1.5">
                   &ldquo;{tagline}&rdquo;
+                </p>
+              )}
+
+              {!tagline && bookSubtitle && media.type === "book" && (
+                <p className="font-serif italic text-sm sm:text-base text-text-muted/80 mt-1">
+                  {bookSubtitle}
                 </p>
               )}
             </div>
@@ -296,7 +323,7 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
                     {Number(media.community_rating_avg).toFixed(1)}
                   </span>
                   <span className="text-text-muted">
-                    / {media.type === "game" && Number(media.community_rating_avg) <= 5 ? "5" : "10"}
+                    / {(media.type === "game" || media.type === "book") && Number(media.community_rating_avg) <= 5 ? "5" : "10"}
                   </span>
                   {media.community_rating_count ? (
                     <span className="text-text-muted text-[11px]">
@@ -395,7 +422,7 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
                       if (media.type === "book" && prog.pagesRead != null) {
                         return (
                           <Badge variant="subtle" size="md" className="font-mono text-xs">
-                            p. {String(prog.pagesRead)}
+                            p. {String(prog.pagesRead)}{pageCount ? ` / ${pageCount}` : ""}
                           </Badge>
                         );
                       }
