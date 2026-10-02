@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { MediaSearchModal } from "@/components/media/MediaSearchModal";
+import { SpoilerReviewText } from "@/components/media/SpoilerReviewText";
 import { storedRatingToStars } from "@/lib/rating";
 import type { CastMember, CrewMember } from "@/types/database.types";
 
@@ -35,6 +36,8 @@ export interface DiaryEntry {
   rating?: number | null;
   progress?: Record<string, unknown> | null;
   notes?: string;
+  review?: string;
+  contains_spoilers?: boolean;
   logged_at: string;
   cast?: CastMember[];
   crew?: CrewMember[];
@@ -92,6 +95,7 @@ const DEFAULT_SAMPLE_ENTRIES: DiaryEntry[] = [
     status: "in_progress",
     rating: 90,
     progress: { season: 1, episode: 9 },
+    contains_spoilers: true,
     notes:
       "Finished season 1. The waffle party and finale cliffhanger left me breathless. Stellar, unnerving performance by Adam Scott.",
     logged_at: "2026-09-20T14:15:00Z",
@@ -750,9 +754,16 @@ export function DiaryView() {
                     </div>
 
                     {/* Review Notes */}
-                    {entry.notes && (
-                      <div className="p-3 rounded-lg bg-bg/50 border border-border/70 text-xs text-text/90 font-sans leading-relaxed">
-                        &ldquo;{entry.notes}&rdquo;
+                    {(entry.notes || entry.review) && (
+                      <div className="pt-0.5">
+                        <SpoilerReviewText
+                          text={entry.notes || entry.review || ""}
+                          containsSpoilers={Boolean(
+                            entry.contains_spoilers ||
+                            (entry.progress as Record<string, unknown>)?.contains_spoilers
+                          )}
+                          isAuthor={true}
+                        />
                       </div>
                     )}
 

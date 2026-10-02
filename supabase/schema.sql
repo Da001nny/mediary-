@@ -170,6 +170,7 @@ CREATE TABLE IF NOT EXISTS public.entries (
   rating NUMERIC CHECK (rating >= 0 AND rating <= 100),
   progress JSONB DEFAULT '{}'::jsonb,
   review TEXT,
+  contains_spoilers BOOLEAN NOT NULL DEFAULT FALSE,
   privacy TEXT NOT NULL DEFAULT 'public' CHECK (privacy IN ('private', 'friends', 'public')),
   started_at TIMESTAMPTZ,
   completed_at TIMESTAMPTZ,
@@ -183,6 +184,7 @@ CREATE INDEX IF NOT EXISTS idx_entries_user_id ON public.entries(user_id);
 CREATE INDEX IF NOT EXISTS idx_entries_media_id ON public.entries(media_id);
 CREATE INDEX IF NOT EXISTS idx_entries_status ON public.entries(status);
 CREATE INDEX IF NOT EXISTS idx_entries_privacy ON public.entries(privacy);
+CREATE INDEX IF NOT EXISTS idx_entries_contains_spoilers ON public.entries(contains_spoilers);
 CREATE INDEX IF NOT EXISTS idx_entries_created_at ON public.entries(created_at);
 
 -- Enable Row Level Security (RLS)

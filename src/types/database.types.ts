@@ -147,6 +147,7 @@ export type Database = {
           rating: number | null; // Normalized 0-100 internally
           progress: Json | MediaProgress | null;
           review: string | null;
+          contains_spoilers?: boolean;
           privacy: PrivacyLevel;
           started_at: string | null;
           completed_at: string | null;
@@ -161,6 +162,7 @@ export type Database = {
           rating?: number | null; // Normalized 0-100 internally
           progress?: Json | MediaProgress | null;
           review?: string | null;
+          contains_spoilers?: boolean;
           privacy?: PrivacyLevel;
           started_at?: string | null;
           completed_at?: string | null;
@@ -175,6 +177,7 @@ export type Database = {
           rating?: number | null; // Normalized 0-100 internally
           progress?: Json | MediaProgress | null;
           review?: string | null;
+          contains_spoilers?: boolean;
           privacy?: PrivacyLevel;
           started_at?: string | null;
           completed_at?: string | null;
@@ -234,6 +237,26 @@ export interface MediaProgress {
   completionPct?: number | null;
   // Books
   pagesRead?: number | null;
+  // Spoilers flag fallback
+  contains_spoilers?: boolean;
   // Generic / Extensible
   [key: string]: unknown;
+}
+
+export interface ReviewItem {
+  id: string;
+  user_id: string;
+  media_id: string;
+  status: EntryStatus;
+  rating: number | null;
+  progress?: MediaProgress | null;
+  review: string | null;
+  contains_spoilers: boolean;
+  privacy: PrivacyLevel;
+  created_at: string;
+  updated_at: string;
+  author?: {
+    display_name: string;
+    avatar_url?: string | null;
+  };
 }

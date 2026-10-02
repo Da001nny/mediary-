@@ -17,12 +17,14 @@ import {
   Share2,
   Check,
   ExternalLink,
+  EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { useAuth } from "@/context/AuthContext";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { LogEntryModal } from "@/components/media/LogEntryModal";
+import { SpoilerReviewText } from "@/components/media/SpoilerReviewText";
 import { storedRatingToStars } from "@/lib/rating";
 import type { MediaItem, MediaEntry } from "@/types/database.types";
 
@@ -67,7 +69,8 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
                 status: found.status,
                 rating: found.rating ?? (found.star_rating ? Math.round(found.star_rating * 20) : null),
                 progress: found.progress || null,
-                review: found.notes || null,
+                review: found.review || found.notes || null,
+                contains_spoilers: Boolean(found.contains_spoilers || found.progress?.contains_spoilers),
                 privacy: found.privacy || "public",
               });
             }
@@ -456,6 +459,28 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
                   <BookmarkPlus className="w-4 h-4" />
                   <span>Log to Diary</span>
                 </Button>
+              )}
+
+              {/* User's Written Review Snippet with Spoiler Handling */}
+              {userEntry?.review && (
+                <div className="w-full mt-3 p-3 rounded-lg bg-surface/70 border border-border/80 text-xs">
+                  <div className="flex items-center justify-between text-[11px] text-text-muted mb-1.5 pb-1 border-b border-border/50">
+                    <span className="font-semibold text-text flex items-center gap-1.5">
+                      <span>Your Logged Notes</span>
+                    </span>
+                    {userEntry.contains_spoilers && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/25">
+                        <EyeOff className="w-2.5 h-2.5" />
+                        <span>Spoiler tagged</span>
+                      </span>
+                    )}
+                  </div>
+                  <SpoilerReviewText
+                    text={userEntry.review}
+                    containsSpoilers={userEntry.contains_spoilers}
+                    isAuthor={true}
+                  />
+                </div>
               )}
 
               {/* External TMDB / IMDb Links */}

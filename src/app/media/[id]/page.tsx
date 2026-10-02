@@ -7,6 +7,7 @@ import { WatchProvidersSection } from "@/components/media/WatchProvidersSection"
 import { CastCrewSection } from "@/components/media/CastCrewSection";
 import { GameDetailsSection } from "@/components/media/GameDetailsSection";
 import { BookDetailsSection } from "@/components/media/BookDetailsSection";
+import { MediaReviewsFeed } from "@/components/media/MediaReviewsFeed";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { fetchTMDBDetails } from "@/lib/tmdb";
@@ -438,6 +439,9 @@ export default async function MediaDetailPage({ params }: PageProps) {
               <CastCrewSection cast={cast} crew={crew} />
             </>
           )}
+
+          {/* Community Public Reviews Feed (with spoiler shields & sorting) */}
+          <MediaReviewsFeed media={media} />
 
           {/* Catalog Sync Metadata Footer */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 bg-surface/50 rounded-lg border border-border/70 text-xs text-text-muted">

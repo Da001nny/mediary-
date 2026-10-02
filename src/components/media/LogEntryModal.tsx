@@ -20,6 +20,7 @@ import {
   Tv,
   Gamepad2,
   BookOpen,
+  EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import type { MediaItem, EntryStatus, PrivacyLevel, MediaEntry } from "@/types/database.types";
@@ -198,7 +199,14 @@ function LogEntryModalContent({
       : ""
   );
 
-  const [review, setReview] = useState<string>(existingEntry?.review || "");
+  const [review, setReview] = useState<string>(
+    () => existingEntry?.review || (existingEntry as unknown as { notes?: string })?.notes || ""
+  );
+  const [containsSpoilers, setContainsSpoilers] = useState<boolean>(() => {
+    const ex = existingEntry as Record<string, unknown> | null | undefined;
+    const prog = existingProgress as Record<string, unknown> | null | undefined;
+    return Boolean(ex?.contains_spoilers || prog?.contains_spoilers);
+  });
   const [privacy, setPrivacy] = useState<PrivacyLevel>(
     existingEntry?.privacy || "public"
   );
@@ -258,6 +266,11 @@ function LogEntryModalContent({
         progressPayload = null;
       }
 
+      if (containsSpoilers) {
+        progressPayload = progressPayload || {};
+        progressPayload.contains_spoilers = true;
+      }
+
       const payload = {
         media_id: media.id,
         title: media.title,
@@ -267,6 +280,7 @@ function LogEntryModalContent({
         rating: normalizedRating,
         progress: progressPayload,
         review: review.trim() || null,
+        contains_spoilers: containsSpoilers,
         privacy,
       };
 
@@ -300,6 +314,8 @@ function LogEntryModalContent({
             star_rating: starRating, // 0.5-5.0 display scale
             progress: progressPayload,
             notes: review.trim() || null,
+            review: review.trim() || null,
+            contains_spoilers: containsSpoilers,
             privacy,
             logged_at: new Date().toISOString(),
           };
@@ -722,6 +738,45 @@ function LogEntryModalContent({
               placeholder="What were your thoughts on this title? Favorite scenes, performances, morning reflections, or themes..."
               className="w-full p-3 rounded-lg bg-bg border border-border text-xs text-text placeholder:text-text-muted/60 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/25 resize-y transition-colors leading-relaxed shadow-2xs"
             />
+
+            {/* Spoiler Tagging Checkbox */}
+            <div className="pt-1.5">
+              <label
+                htmlFor="contains-spoilers-checkbox"
+                className={`flex items-start gap-2.5 p-2.5 rounded-lg border transition-colors cursor-pointer select-none group ${
+                  containsSpoilers
+                    ? "border-amber-500/40 bg-amber-500/10 text-text"
+                    : "border-border bg-bg/60 hover:bg-bg text-text"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  id="contains-spoilers-checkbox"
+                  checked={containsSpoilers}
+                  onChange={(e) => setContainsSpoilers(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded border-border text-accent focus:ring-accent/30 accent-accent cursor-pointer"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold">
+                    <EyeOff
+                      className={`w-3.5 h-3.5 ${
+                        containsSpoilers
+                          ? "text-amber-600 dark:text-amber-400"
+                          : "text-text-muted group-hover:text-accent"
+                      }`}
+                    />
+                    <span className={containsSpoilers ? "text-amber-700 dark:text-amber-300" : "text-text"}>
+                      Contains Spoilers
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-text-muted mt-0.5 leading-snug">
+                    {containsSpoilers
+                      ? "Review text will be safely blurred and hidden behind a 'Show spoilers' button for other readers."
+                      : "Check this if your notes reveal plot twists, endings, or key story surprises."}
+                  </p>
+                </div>
+              </label>
+            </div>
           </div>
 
           {/* 4. Privacy Setting */}

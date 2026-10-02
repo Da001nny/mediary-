@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { EntryStatus, PrivacyLevel } from "@/types/database.types";
+import type { EntryStatus, PrivacyLevel, TablesInsert } from "@/types/database.types";
 
 const VALID_STATUSES: EntryStatus[] = [
   "planned",
@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const mediaId = searchParams.get("media_id");
+    const includeReviews = searchParams.get("include_reviews") === "true" || searchParams.get("reviews") === "true";
 
     if (!mediaId) {
       return NextResponse.json(
@@ -33,38 +34,50 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient();
     if (!supabase) {
       // In demo mode without configured Supabase
-      return NextResponse.json({ entry: null, isMock: true });
+      return NextResponse.json({ entry: null, publicEntries: [], isMock: true });
     }
 
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user) {
-      // Unauthenticated: Fetch public entries for this media
-      const { data: publicEntries } = await supabase
+    // Fetch user entry if authenticated
+    let userEntry = null;
+    if (user) {
+      const { data: entryData, error } = await supabase
+        .from("entries")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("media_id", mediaId)
+        .maybeSingle();
+
+      if (error && error.code !== "PGRST116") {
+        console.error("Error fetching user entry:", error);
+      }
+      userEntry = entryData;
+    }
+
+    // If requested or if user is unauthenticated, fetch public entries/reviews
+    let publicEntries = null;
+    if (includeReviews || !user) {
+      const { data: pubData, error: pubError } = await supabase
         .from("entries")
         .select("*, profiles:user_id(display_name, avatar_url)")
         .eq("media_id", mediaId)
         .eq("privacy", "public")
-        .limit(10);
+        .order("created_at", { ascending: false })
+        .limit(20);
 
-      return NextResponse.json({ entry: null, publicEntries: publicEntries || [] });
+      if (pubError) {
+        console.error("Error fetching public entries:", pubError);
+      }
+      publicEntries = pubData || [];
     }
 
-    // Authenticated: Fetch this user's entry for the media
-    const { data: userEntry, error } = await supabase
-      .from("entries")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("media_id", mediaId)
-      .maybeSingle();
-
-    if (error && error.code !== "PGRST116") {
-      console.error("Error fetching user entry:", error);
-    }
-
-    return NextResponse.json({ entry: userEntry || null });
+    return NextResponse.json({
+      entry: userEntry || null,
+      publicEntries: publicEntries || [],
+    });
   } catch (err) {
     console.error("GET /api/entries error:", err);
     return NextResponse.json(
@@ -88,10 +101,13 @@ export async function POST(request: NextRequest) {
       rating,
       progress,
       review,
+      contains_spoilers = false,
       privacy = "public",
       tmdb_id,
       media_type = "movie",
     } = body;
+
+    const hasSpoilers = Boolean(contains_spoilers || progress?.contains_spoilers);
 
     if (!media_id) {
       return NextResponse.json(
@@ -124,8 +140,9 @@ export async function POST(request: NextRequest) {
           : Math.round(rating);
     }
 
-    const sanitizedProgress =
-      progress && typeof progress === "object" ? progress : {};
+    const sanitizedProgress: Record<string, unknown> =
+      progress && typeof progress === "object" ? { ...(progress as Record<string, unknown>) } : {};
+    sanitizedProgress.contains_spoilers = hasSpoilers;
 
     if (privacy && !VALID_PRIVACIES.includes(privacy)) {
       return NextResponse.json(
@@ -147,6 +164,7 @@ export async function POST(request: NextRequest) {
         rating: normalizedRating,
         progress: sanitizedProgress,
         review: review ? String(review).trim() : null,
+        contains_spoilers: hasSpoilers,
         privacy,
         started_at: status === "in_progress" ? new Date().toISOString() : null,
         completed_at: status === "completed" ? new Date().toISOString() : null,
@@ -213,26 +231,46 @@ export async function POST(request: NextRequest) {
     }
 
     // Upsert entry row respecting unique(user_id, media_id)
-    const upsertPayload = {
+    const upsertPayload: TablesInsert<"entries"> = {
       user_id: user.id,
       media_id: resolvedMediaId,
       status,
       rating: normalizedRating,
       progress: sanitizedProgress,
       review: review ? String(review).trim() : null,
+      contains_spoilers: hasSpoilers,
       privacy,
       completed_at: status === "completed" ? new Date().toISOString() : null,
       started_at: status === "in_progress" ? new Date().toISOString() : null,
       updated_at: new Date().toISOString(),
     };
 
-    const { data: upsertedEntry, error: upsertError } = await supabase
+    let upsertResult = await supabase
       .from("entries")
       .upsert(upsertPayload, {
         onConflict: "user_id,media_id",
       })
       .select()
       .single();
+
+    // If database table doesn't have contains_spoilers column yet, retry without it
+    if (
+      upsertResult.error &&
+      (upsertResult.error.message.includes("contains_spoilers") ||
+        upsertResult.error.code === "42703")
+    ) {
+      const fallbackPayload: TablesInsert<"entries"> = { ...upsertPayload };
+      delete fallbackPayload.contains_spoilers;
+      upsertResult = await supabase
+        .from("entries")
+        .upsert(fallbackPayload, {
+          onConflict: "user_id,media_id",
+        })
+        .select()
+        .single();
+    }
+
+    const { data: upsertedEntry, error: upsertError } = upsertResult;
 
     if (upsertError) {
       console.error("Error upserting entry:", upsertError);
