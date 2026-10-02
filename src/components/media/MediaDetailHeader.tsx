@@ -18,12 +18,14 @@ import {
   Check,
   ExternalLink,
   EyeOff,
+  ListPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { useAuth } from "@/context/AuthContext";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { LogEntryModal } from "@/components/media/LogEntryModal";
+import { AddToListModal } from "@/components/lists/AddToListModal";
 import { SpoilerReviewText } from "@/components/media/SpoilerReviewText";
 import { storedRatingToStars } from "@/lib/rating";
 import type { MediaItem, MediaEntry } from "@/types/database.types";
@@ -37,6 +39,7 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
   const [isCopied, setIsCopied] = useState(false);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isAddToListOpen, setIsAddToListOpen] = useState(false);
   const [userEntry, setUserEntry] = useState<Partial<MediaEntry> | null>(null);
 
   const typeSpecific = (media.type_specific as Record<string, unknown>) || {};
@@ -461,6 +464,16 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
                 </Button>
               )}
 
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setIsAddToListOpen(true)}
+                className="gap-1.5 text-xs h-9 cursor-pointer"
+                leftIcon={<ListPlus className="w-3.5 h-3.5 text-accent" />}
+              >
+                <span>Add to List</span>
+              </Button>
+
               {/* User's Written Review Snippet with Spoiler Handling */}
               {userEntry?.review && (
                 <div className="w-full mt-3 p-3 rounded-lg bg-surface/70 border border-border/80 text-xs">
@@ -531,6 +544,13 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         defaultMode="login"
+      />
+
+      {/* Add to Custom List Modal */}
+      <AddToListModal
+        isOpen={isAddToListOpen}
+        onClose={() => setIsAddToListOpen(false)}
+        media={media}
       />
     </div>
   );

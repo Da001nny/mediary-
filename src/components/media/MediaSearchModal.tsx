@@ -17,9 +17,11 @@ import {
   ChevronRight,
   Info,
   Layers,
+  ListPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { AddToListModal } from "@/components/lists/AddToListModal";
 import type { TMDBNormalizedSearchResult } from "@/lib/tmdb";
 import type { RAWGGameSearchResult } from "@/lib/rawg";
 import type { BookSearchResult } from "@/lib/google-books";
@@ -42,6 +44,16 @@ interface UnifiedSearchResult {
   isbn?: string | null;
 }
 
+interface AddToListMediaItem {
+  id: string;
+  title: string;
+  type: string;
+  cover_url?: string | null;
+  release_date?: string | null;
+  genres?: string[];
+  synopsis?: string | null;
+}
+
 interface MediaSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -62,6 +74,7 @@ export function MediaSearchModal({
   const [syncedMap, setSyncedMap] = useState<Record<string, MediaItem>>({});
   const [syncError, setSyncError] = useState<string | null>(null);
   const [selectedItemDetails, setSelectedItemDetails] = useState<MediaItem | null>(null);
+  const [addToListMedia, setAddToListMedia] = useState<AddToListMediaItem | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -270,6 +283,26 @@ export function MediaSearchModal({
       );
     } finally {
       setSyncingId(null);
+    }
+  };
+
+  const handleOpenAddToList = (
+    item: UnifiedSearchResult,
+    existingMedia?: MediaItem | null
+  ) => {
+    const mediaObj = existingMedia || {
+      id: `${item.type}-${item.id}`,
+      title: item.title,
+      type: item.type,
+      cover_url: item.poster_url || null,
+      release_date: item.release_date || (item.year ? `${item.year}-01-01` : null),
+      genres: item.genres || [],
+      synopsis: item.overview || null,
+    };
+    setAddToListMedia(mediaObj);
+    // Background sync to DB if not already synced
+    if (!existingMedia) {
+      handleSync(item).catch(() => {});
     }
   };
 
@@ -570,7 +603,18 @@ export function MediaSearchModal({
                         : {item.id}
                       </span>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleOpenAddToList(item, syncedItem)}
+                          className="text-xs h-7 gap-1"
+                          title="Add to custom list"
+                        >
+                          <ListPlus className="w-3.5 h-3.5 text-accent" />
+                          <span>Add to List</span>
+                        </Button>
+
                         {syncedItem ? (
                           <div className="flex items-center gap-1.5">
                             <Link
@@ -635,10 +679,30 @@ export function MediaSearchModal({
                 </h4>
               </div>
               <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() =>
+                    handleOpenAddToList(
+                      {
+                        id: selectedItemDetails.id,
+                        title: selectedItemDetails.title,
+                        type: selectedItemDetails.type,
+                        poster_url: selectedItemDetails.cover_url,
+                      },
+                      selectedItemDetails
+                    )
+                  }
+                  className="text-xs h-7 gap-1"
+                >
+                  <ListPlus className="w-3.5 h-3.5 text-accent" />
+                  <span>Add to List</span>
+                </Button>
+
                 <Link
                   href={`/media/${selectedItemDetails.id}`}
                   onClick={onClose}
-                  className="inline-flex items-center gap-1 px-3 py-1 bg-accent text-white text-xs font-semibold rounded-md hover:bg-accent/90 transition-colors shadow-xs"
+                  className="inline-flex items-center gap-1 px-3 py-1 bg-accent text-white text-xs font-semibold rounded-md hover:bg-accent/90 transition-colors shadow-xs h-7"
                 >
                   <span>Go to Media Page</span>
                   <ChevronRight className="w-3.5 h-3.5" />
@@ -847,6 +911,15 @@ export function MediaSearchModal({
           <span className="font-mono">Press Esc to exit</span>
         </div>
       </div>
+
+      {/* Add to Custom List Modal */}
+      {addToListMedia && (
+        <AddToListModal
+          isOpen={Boolean(addToListMedia)}
+          onClose={() => setAddToListMedia(null)}
+          media={addToListMedia}
+        />
+      )}
     </div>
   );
 }

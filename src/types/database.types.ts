@@ -201,6 +201,89 @@ export type Database = {
           },
         ];
       };
+      lists: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          description: string | null;
+          is_ranked: boolean;
+          privacy: PrivacyLevel;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          name: string;
+          description?: string | null;
+          is_ranked?: boolean;
+          privacy?: PrivacyLevel;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          name?: string;
+          description?: string | null;
+          is_ranked?: boolean;
+          privacy?: PrivacyLevel;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "lists_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      list_items: {
+        Row: {
+          id: string;
+          list_id: string;
+          media_id: string;
+          position: number;
+          notes: string | null;
+          added_at: string;
+        };
+        Insert: {
+          id?: string;
+          list_id: string;
+          media_id: string;
+          position?: number;
+          notes?: string | null;
+          added_at?: string;
+        };
+        Update: {
+          id?: string;
+          list_id?: string;
+          media_id?: string;
+          position?: number;
+          notes?: string | null;
+          added_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "list_items_list_id_fkey";
+            columns: ["list_id"];
+            isOneToOne: false;
+            referencedRelation: "lists";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "list_items_media_id_fkey";
+            columns: ["media_id"];
+            isOneToOne: false;
+            referencedRelation: "media";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -260,3 +343,20 @@ export interface ReviewItem {
     avatar_url?: string | null;
   };
 }
+
+export type CustomList = Tables<"lists">;
+export type CustomListItem = Tables<"list_items">;
+
+export interface ListWithItems extends CustomList {
+  item_count?: number;
+  items?: (CustomListItem & {
+    media?: MediaItem | null;
+  })[];
+  owner?: {
+    id: string;
+    display_name: string;
+    avatar_url?: string | null;
+  };
+  preview_covers?: string[];
+}
+

@@ -9,6 +9,7 @@ import {
   LogOut,
   Settings,
   BookMarked,
+  ListOrdered,
   ShieldCheck,
   ChevronDown,
   Sparkles,
@@ -116,7 +117,7 @@ export function TopNav() {
             </button>
           </div>
 
-          {/* 3. Right Controls: Diary + Theme + Profile / Auth */}
+          {/* 3. Right Controls: Diary + Lists + Theme + Profile / Auth */}
           <div className="flex items-center gap-3">
             <Link
               href="/diary"
@@ -124,6 +125,14 @@ export function TopNav() {
             >
               <BookMarked className="w-3.5 h-3.5 text-accent" />
               <span>Diary</span>
+            </Link>
+
+            <Link
+              href="/lists"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-text hover:text-accent rounded-md hover:bg-surface transition-colors cursor-pointer"
+            >
+              <ListOrdered className="w-3.5 h-3.5 text-accent" />
+              <span>Lists</span>
             </Link>
 
             <ThemeToggle className="hidden sm:inline-flex" />
@@ -175,10 +184,14 @@ export function TopNav() {
                         <UserIcon className="w-3.5 h-3.5 text-accent" />
                         <span>My Media Journal / Diary</span>
                       </Link>
-                      <div className="px-4 py-1.5 flex items-center gap-2 text-xs text-text hover:bg-surface-hover transition-colors cursor-pointer">
-                        <BookMarked className="w-3.5 h-3.5 text-accent-secondary" />
-                        <span>Curated Lists</span>
-                      </div>
+                      <Link
+                        href="/lists"
+                        onClick={() => setIsProfileMenuOpen(false)}
+                        className="px-4 py-1.5 flex items-center gap-2 text-xs text-text hover:bg-surface-hover transition-colors cursor-pointer"
+                      >
+                        <ListOrdered className="w-3.5 h-3.5 text-accent" />
+                        <span>Custom Lists & Rankings</span>
+                      </Link>
                       <div className="px-4 py-1.5 flex items-center gap-2 text-xs text-text hover:bg-surface-hover transition-colors cursor-pointer">
                         <Settings className="w-3.5 h-3.5 text-text-muted" />
                         <span>Profile Preferences</span>
