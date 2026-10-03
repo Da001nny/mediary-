@@ -20,6 +20,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/context/AuthContext";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { MediaSearchModal } from "@/components/media/MediaSearchModal";
+import { SettingsModal } from "@/components/settings/SettingsModal";
 
 export function TopNav() {
   const { user, profile, signOut, isConfigured } = useAuth();
@@ -27,6 +28,7 @@ export function TopNav() {
   const [authModalMode, setAuthModalMode] = useState<"login" | "signup">("login");
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
@@ -137,6 +139,16 @@ export function TopNav() {
 
             <ThemeToggle className="hidden sm:inline-flex" />
 
+            <button
+              type="button"
+              onClick={() => setIsSettingsModalOpen(true)}
+              className="inline-flex items-center justify-center w-8 h-8 rounded-md text-text-muted hover:text-text hover:bg-surface transition-colors cursor-pointer"
+              title="Settings & Rating Scale"
+              aria-label="Settings & Rating Scale"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+
             {user ? (
               /* Authenticated Profile Menu */
               <div className="relative" ref={profileMenuRef}>
@@ -192,10 +204,17 @@ export function TopNav() {
                         <ListOrdered className="w-3.5 h-3.5 text-accent" />
                         <span>Custom Lists & Rankings</span>
                       </Link>
-                      <div className="px-4 py-1.5 flex items-center gap-2 text-xs text-text hover:bg-surface-hover transition-colors cursor-pointer">
-                        <Settings className="w-3.5 h-3.5 text-text-muted" />
-                        <span>Profile Preferences</span>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsProfileMenuOpen(false);
+                          setIsSettingsModalOpen(true);
+                        }}
+                        className="w-full text-left px-4 py-1.5 flex items-center gap-2 text-xs text-text hover:bg-surface-hover transition-colors cursor-pointer"
+                      >
+                        <Settings className="w-3.5 h-3.5 text-accent" />
+                        <span>Profile & Rating Scale</span>
+                      </button>
                       <div className="px-4 py-1.5 flex items-center justify-between text-xs text-text-muted">
                         <div className="flex items-center gap-2">
                           <ShieldCheck className="w-3.5 h-3.5 text-accent-secondary" />
@@ -266,6 +285,12 @@ export function TopNav() {
       <MediaSearchModal
         isOpen={isSearchModalOpen}
         onClose={() => setIsSearchModalOpen(false)}
+      />
+
+      {/* Profile & Rating Scale Preferences Modal */}
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
       />
     </>
   );

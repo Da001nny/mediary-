@@ -6,7 +6,6 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   Search,
-  Star,
   Calendar,
   X,
   UserCheck,
@@ -21,7 +20,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { MediaSearchModal } from "@/components/media/MediaSearchModal";
 import { SpoilerReviewText } from "@/components/media/SpoilerReviewText";
-import { storedRatingToStars } from "@/lib/rating";
+import { RatingBadge } from "@/components/ui/RatingBadge";
 import type { CastMember, CrewMember } from "@/types/database.types";
 
 export interface DiaryEntry {
@@ -679,13 +678,7 @@ export function DiaryView() {
                           </Link>
 
                           {entry.rating !== null && entry.rating !== undefined && (
-                            <div className="flex items-center gap-1 shrink-0 px-2 py-0.5 rounded bg-accent/15 text-accent font-bold text-xs">
-                              <Star className="w-3.5 h-3.5 fill-accent" />
-                              <span>
-                                {(storedRatingToStars(entry.rating) ?? 0).toFixed(1)}
-                              </span>
-                              <span className="text-[10px] text-text-muted font-normal">/ 5</span>
-                            </div>
+                            <RatingBadge rating={entry.rating} size="sm" className="shrink-0" />
                           )}
                         </div>
 

@@ -22,12 +22,12 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { RatingBadge } from "@/components/ui/RatingBadge";
 import { useAuth } from "@/context/AuthContext";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { LogEntryModal } from "@/components/media/LogEntryModal";
 import { AddToListModal } from "@/components/lists/AddToListModal";
 import { SpoilerReviewText } from "@/components/media/SpoilerReviewText";
-import { storedRatingToStars } from "@/lib/rating";
 import type { MediaItem, MediaEntry } from "@/types/database.types";
 
 interface MediaDetailHeaderProps {
@@ -395,12 +395,7 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
                   </Badge>
 
                   {userEntry.rating !== null && userEntry.rating !== undefined && (
-                    <div className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-accent/15 border border-accent/30 text-accent font-bold text-xs shadow-2xs">
-                      <Star className="w-3.5 h-3.5 fill-accent" />
-                      <span>
-                        {(storedRatingToStars(userEntry.rating) ?? 0).toFixed(1)} / 5
-                      </span>
-                    </div>
+                    <RatingBadge rating={userEntry.rating} size="md" />
                   )}
 
                   {userEntry.progress && typeof userEntry.progress === "object" && (

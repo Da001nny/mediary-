@@ -52,6 +52,7 @@ export function ListDetailView({ initialList }: ListDetailViewProps) {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [typeFilter, setTypeFilter] = useState<string>("all");
 
   // Determine if current user is owner
@@ -77,9 +78,6 @@ export function ListDetailView({ initialList }: ListDetailViewProps) {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm(`Are you sure you want to delete the list "${list.name}"?`)) {
-      return;
-    }
     setIsDeleting(true);
     try {
       await deleteCustomList(list.id);
@@ -87,6 +85,7 @@ export function ListDetailView({ initialList }: ListDetailViewProps) {
     } catch (e) {
       console.error("Failed to delete list:", e);
       setIsDeleting(false);
+      setIsConfirmingDelete(false);
     }
   };
 
@@ -274,16 +273,39 @@ export function ListDetailView({ initialList }: ListDetailViewProps) {
                   <span>Edit Details</span>
                 </Button>
 
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleDelete}
-                  disabled={isDeleting}
-                  className="gap-1.5 h-9 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Delete</span>
-                </Button>
+                {isConfirmingDelete ? (
+                  <div className="flex items-center gap-1.5 animate-in fade-in">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleDelete}
+                      disabled={isDeleting}
+                      className="gap-1 h-9 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs cursor-pointer"
+                    >
+                      <span>Confirm Delete</span>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsConfirmingDelete(false)}
+                      disabled={isDeleting}
+                      className="h-9 text-xs text-text-muted hover:text-text cursor-pointer"
+                    >
+                      <span>Cancel</span>
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setIsConfirmingDelete(true)}
+                    disabled={isDeleting}
+                    className="gap-1.5 h-9 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete</span>
+                  </Button>
+                )}
               </>
             )}
           </div>

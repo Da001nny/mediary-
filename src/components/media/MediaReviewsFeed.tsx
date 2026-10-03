@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   MessageSquare,
-  Star,
   EyeOff,
   Filter,
   ArrowUpDown,
@@ -18,11 +17,11 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { RatingBadge } from "@/components/ui/RatingBadge";
 import { useAuth } from "@/context/AuthContext";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { LogEntryModal } from "@/components/media/LogEntryModal";
 import { SpoilerReviewText } from "@/components/media/SpoilerReviewText";
-import { storedRatingToStars } from "@/lib/rating";
 import type { MediaItem, ReviewItem, MediaEntry } from "@/types/database.types";
 
 interface MediaReviewsFeedProps {
@@ -351,7 +350,6 @@ export function MediaReviewsFeed({ media }: MediaReviewsFeedProps) {
         ) : (
           <div className="divide-y divide-border/60">
             {reviews.map((item) => {
-              const stars = storedRatingToStars(item.rating);
               const authorName = item.author?.display_name || "Community Member";
               const authorInitial = authorName.charAt(0).toUpperCase();
               const isCurrentUser = item.user_id === user?.id;
@@ -400,11 +398,8 @@ export function MediaReviewsFeed({ media }: MediaReviewsFeedProps) {
 
                     {/* Rating & Badges */}
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      {stars !== null && (
-                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-accent/15 border border-accent/30 text-accent font-bold text-xs">
-                          <Star className="w-3 h-3 fill-accent" />
-                          <span>{stars.toFixed(1)} / 5</span>
-                        </div>
+                      {item.rating !== null && item.rating !== undefined && (
+                        <RatingBadge rating={item.rating} size="sm" />
                       )}
 
                       <Badge

@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import {
   X,
-  Star,
   Bookmark,
   PlayCircle,
   CheckCircle,
@@ -23,6 +22,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { RatingInput } from "@/components/ui/RatingInput";
 import type { MediaItem, EntryStatus, PrivacyLevel, MediaEntry } from "@/types/database.types";
 
 interface LogEntryModalProps {
@@ -78,19 +78,6 @@ const STATUS_CONFIG: Array<{
   },
 ];
 
-const RATING_LABELS: Record<number, string> = {
-  0.5: "0.5 — Waste of time",
-  1.0: "1.0 — Very poor",
-  1.5: "1.5 — Poor",
-  2.0: "2.0 — Mediocre",
-  2.5: "2.5 — Average",
-  3.0: "3.0 — Decent",
-  3.5: "3.5 — Good",
-  4.0: "4.0 — Very good",
-  4.5: "4.5 — Excellent",
-  5.0: "5.0 — Masterpiece",
-};
-
 /**
  * Converts stored 0-100 normalized rating to 0.5-5.0 star rating.
  * E.g. 70 -> 3.5, 100 -> 5.0, 10 -> 0.5.
@@ -144,11 +131,15 @@ function LogEntryModalContent({
     existingEntry?.status || "completed"
   );
 
-  // Stored rating is normalized 0-100, converted to 0.5-5.0 stars for the 5-star UI
-  const [starRating, setStarRating] = useState<number | null>(() =>
-    storedRatingToStars(existingEntry?.rating)
-  );
-  const [hoverRating, setHoverRating] = useState<number | null>(null);
+  // Stored rating is normalized 0-100 internally
+  const [rating, setRating] = useState<number | null>(() => {
+    if (existingEntry?.rating !== undefined && existingEntry.rating !== null) {
+      const r = Number(existingEntry.rating);
+      if (r > 0 && r <= 5) return Math.round(r * 20);
+      return Math.min(100, Math.max(0, Math.round(r)));
+    }
+    return null;
+  });
 
   // Extract existing media-specific progress
   const existingProgress =
@@ -238,8 +229,9 @@ function LogEntryModalContent({
     setIsSubmitting(true);
 
     try {
-      // 1. Normalize rating 0-100 (e.g. 3.5 stars -> 70, 5 stars -> 100)
-      const normalizedRating = starsToStoredRating(starRating);
+      // 1. Rating is already normalized 0-100 internally
+      const normalizedRating = rating;
+      const starRating = storedRatingToStars(normalizedRating);
 
       // 2. Build media-specific progress payload
       let progressPayload: Record<string, unknown> | null = null;
@@ -646,80 +638,8 @@ function LogEntryModalContent({
             </div>
           )}
 
-          {/* 3. Star Rating (0.5 to 5.0 stars, normalized 0-100 internally) */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold uppercase tracking-wider text-text flex items-center gap-2">
-                <span>Star Rating</span>
-                {starRating !== null && (
-                  <span className="text-[11px] font-mono text-accent">
-                    ({starRating.toFixed(1)} / 5)
-                  </span>
-                )}
-              </label>
-              {starRating !== null && (
-                <button
-                  type="button"
-                  onClick={() => setStarRating(null)}
-                  className="text-[11px] text-text-muted hover:text-red-500 transition-colors cursor-pointer"
-                >
-                  Clear rating
-                </button>
-              )}
-            </div>
-
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-bg rounded-lg border border-border">
-              {/* Interactive 5 Stars with half-star hover and click */}
-              <div
-                className="flex items-center gap-1.5"
-                onMouseLeave={() => setHoverRating(null)}
-              >
-                {[1, 2, 3, 4, 5].map((starIndex) => {
-                  const displayScore = hoverRating ?? starRating ?? 0;
-                  const isFilled = displayScore >= starIndex;
-                  const isHalf = displayScore >= starIndex - 0.5 && displayScore < starIndex;
-
-                  return (
-                    <div
-                      key={starIndex}
-                      className="relative cursor-pointer p-0.5 group"
-                    >
-                      {/* Left half clickable (for .5 rating) */}
-                      <div
-                        className="absolute inset-y-0 left-0 w-1/2 z-10"
-                        onMouseEnter={() => setHoverRating(starIndex - 0.5)}
-                        onClick={() => setStarRating(starIndex - 0.5)}
-                      />
-                      {/* Right half clickable (for full rating) */}
-                      <div
-                        className="absolute inset-y-0 right-0 w-1/2 z-10"
-                        onMouseEnter={() => setHoverRating(starIndex)}
-                        onClick={() => setStarRating(starIndex)}
-                      />
-
-                      <Star
-                        className={`w-6 h-6 transition-transform duration-150 group-hover:scale-110 ${
-                          isFilled
-                            ? "text-amber-500 fill-amber-500"
-                            : isHalf
-                            ? "text-amber-500 fill-amber-500/50"
-                            : "text-border fill-transparent"
-                        }`}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Rating description score text */}
-              <span className="text-xs font-medium text-text font-sans">
-                {(hoverRating ?? starRating) !== null && (hoverRating ?? starRating)! > 0
-                  ? RATING_LABELS[hoverRating ?? starRating!] ||
-                    `${(hoverRating ?? starRating)!.toFixed(1)} / 5.0 Stars`
-                  : "No rating set"}
-              </span>
-            </div>
-          </div>
+          {/* 3. Multi-Scale Rating Input (5-star, 10-point, 100-point, or thumbs) */}
+          <RatingInput value={rating} onChange={setRating} />
 
           {/* 3. Review Textarea */}
           <div className="space-y-1.5">
