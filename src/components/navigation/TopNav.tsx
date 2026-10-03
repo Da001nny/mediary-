@@ -2,6 +2,8 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   Coffee,
   Search,
@@ -13,6 +15,14 @@ import {
   ShieldCheck,
   ChevronDown,
   Sparkles,
+  Film,
+  Tv,
+  Gamepad2,
+  BookOpen,
+  Star,
+  Loader2,
+  X,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -21,8 +31,10 @@ import { useAuth } from "@/context/AuthContext";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { MediaSearchModal } from "@/components/media/MediaSearchModal";
 import { SettingsModal } from "@/components/settings/SettingsModal";
+import { searchAlgolia, AlgoliaMediaRecord } from "@/lib/algolia";
 
 export function TopNav() {
+  const router = useRouter();
   const { user, profile, signOut, isConfigured } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<"login" | "signup">("login");
@@ -30,9 +42,19 @@ export function TopNav() {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
-  const profileMenuRef = useRef<HTMLDivElement>(null);
+  // Algolia Instant Search State in TopNav
+  const [navSearchQuery, setNavSearchQuery] = useState("");
+  const [navSearchHits, setNavSearchHits] = useState<AlgoliaMediaRecord[]>([]);
+  const [isNavSearching, setIsNavSearching] = useState(false);
+  const [isNavDropdownOpen, setIsNavDropdownOpen] = useState(false);
+  const [isAlgoliaLive, setIsAlgoliaLive] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState<number>(-1);
 
-  // Close profile dropdown when clicking outside
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  // Close profile and search dropdowns when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -41,22 +63,92 @@ export function TopNav() {
       ) {
         setIsProfileMenuOpen(false);
       }
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(event.target as Node)
+      ) {
+        setIsNavDropdownOpen(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Global shortcut (⌘K or Ctrl+K) to open TMDB search modal
+  // Global shortcut (⌘K or Ctrl+K) to focus navbar search input
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
-        setIsSearchModalOpen(true);
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+        setIsNavDropdownOpen(true);
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  const handleNavSearchChange = (val: string) => {
+    setNavSearchQuery(val);
+    if (!val.trim()) {
+      setNavSearchHits([]);
+      setIsNavSearching(false);
+      setIsNavDropdownOpen(false);
+    }
+  };
+
+  // Instant Algolia Search-as-you-type in TopNav
+  useEffect(() => {
+    const trimmed = navSearchQuery.trim();
+    if (!trimmed) return;
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setIsNavSearching(true);
+      try {
+        const res = await searchAlgolia(trimmed, { hitsPerPage: 6 });
+        if (!cancelled) {
+          setNavSearchHits(res.hits);
+          setIsAlgoliaLive(res.isAlgoliaLive);
+          setIsNavDropdownOpen(true);
+          setSelectedIndex(-1);
+        }
+      } catch (err) {
+        console.error("TopNav Algolia search error:", err);
+      } finally {
+        if (!cancelled) setIsNavSearching(false);
+      }
+    }, 90);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [navSearchQuery]);
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSelectedIndex((prev) =>
+        prev < navSearchHits.length - 1 ? prev + 1 : prev
+      );
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev > -1 ? prev - 1 : -1));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (selectedIndex >= 0 && navSearchHits[selectedIndex]) {
+        router.push(`/media/${navSearchHits[selectedIndex].id}`);
+        setIsNavDropdownOpen(false);
+      } else {
+        setIsSearchModalOpen(true);
+        setIsNavDropdownOpen(false);
+      }
+    } else if (e.key === "Escape") {
+      setIsNavDropdownOpen(false);
+      searchInputRef.current?.blur();
+    }
+  };
 
   const openLogin = () => {
     setAuthModalMode("login");
@@ -98,25 +190,176 @@ export function TopNav() {
             </div>
           </Link>
 
-          {/* 2. Search Bar Trigger */}
-          <div className="flex-1 max-w-md mx-2 sm:mx-6 relative">
-            <button
-              type="button"
-              onClick={() => setIsSearchModalOpen(true)}
-              className="w-full h-9 pl-9 pr-14 text-xs font-sans text-left rounded-md bg-surface text-text border border-border shadow-2xs hover:border-text/30 focus-visible:border-accent focus-visible:ring-1 focus-visible:ring-ring outline-none transition-colors relative flex items-center cursor-pointer group"
-            >
-              <div className="absolute left-3 flex items-center pointer-events-none text-text-muted group-hover:text-text transition-colors">
+          {/* 2. Algolia Instant Search Bar */}
+          <div ref={searchContainerRef} className="flex-1 max-w-md mx-2 sm:mx-6 relative">
+            <div className="relative flex items-center">
+              <div className="absolute left-3 flex items-center pointer-events-none text-text-muted">
                 <Search className="w-4 h-4" />
               </div>
-              <span className="text-text-muted/70 group-hover:text-text-muted truncate">
-                Search movies, TV shows, games & books...
-              </span>
-              <div className="absolute right-2 flex items-center pointer-events-none">
-                <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono text-text-muted bg-bg rounded border border-border">
-                  ⌘K
-                </kbd>
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={navSearchQuery}
+                onChange={(e) => handleNavSearchChange(e.target.value)}
+                onFocus={() => {
+                  if (navSearchQuery.trim()) setIsNavDropdownOpen(true);
+                }}
+                onKeyDown={handleInputKeyDown}
+                placeholder="Search movies, TV shows, games & books..."
+                className="w-full h-9 pl-9 pr-14 text-xs font-sans rounded-md bg-surface text-text border border-border shadow-2xs hover:border-text/30 focus-visible:border-accent focus-visible:ring-1 focus-visible:ring-ring outline-none transition-colors"
+              />
+              <div className="absolute right-2 flex items-center gap-1">
+                {isNavSearching ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" />
+                ) : navSearchQuery ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNavSearchQuery("");
+                      setIsNavDropdownOpen(false);
+                    }}
+                    className="p-1 text-text-muted hover:text-text cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setIsSearchModalOpen(true)}
+                    className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono text-text-muted bg-bg rounded border border-border hover:border-accent hover:text-text cursor-pointer transition-colors"
+                    title="Open Full Search (⌘K)"
+                  >
+                    ⌘K
+                  </button>
+                )}
               </div>
-            </button>
+            </div>
+
+            {/* Instant Algolia Results Dropdown */}
+            {isNavDropdownOpen && navSearchQuery.trim() && (
+              <div className="absolute top-full left-0 right-0 mt-1.5 bg-surface border border-border rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-1 max-h-96 flex flex-col">
+                <div className="px-3 py-1.5 bg-bg/60 border-b border-border flex items-center justify-between text-[11px] font-mono text-text-muted">
+                  <div className="flex items-center gap-1.5">
+                    <Zap className="w-3 h-3 text-accent" />
+                    <span>Algolia Instant Search</span>
+                  </div>
+                  {isAlgoliaLive && (
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Typo-Tolerant
+                    </span>
+                  )}
+                </div>
+
+                <div className="overflow-y-auto divide-y divide-border/40 p-1">
+                  {navSearchHits.length === 0 ? (
+                    <div className="p-4 text-center space-y-1">
+                      {isNavSearching ? (
+                        <p className="text-xs text-text-muted">Searching Algolia...</p>
+                      ) : (
+                        <>
+                          <p className="text-xs font-medium text-text">No matches in catalog for &ldquo;{navSearchQuery}&rdquo;</p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsNavDropdownOpen(false);
+                              setIsSearchModalOpen(true);
+                            }}
+                            className="text-[11px] text-accent hover:underline cursor-pointer pt-1 block mx-auto"
+                          >
+                            Search external databases (TMDB / RAWG / Books) →
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    navSearchHits.map((hit, idx) => {
+                      const isSelected = selectedIndex === idx;
+                      return (
+                        <Link
+                          key={hit.id}
+                          href={`/media/${hit.id}`}
+                          onClick={() => setIsNavDropdownOpen(false)}
+                          className={`flex items-center gap-3 p-2 rounded-lg transition-colors cursor-pointer ${
+                            isSelected
+                              ? "bg-accent/15 text-accent"
+                              : "hover:bg-surface-hover text-text"
+                          }`}
+                        >
+                          <div className="relative w-9 h-12 rounded bg-bg overflow-hidden shrink-0 border border-border">
+                            {hit.cover_url ? (
+                              <Image
+                                src={hit.cover_url}
+                                alt={hit.title}
+                                fill
+                                sizes="36px"
+                                className="object-cover"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-text-muted">
+                                {hit.type === "movie" ? (
+                                  <Film className="w-4 h-4" />
+                                ) : hit.type === "tv" ? (
+                                  <Tv className="w-4 h-4" />
+                                ) : hit.type === "book" ? (
+                                  <BookOpen className="w-4 h-4" />
+                                ) : (
+                                  <Gamepad2 className="w-4 h-4" />
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-serif text-xs font-semibold truncate text-text">
+                                {hit.title}
+                              </span>
+                              {hit.year && (
+                                <span className="text-[10px] font-mono text-text-muted shrink-0">
+                                  ({hit.year})
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 text-[10px] text-text-muted mt-0.5">
+                              <span className="capitalize font-mono text-[9px] px-1 py-0.2 rounded bg-bg border border-border">
+                                {hit.type}
+                              </span>
+                              {hit.community_rating_avg ? (
+                                <span className="flex items-center gap-0.5 text-accent font-semibold">
+                                  <Star className="w-2.5 h-2.5 fill-current" />
+                                  {(hit.community_rating_avg / 10).toFixed(1)}
+                                </span>
+                              ) : null}
+                              {hit.author && (
+                                <span className="truncate">by {hit.author}</span>
+                              )}
+                            </div>
+                          </div>
+                        </Link>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="p-2 border-t border-border bg-bg/40 flex items-center justify-between text-[11px]">
+                  <span className="text-text-muted">
+                    Press <kbd className="px-1 py-0.2 text-[9px] font-mono bg-surface border border-border rounded">Enter</kbd> to explore
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsNavDropdownOpen(false);
+                      setIsSearchModalOpen(true);
+                    }}
+                    className="text-accent hover:underline font-medium cursor-pointer"
+                  >
+                    Open Full Catalog Search (⌘K) →
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* 3. Right Controls: Diary + Lists + Theme + Profile / Auth */}
@@ -285,6 +528,7 @@ export function TopNav() {
       <MediaSearchModal
         isOpen={isSearchModalOpen}
         onClose={() => setIsSearchModalOpen(false)}
+        initialQuery={navSearchQuery}
       />
 
       {/* Profile & Rating Scale Preferences Modal */}

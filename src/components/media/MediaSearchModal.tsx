@@ -18,6 +18,9 @@ import {
   Info,
   Layers,
   ListPlus,
+  Zap,
+  Globe,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -26,6 +29,10 @@ import type { TMDBNormalizedSearchResult } from "@/lib/tmdb";
 import type { RAWGGameSearchResult } from "@/lib/rawg";
 import type { BookSearchResult } from "@/lib/google-books";
 import type { MediaItem, CastMember, CrewMember } from "@/types/database.types";
+import {
+  searchAlgolia,
+  AlgoliaMediaRecord,
+} from "@/lib/algolia";
 
 interface UnifiedSearchResult {
   id: number | string;
@@ -58,16 +65,39 @@ interface MediaSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   onMediaSynced?: (media: MediaItem) => void;
+  initialQuery?: string;
 }
 
 export function MediaSearchModal({
   isOpen,
   onClose,
   onMediaSynced,
+  initialQuery = "",
 }: MediaSearchModalProps) {
-  const [query, setQuery] = useState("");
+  if (!isOpen) return null;
+
+  return (
+    <MediaSearchModalContent
+      key={initialQuery || "default"}
+      onClose={onClose}
+      onMediaSynced={onMediaSynced}
+      initialQuery={initialQuery}
+    />
+  );
+}
+
+function MediaSearchModalContent({
+  onClose,
+  onMediaSynced,
+  initialQuery = "",
+}: Omit<MediaSearchModalProps, "isOpen">) {
+  const [query, setQuery] = useState(initialQuery);
+  const [searchMode, setSearchMode] = useState<"algolia" | "external">("algolia");
   const [typeFilter, setTypeFilter] = useState<"all" | "movie" | "tv" | "game" | "book">("all");
   const [results, setResults] = useState<UnifiedSearchResult[]>([]);
+  const [algoliaHits, setAlgoliaHits] = useState<AlgoliaMediaRecord[]>([]);
+  const [isAlgoliaLive, setIsAlgoliaLive] = useState(false);
+  const [algoliaProcessingTime, setAlgoliaProcessingTime] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isMock, setIsMock] = useState(false);
   const [syncingId, setSyncingId] = useState<string | null>(null);
@@ -88,22 +118,21 @@ export function MediaSearchModal({
     setQuery(val);
     if (!val.trim()) {
       setResults([]);
+      setAlgoliaHits([]);
       setIsLoading(false);
     }
   };
 
   // Focus input when opened
   useEffect(() => {
-    if (isOpen) {
-      const timer = setTimeout(() => inputRef.current?.focus(), 50);
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen]);
+    const timer = setTimeout(() => inputRef.current?.focus(), 50);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Handle ESC key
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape" && isOpen) {
+      if (e.key === "Escape") {
         if (selectedItemDetails) {
           setSelectedItemDetails(null);
         } else {
@@ -113,128 +142,156 @@ export function MediaSearchModal({
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, selectedItemDetails, handleClose]);
+  }, [selectedItemDetails, handleClose]);
 
-  // Debounced search
+  // Debounced search effect: Algolia (instant) or External (TMDB/RAWG/Books)
   useEffect(() => {
     const trimmed = query.trim();
     if (!trimmed) return;
 
     let cancelled = false;
-    const timer = setTimeout(async () => {
-      setIsLoading(true);
-      try {
-        const promises: Promise<Response>[] = [];
 
-        // TMDB search (movies & tv)
-        if (typeFilter === "all" || typeFilter === "movie" || typeFilter === "tv") {
-          promises.push(
-            fetch(
-              `/api/tmdb/search?q=${encodeURIComponent(trimmed)}&type=${
-                typeFilter === "all" ? "all" : typeFilter
-              }`
-            ).catch(() => new Response(JSON.stringify({ results: [] })))
-          );
+    if (searchMode === "algolia") {
+      const timer = setTimeout(async () => {
+        setIsLoading(true);
+        try {
+          const algoliaRes = await searchAlgolia(trimmed, {
+            typeFilter,
+            hitsPerPage: 40,
+          });
+
+          if (!cancelled) {
+            setAlgoliaHits(algoliaRes.hits);
+            setIsAlgoliaLive(algoliaRes.isAlgoliaLive);
+            setAlgoliaProcessingTime(algoliaRes.processingTimeMS ?? null);
+            setIsLoading(false);
+          }
+        } catch (err) {
+          console.error("Algolia search failed:", err);
+          if (!cancelled) setIsLoading(false);
         }
+      }, 70);
 
-        // RAWG search (games)
-        if (typeFilter === "all" || typeFilter === "game") {
-          promises.push(
-            fetch(`/api/games/search?q=${encodeURIComponent(trimmed)}`).catch(
-              () => new Response(JSON.stringify({ results: [] }))
-            )
-          );
-        }
+      return () => {
+        cancelled = true;
+        clearTimeout(timer);
+      };
+    } else {
+      const timer = setTimeout(async () => {
+        setIsLoading(true);
+        try {
+          const promises: Promise<Response>[] = [];
 
-        // Google Books search (books)
-        if (typeFilter === "all" || typeFilter === "book") {
-          promises.push(
-            fetch(`/api/books/search?q=${encodeURIComponent(trimmed)}`).catch(
-              () => new Response(JSON.stringify({ results: [] }))
-            )
-          );
-        }
+          // TMDB search (movies & tv)
+          if (typeFilter === "all" || typeFilter === "movie" || typeFilter === "tv") {
+            promises.push(
+              fetch(
+                `/api/tmdb/search?q=${encodeURIComponent(trimmed)}&type=${
+                  typeFilter === "all" ? "all" : typeFilter
+                }`
+              ).catch(() => new Response(JSON.stringify({ results: [] })))
+            );
+          }
 
-        const responses = await Promise.all(promises);
-        const combined: UnifiedSearchResult[] = [];
-        let anyMock = false;
+          // RAWG search (games)
+          if (typeFilter === "all" || typeFilter === "game") {
+            promises.push(
+              fetch(`/api/games/search?q=${encodeURIComponent(trimmed)}`).catch(
+                () => new Response(JSON.stringify({ results: [] }))
+              )
+            );
+          }
 
-        for (const res of responses) {
-          if (res.ok) {
-            const data = await res.json();
-            if (data.isMock) anyMock = true;
+          // Google Books search (books)
+          if (typeFilter === "all" || typeFilter === "book") {
+            promises.push(
+              fetch(`/api/books/search?q=${encodeURIComponent(trimmed)}`).catch(
+                () => new Response(JSON.stringify({ results: [] }))
+              )
+            );
+          }
 
-            if (Array.isArray(data.results)) {
-              for (const item of data.results) {
-                if (item.type === "game") {
-                  const g = item as RAWGGameSearchResult;
-                  combined.push({
-                    id: g.id,
-                    type: "game",
-                    title: g.title,
-                    overview: g.genres?.join(", ") || "Video Game",
-                    release_date: g.release_date,
-                    year: g.year,
-                    poster_url: g.cover_url,
-                    vote_average: g.rating,
-                    vote_count: g.ratings_count,
-                    platforms: g.platforms,
-                    genres: g.genres,
-                  });
-                } else if (item.type === "book") {
-                  const b = item as BookSearchResult;
-                  combined.push({
-                    id: b.id || b.google_books_id,
-                    type: "book",
-                    title: b.title,
-                    overview: b.subtitle || (b.author ? `By ${b.author}` : "Book"),
-                    release_date: b.release_date,
-                    year: b.year,
-                    poster_url: b.cover_url,
-                    vote_average: b.rating ?? undefined,
-                    vote_count: b.ratings_count,
-                    genres: b.genres,
-                    author: b.author,
-                    page_count: b.page_count,
-                    isbn: b.isbn,
-                  });
-                } else {
-                  const m = item as TMDBNormalizedSearchResult;
-                  combined.push({
-                    id: m.id,
-                    type: m.type,
-                    title: m.title,
-                    overview: m.overview,
-                    release_date: m.release_date,
-                    year: m.year,
-                    poster_url: m.poster_url || m.poster_thumbnail,
-                    vote_average: m.vote_average,
-                    vote_count: m.vote_count,
-                  });
+          const responses = await Promise.all(promises);
+          const combined: UnifiedSearchResult[] = [];
+          let anyMock = false;
+
+          for (const res of responses) {
+            if (res.ok) {
+              const data = await res.json();
+              if (data.isMock) anyMock = true;
+
+              if (Array.isArray(data.results)) {
+                for (const item of data.results) {
+                  if (item.type === "game") {
+                    const g = item as RAWGGameSearchResult;
+                    combined.push({
+                      id: g.id,
+                      type: "game",
+                      title: g.title,
+                      overview: g.genres?.join(", ") || "Video Game",
+                      release_date: g.release_date,
+                      year: g.year,
+                      poster_url: g.cover_url,
+                      vote_average: g.rating,
+                      vote_count: g.ratings_count,
+                      platforms: g.platforms,
+                      genres: g.genres,
+                    });
+                  } else if (item.type === "book") {
+                    const b = item as BookSearchResult;
+                    combined.push({
+                      id: b.id || b.google_books_id,
+                      type: "book",
+                      title: b.title,
+                      overview: b.subtitle || (b.author ? `By ${b.author}` : "Book"),
+                      release_date: b.release_date,
+                      year: b.year,
+                      poster_url: b.cover_url,
+                      vote_average: b.rating ?? undefined,
+                      vote_count: b.ratings_count,
+                      genres: b.genres,
+                      author: b.author,
+                      page_count: b.page_count,
+                      isbn: b.isbn,
+                    });
+                  } else {
+                    const m = item as TMDBNormalizedSearchResult;
+                    combined.push({
+                      id: m.id,
+                      type: m.type,
+                      title: m.title,
+                      overview: m.overview,
+                      release_date: m.release_date,
+                      year: m.year,
+                      poster_url: m.poster_url || m.poster_thumbnail,
+                      vote_average: m.vote_average,
+                      vote_count: m.vote_count,
+                    });
+                  }
                 }
               }
             }
           }
-        }
 
-        if (!cancelled) {
-          setResults(combined);
-          setIsMock(anyMock);
+          if (!cancelled) {
+            setResults(combined);
+            setIsMock(anyMock);
+          }
+        } catch (err) {
+          console.error("Search failed:", err);
+        } finally {
+          if (!cancelled) {
+            setIsLoading(false);
+          }
         }
-      } catch (err) {
-        console.error("Search failed:", err);
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      }
-    }, 280);
+      }, 250);
 
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [query, typeFilter]);
+      return () => {
+        cancelled = true;
+        clearTimeout(timer);
+      };
+    }
+  }, [query, typeFilter, searchMode]);
 
   // Trigger Sync & Upsert
   const handleSync = async (item: UnifiedSearchResult) => {
@@ -306,8 +363,6 @@ export function MediaSearchModal({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
     <div
       role="dialog"
@@ -360,6 +415,49 @@ export function MediaSearchModal({
                 <X className="w-3.5 h-3.5" />
               </button>
             ) : null}
+          </div>
+
+          {/* Mode Switcher: Algolia Catalog (Instant) vs External Discover */}
+          <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2">
+            <div className="flex items-center gap-1 bg-bg p-0.5 rounded-lg border border-border">
+              <button
+                type="button"
+                onClick={() => setSearchMode("algolia")}
+                className={`px-2.5 sm:px-3 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+                  searchMode === "algolia"
+                    ? "bg-accent text-accent-contrast shadow-2xs"
+                    : "text-text-muted hover:text-text"
+                }`}
+              >
+                <Zap className="w-3.5 h-3.5" />
+                <span>Algolia Catalog</span>
+                <span className="hidden sm:inline text-[10px] opacity-80 font-mono">(Instant)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSearchMode("external")}
+                className={`px-2.5 sm:px-3 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+                  searchMode === "external"
+                    ? "bg-accent text-accent-contrast shadow-2xs"
+                    : "text-text-muted hover:text-text"
+                }`}
+              >
+                <Globe className="w-3.5 h-3.5" />
+                <span>Discover External</span>
+                <span className="hidden sm:inline text-[10px] opacity-80 font-mono">(TMDB/RAWG/Books)</span>
+              </button>
+            </div>
+
+            {searchMode === "algolia" && isAlgoliaLive && (
+              <div className="flex items-center gap-1.5 text-[11px] font-mono text-emerald-600 dark:text-emerald-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="hidden sm:inline">Typo-Tolerant</span>
+                {algoliaProcessingTime !== null && (
+                  <span className="text-text-muted text-[10px]">({algoliaProcessingTime}ms)</span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Filter Bar */}
@@ -451,29 +549,231 @@ export function MediaSearchModal({
           {query.trim() === "" ? (
             <div className="text-center py-12 px-4 space-y-3">
               <div className="w-12 h-12 rounded-full bg-accent/15 text-accent mx-auto flex items-center justify-center">
-                <Search className="w-6 h-6" />
+                {searchMode === "algolia" ? (
+                  <Zap className="w-6 h-6" />
+                ) : (
+                  <Globe className="w-6 h-6" />
+                )}
               </div>
               <p className="font-serif text-text font-medium text-base">
-                Discover Movies, TV Shows, Games & Books
+                {searchMode === "algolia"
+                  ? "Instant Typo-Tolerant Catalog Search"
+                  : "Discover Movies, TV Shows, Games & Books"}
               </p>
               <p className="text-xs text-text-muted max-w-sm mx-auto leading-relaxed">
-                Search live TMDB, RAWG, and Google Books metadata with cover art, release details,
-                platforms, developers, and authors.
+                {searchMode === "algolia"
+                  ? "Search your synchronized media catalog with instant typo-tolerance, fast ranking, and direct access."
+                  : "Search live TMDB, RAWG, and Google Books metadata with cover art, release details, platforms, developers, and authors."}
               </p>
             </div>
-          ) : isLoading && results.length === 0 ? (
-            <div className="text-center py-12 space-y-2">
-              <Loader2 className="w-6 h-6 animate-spin text-accent mx-auto" />
-              <p className="text-xs text-text-muted">Searching catalog...</p>
-            </div>
-          ) : results.length === 0 ? (
-            <div className="text-center py-12 space-y-2">
-              <p className="text-sm font-medium text-text">No results found for &ldquo;{query}&rdquo;</p>
-              <p className="text-xs text-text-muted">
-                Try searching for a different keyword or checking your spelling.
-              </p>
-            </div>
+          ) : searchMode === "algolia" ? (
+            /* Algolia Search Mode */
+            isLoading && algoliaHits.length === 0 ? (
+              <div className="text-center py-12 space-y-2">
+                <Loader2 className="w-6 h-6 animate-spin text-accent mx-auto" />
+                <p className="text-xs text-text-muted">Querying Algolia index...</p>
+              </div>
+            ) : algoliaHits.length === 0 ? (
+              <div className="text-center py-12 space-y-3 max-w-md mx-auto">
+                <p className="text-sm font-medium text-text">
+                  No catalog matches found in Algolia for &ldquo;{query}&rdquo;
+                </p>
+                <p className="text-xs text-text-muted leading-relaxed">
+                  This title might not be in your local catalog yet. Search external databases to fetch full metadata and index it into Algolia.
+                </p>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setSearchMode("external")}
+                  leftIcon={<Globe className="w-3.5 h-3.5" />}
+                  className="mx-auto"
+                >
+                  Discover & Index from TMDB / RAWG / Books
+                </Button>
+              </div>
+            ) : (
+              algoliaHits.map((hit) => {
+                return (
+                  <div
+                    key={hit.id}
+                    className="flex gap-3 sm:gap-4 p-3 rounded-lg border border-border bg-bg/40 hover:bg-bg/80 transition-colors group"
+                  >
+                    {/* Poster Thumbnail */}
+                    <div className="relative w-16 h-24 sm:w-20 sm:h-28 rounded-md overflow-hidden bg-surface shrink-0 border border-border shadow-2xs">
+                      {hit.cover_url ? (
+                        <Image
+                          src={hit.cover_url}
+                          alt={hit.title}
+                          fill
+                          sizes="(max-width: 640px) 64px, 80px"
+                          className="object-cover transition-transform duration-200 group-hover:scale-105"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center p-1 text-center bg-surface text-text-muted">
+                          {hit.type === "movie" ? (
+                            <Film className="w-5 h-5 mb-1 opacity-50" />
+                          ) : hit.type === "tv" ? (
+                            <Tv className="w-5 h-5 mb-1 opacity-50" />
+                          ) : hit.type === "book" ? (
+                            <BookOpen className="w-5 h-5 mb-1 opacity-50" />
+                          ) : (
+                            <Gamepad2 className="w-5 h-5 mb-1 opacity-50" />
+                          )}
+                          <span className="text-[9px] font-mono leading-tight line-clamp-2">
+                            No cover
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Content Info */}
+                    <div className="flex-1 flex flex-col justify-between min-w-0">
+                      <div className="space-y-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <h3
+                            className="font-serif text-sm sm:text-base font-semibold text-text truncate"
+                            dangerouslySetInnerHTML={{
+                              __html: hit._highlightResult?.title?.value || hit.title,
+                            }}
+                          />
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                              <Sparkles className="w-2.5 h-2.5" />
+                              Indexed
+                            </span>
+                            <Badge
+                              variant={
+                                hit.type === "movie"
+                                  ? "amber"
+                                  : hit.type === "tv"
+                                  ? "forest"
+                                  : "subtle"
+                              }
+                              size="sm"
+                              className="capitalize text-[10px]"
+                            >
+                              {hit.type}
+                            </Badge>
+                            {hit.year && (
+                              <span className="text-xs font-mono text-text-muted">
+                                {hit.year}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {hit.community_rating_avg !== undefined &&
+                          hit.community_rating_avg !== null &&
+                          hit.community_rating_avg > 0 && (
+                            <div className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                              <Star className="w-3.5 h-3.5 fill-current" />
+                              <span>{(hit.community_rating_avg / 10).toFixed(1)}</span>
+                              {hit.community_rating_count ? (
+                                <span className="text-[10px] text-text-muted">
+                                  ({hit.community_rating_count.toLocaleString()} ratings)
+                                </span>
+                              ) : null}
+                            </div>
+                          )}
+
+                        {/* Author or Director */}
+                        {hit.author && (
+                          <div className="text-xs text-text-muted">
+                            Author: <span className="font-medium text-text">{hit.author}</span>
+                          </div>
+                        )}
+                        {hit.director && (
+                          <div className="text-xs text-text-muted">
+                            Director: <span className="font-medium text-text">{hit.director}</span>
+                          </div>
+                        )}
+
+                        {/* Platforms Preview for Games */}
+                        {hit.type === "game" && hit.platforms && hit.platforms.length > 0 && (
+                          <div className="flex flex-wrap gap-1 pt-0.5">
+                            {hit.platforms.slice(0, 3).map((plat) => (
+                              <span
+                                key={plat}
+                                className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface border border-border text-text-muted"
+                              >
+                                {plat}
+                              </span>
+                            ))}
+                            {hit.platforms.length > 3 && (
+                              <span className="text-[10px] text-text-muted">
+                                +{hit.platforms.length - 3}
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {hit.synopsis && (
+                          <p className="text-xs text-text-muted line-clamp-2 leading-relaxed">
+                            {hit.synopsis}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="pt-2 flex items-center justify-between gap-2 border-t border-border/50 mt-2">
+                        <span className="text-[10px] font-mono text-text-muted flex items-center gap-1">
+                          <Zap className="w-3 h-3 text-accent" />
+                          <span>Algolia Instant</span>
+                        </span>
+
+                        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() =>
+                              setAddToListMedia({
+                                id: hit.id,
+                                title: hit.title,
+                                type: hit.type,
+                                cover_url: hit.cover_url || null,
+                                release_date: hit.release_date || (hit.year ? `${hit.year}-01-01` : null),
+                                genres: hit.genres || [],
+                                synopsis: hit.synopsis || null,
+                              })
+                            }
+                            className="text-xs h-7 gap-1"
+                            title="Add to custom list"
+                          >
+                            <ListPlus className="w-3.5 h-3.5 text-accent" />
+                            <span>Add to List</span>
+                          </Button>
+
+                          <Link
+                            href={`/media/${hit.id}`}
+                            onClick={handleClose}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-accent hover:text-accent/80 bg-accent/10 hover:bg-accent/20 rounded-md transition-colors"
+                          >
+                            <span>View Page</span>
+                            <ChevronRight className="w-3 h-3" />
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )
           ) : (
+            /* External Provider Search Mode */
+            isLoading && results.length === 0 ? (
+              <div className="text-center py-12 space-y-2">
+                <Loader2 className="w-6 h-6 animate-spin text-accent mx-auto" />
+                <p className="text-xs text-text-muted">Searching external providers...</p>
+              </div>
+            ) : results.length === 0 ? (
+              <div className="text-center py-12 space-y-2">
+                <p className="text-sm font-medium text-text">No external results found for &ldquo;{query}&rdquo;</p>
+                <p className="text-xs text-text-muted">
+                  Try searching for a different keyword or checking your spelling.
+                </p>
+              </div>
+            ) : (
             results.map((item) => {
               const itemKey = `${item.type}-${item.id}`;
               const isSyncing = syncingId === itemKey;
@@ -663,7 +963,7 @@ export function MediaSearchModal({
                 </div>
               );
             })
-          )}
+          ))}
         </div>
 
         {/* Selected Item Detail Drawer */}

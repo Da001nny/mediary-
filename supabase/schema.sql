@@ -376,5 +376,59 @@ CREATE POLICY "List items deletable by list owner"
     )
   );
 
+-- =========================================================
+-- 5. ALGOLIA REAL-TIME SYNC TRIGGER (Edge Function Invocation)
+-- =========================================================
+CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
+
+CREATE OR REPLACE FUNCTION public.handle_media_algolia_sync()
+RETURNS TRIGGER AS $$
+DECLARE
+  project_url TEXT;
+  edge_function_url TEXT;
+  service_role_key TEXT;
+  payload JSONB;
+BEGIN
+  payload := jsonb_build_object(
+    'type', TG_OP,
+    'table', TG_TABLE_NAME,
+    'schema', TG_TABLE_SCHEMA,
+    'record', row_to_json(NEW),
+    'old_record', CASE WHEN TG_OP = 'UPDATE' THEN row_to_json(OLD) ELSE NULL END
+  );
+
+  project_url := NULLIF(current_setting('app.settings.supabase_url', true), '');
+  service_role_key := NULLIF(current_setting('app.settings.supabase_service_role_key', true), '');
+
+  IF project_url IS NOT NULL THEN
+    edge_function_url := rtrim(project_url, '/') || '/functions/v1/algolia-sync';
+  ELSE
+    edge_function_url := 'https://your-project.supabase.co/functions/v1/algolia-sync';
+  END IF;
+
+  PERFORM extensions.http_post(
+    url := edge_function_url,
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || COALESCE(service_role_key, '')
+    ),
+    body := payload
+  );
+
+  RETURN NEW;
+EXCEPTION
+  WHEN OTHERS THEN
+    RAISE WARNING 'handle_media_algolia_sync encountered an error: %', SQLERRM;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS tr_media_algolia_sync ON public.media;
+CREATE TRIGGER tr_media_algolia_sync
+  AFTER INSERT OR UPDATE ON public.media
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_media_algolia_sync();
+
+
 
 
