@@ -24,6 +24,7 @@ import { useRatingScale } from "@/lib/rating-hook";
 import {
   RatingScale,
   RATING_SCALE_CONFIG,
+  normalizeRatingScale,
 } from "@/lib/rating";
 import type { PrivacyLevel } from "@/types/database.types";
 
@@ -31,17 +32,55 @@ export default function SettingsPage() {
   const { profile, updateProfile, user } = useAuth();
   const { scale: currentScale, setScale } = useRatingScale();
 
-  const [selectedScale, setSelectedScale] = useState<RatingScale>(currentScale);
-  const [displayName, setDisplayName] = useState(
-    profile?.display_name || user?.user_metadata?.full_name || ""
-  );
-  const [bio, setBio] = useState(profile?.bio || "");
-  const [defaultPrivacy, setDefaultPrivacy] = useState<PrivacyLevel>(
-    profile?.default_privacy || "public"
-  );
+  // Read current scale from profiles.rating_scale on load; fallback to currentScale
+  const profileScale: RatingScale = profile?.rating_scale
+    ? normalizeRatingScale(profile.rating_scale)
+    : currentScale;
+
+  const [overrideScale, setOverrideScale] = useState<RatingScale | null>(null);
+  const activeScale = overrideScale ?? profileScale;
+
+  const [savingScale, setSavingScale] = useState<RatingScale | null>(null);
+
+  const [displayNameInput, setDisplayNameInput] = useState<string | null>(null);
+  const [bioInput, setBioInput] = useState<string | null>(null);
+  const [privacyInput, setPrivacyInput] = useState<PrivacyLevel | null>(null);
+
+  const displayName = displayNameInput ?? (profile?.display_name || user?.user_metadata?.full_name || "");
+  const bio = bioInput ?? (profile?.bio || "");
+  const defaultPrivacy = privacyInput ?? (profile?.default_privacy || "public");
+
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Directly update profiles.rating_scale when user selects any option
+  const handleSelectScale = async (scaleOption: RatingScale) => {
+    setOverrideScale(scaleOption);
+    setSavingScale(scaleOption);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      // 1. Immediately update global hook & localStorage
+      await setScale(scaleOption);
+
+      // 2. Immediately call update to profiles.rating_scale in database & profile state
+      const res = await updateProfile({ rating_scale: scaleOption });
+      if (res?.error) {
+        console.warn("Could not save to remote profile, saved locally:", res.error);
+      }
+
+      setSuccessMessage(`Rating scale set to ${RATING_SCALE_CONFIG[scaleOption].name}!`);
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : "Failed to update rating scale"
+      );
+    } finally {
+      setSavingScale(null);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,10 +89,10 @@ export default function SettingsPage() {
     setSuccessMessage(null);
 
     try {
-      await setScale(selectedScale);
+      await setScale(activeScale);
 
       const updates = {
-        rating_scale: selectedScale,
+        rating_scale: activeScale,
         display_name: displayName.trim() || null,
         bio: bio.trim() || null,
         default_privacy: defaultPrivacy,
@@ -64,7 +103,7 @@ export default function SettingsPage() {
         throw res.error;
       }
 
-      setSuccessMessage("Settings saved successfully!");
+      setSuccessMessage("All settings saved successfully!");
       setTimeout(() => setSuccessMessage(null), 3500);
     } catch (err: unknown) {
       setError(
@@ -152,14 +191,15 @@ export default function SettingsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
               {(["5-star", "10-point", "100-point", "thumbs"] as RatingScale[]).map(
                 (scaleOption) => {
-                  const isSelected = selectedScale === scaleOption;
+                  const isSelected = activeScale === scaleOption;
+                  const isSavingThis = savingScale === scaleOption;
                   const config = RATING_SCALE_CONFIG[scaleOption];
 
                   return (
                     <button
                       key={scaleOption}
                       type="button"
-                      onClick={() => setSelectedScale(scaleOption)}
+                      onClick={() => handleSelectScale(scaleOption)}
                       className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-3 ${
                         isSelected
                           ? "border-accent bg-accent/10 shadow-xs ring-1 ring-accent"
@@ -180,11 +220,13 @@ export default function SettingsPage() {
                             </span>
                           </div>
                         </div>
-                        {isSelected && (
+                        {isSavingThis ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-accent" />
+                        ) : isSelected ? (
                           <div className="w-5 h-5 rounded-full bg-accent text-accent-contrast flex items-center justify-center">
                             <Check className="w-3 h-3 stroke-[3]" />
                           </div>
-                        )}
+                        ) : null}
                       </div>
 
                       <p className="text-xs text-text-muted leading-relaxed">
@@ -226,7 +268,7 @@ export default function SettingsPage() {
                 <input
                   type="text"
                   value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
+                  onChange={(e) => setDisplayNameInput(e.target.value)}
                   placeholder="Your Name"
                   className="w-full px-3.5 py-2 text-sm rounded-lg bg-bg border border-border text-text placeholder:text-text-muted/60 focus:border-accent focus:ring-1 focus:ring-accent outline-hidden"
                 />
@@ -239,7 +281,7 @@ export default function SettingsPage() {
                 <input
                   type="text"
                   value={bio}
-                  onChange={(e) => setBio(e.target.value)}
+                  onChange={(e) => setBioInput(e.target.value)}
                   placeholder="Short tagline about your media taste"
                   className="w-full px-3.5 py-2 text-sm rounded-lg bg-bg border border-border text-text placeholder:text-text-muted/60 focus:border-accent focus:ring-1 focus:ring-accent outline-hidden"
                 />
@@ -262,7 +304,7 @@ export default function SettingsPage() {
                     <button
                       key={item.id}
                       type="button"
-                      onClick={() => setDefaultPrivacy(item.id as PrivacyLevel)}
+                      onClick={() => setPrivacyInput(item.id as PrivacyLevel)}
                       className={`p-3 rounded-lg border text-left transition-all cursor-pointer flex flex-col gap-1 ${
                         isSelected
                           ? "border-accent bg-accent/10 text-text"

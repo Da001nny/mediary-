@@ -22,6 +22,7 @@ import { useRatingScale } from "@/lib/rating-hook";
 import {
   RatingScale,
   RATING_SCALE_CONFIG,
+  normalizeRatingScale,
 } from "@/lib/rating";
 import type { PrivacyLevel } from "@/types/database.types";
 
@@ -41,17 +42,54 @@ function SettingsModalContent({ onClose }: { onClose: () => void }) {
   const { profile, updateProfile, user } = useAuth();
   const { scale: currentScale, setScale } = useRatingScale();
 
-  const [selectedScale, setSelectedScale] = useState<RatingScale>(currentScale);
-  const [displayName, setDisplayName] = useState(
-    profile?.display_name || user?.user_metadata?.full_name || ""
-  );
-  const [bio, setBio] = useState(profile?.bio || "");
-  const [defaultPrivacy, setDefaultPrivacy] = useState<PrivacyLevel>(
-    profile?.default_privacy || "public"
-  );
+  const profileScale: RatingScale = profile?.rating_scale
+    ? normalizeRatingScale(profile.rating_scale)
+    : currentScale;
+
+  const [overrideScale, setOverrideScale] = useState<RatingScale | null>(null);
+  const activeScale = overrideScale ?? profileScale;
+
+  const [savingScale, setSavingScale] = useState<RatingScale | null>(null);
+
+  const [displayNameInput, setDisplayNameInput] = useState<string | null>(null);
+  const [bioInput, setBioInput] = useState<string | null>(null);
+  const [privacyInput, setPrivacyInput] = useState<PrivacyLevel | null>(null);
+
+  const displayName = displayNameInput ?? (profile?.display_name || user?.user_metadata?.full_name || "");
+  const bio = bioInput ?? (profile?.bio || "");
+  const defaultPrivacy = privacyInput ?? (profile?.default_privacy || "public");
+
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Directly update profiles.rating_scale when user selects any option
+  const handleSelectScale = async (scaleOption: RatingScale) => {
+    setOverrideScale(scaleOption);
+    setSavingScale(scaleOption);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      // 1. Update global hook & localStorage
+      await setScale(scaleOption);
+
+      // 2. Call update to profiles.rating_scale in database & profile state
+      const res = await updateProfile({ rating_scale: scaleOption });
+      if (res?.error) {
+        console.warn("Could not save to remote profile, saved locally:", res.error);
+      }
+
+      setSuccessMessage(`Rating scale set to ${RATING_SCALE_CONFIG[scaleOption].name}!`);
+      setTimeout(() => setSuccessMessage(null), 2500);
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : "Failed to update rating scale"
+      );
+    } finally {
+      setSavingScale(null);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,11 +99,11 @@ function SettingsModalContent({ onClose }: { onClose: () => void }) {
 
     try {
       // 1. Update rating scale preference immediately
-      await setScale(selectedScale);
+      await setScale(activeScale);
 
       // 2. Update user profile
       const updates = {
-        rating_scale: selectedScale,
+        rating_scale: activeScale,
         display_name: displayName.trim() || null,
         bio: bio.trim() || null,
         default_privacy: defaultPrivacy,
@@ -171,14 +209,15 @@ function SettingsModalContent({ onClose }: { onClose: () => void }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
               {(["5-star", "10-point", "100-point", "thumbs"] as RatingScale[]).map(
                 (scaleOption) => {
-                  const isSelected = selectedScale === scaleOption;
+                  const isSelected = activeScale === scaleOption;
+                  const isSavingThis = savingScale === scaleOption;
                   const config = RATING_SCALE_CONFIG[scaleOption];
 
                   return (
                     <button
                       key={scaleOption}
                       type="button"
-                      onClick={() => setSelectedScale(scaleOption)}
+                      onClick={() => handleSelectScale(scaleOption)}
                       className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2 ${
                         isSelected
                           ? "border-accent bg-accent/10 shadow-xs ring-1 ring-accent"
@@ -194,11 +233,13 @@ function SettingsModalContent({ onClose }: { onClose: () => void }) {
                             {config.name}
                           </span>
                         </div>
-                        {isSelected && (
+                        {isSavingThis ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" />
+                        ) : isSelected ? (
                           <div className="w-4 h-4 rounded-full bg-accent text-accent-contrast flex items-center justify-center">
                             <Check className="w-2.5 h-2.5 stroke-[3]" />
                           </div>
-                        )}
+                        ) : null}
                       </div>
 
                       <p className="text-[11px] text-text-muted leading-relaxed line-clamp-2">
@@ -244,7 +285,7 @@ function SettingsModalContent({ onClose }: { onClose: () => void }) {
                 id="settings-name"
                 type="text"
                 value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
+                onChange={(e) => setDisplayNameInput(e.target.value)}
                 placeholder="Your name or pseudonym"
                 className="w-full px-3.5 py-2 text-sm rounded-lg bg-bg border border-border text-text placeholder:text-text-muted/60 focus:border-accent focus:ring-1 focus:ring-accent outline-hidden transition-colors"
               />
@@ -262,7 +303,7 @@ function SettingsModalContent({ onClose }: { onClose: () => void }) {
                 id="settings-bio"
                 rows={2}
                 value={bio}
-                onChange={(e) => setBio(e.target.value)}
+                onChange={(e) => setBioInput(e.target.value)}
                 placeholder="A line about your taste in films, literature, and gaming..."
                 className="w-full px-3.5 py-2 text-sm rounded-lg bg-bg border border-border text-text placeholder:text-text-muted/60 focus:border-accent focus:ring-1 focus:ring-accent outline-hidden transition-colors resize-none"
               />
@@ -285,7 +326,7 @@ function SettingsModalContent({ onClose }: { onClose: () => void }) {
                     <button
                       key={item.id}
                       type="button"
-                      onClick={() => setDefaultPrivacy(item.id as PrivacyLevel)}
+                      onClick={() => setPrivacyInput(item.id as PrivacyLevel)}
                       className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer flex flex-col gap-1 ${
                         isSelected
                           ? "border-accent bg-accent/10 text-text"

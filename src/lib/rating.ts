@@ -15,26 +15,48 @@ export const RATING_SCALE_STORAGE_KEY = "mediary_user_rating_scale";
 
 /**
  * Normalizes any string representation (including legacy or alternate names)
- * to one of the 4 canonical RatingScale types.
+ * to one of the 4 canonical RatingScale types: '5-star' | '10-point' | '100-point' | 'thumbs'.
  */
 export function normalizeRatingScale(raw: string | null | undefined): RatingScale {
   if (!raw) return "5-star";
-  const s = raw.toLowerCase().trim();
-  if (s === "10" || s === "10-point" || s === "10_point" || s === "ten_point") {
+  const s = raw.toLowerCase().trim().replace(/[\s_-]+/g, "");
+
+  if (
+    s === "10" ||
+    s === "10point" ||
+    s === "10points" ||
+    s === "tenpoint" ||
+    s === "point10" ||
+    s === "points10" ||
+    s === "ten"
+  ) {
     return "10-point";
   }
-  if (s === "100" || s === "100-point" || s === "100_point" || s === "hundred_point") {
+
+  if (
+    s === "100" ||
+    s === "100point" ||
+    s === "100points" ||
+    s === "hundredpoint" ||
+    s === "point100" ||
+    s === "points100" ||
+    s === "hundred"
+  ) {
     return "100-point";
   }
+
   if (
     s === "thumbs" ||
-    s === "thumbs_up_down" ||
-    s === "thumbs-up-down" ||
-    s === "binary"
+    s === "thumbsupdown" ||
+    s === "thumbsup" ||
+    s === "binary" ||
+    s === "thumb" ||
+    s === "thumbsdown"
   ) {
     return "thumbs";
   }
-  // Default to 5-star
+
+  // Defaults to 5-star for '5', '5star', 'stars5', '5stars', etc.
   return "5-star";
 }
 
@@ -341,6 +363,21 @@ export function getSavedRatingScale(): RatingScale {
     if (stored) {
       return normalizeRatingScale(stored);
     }
+    // Also check cached user profile
+    const profileStored = localStorage.getItem("mediary_user_profile");
+    if (profileStored) {
+      const parsed = JSON.parse(profileStored);
+      if (parsed?.rating_scale) {
+        return normalizeRatingScale(parsed.rating_scale);
+      }
+    }
+    const demoStored = localStorage.getItem("mediary_demo_auth_user");
+    if (demoStored) {
+      const parsed = JSON.parse(demoStored);
+      if (parsed?.profile?.rating_scale) {
+        return normalizeRatingScale(parsed.profile.rating_scale);
+      }
+    }
   } catch {
     // Ignore error
   }
@@ -354,6 +391,32 @@ export function setSavedRatingScale(scale: RatingScale): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(RATING_SCALE_STORAGE_KEY, scale);
+
+    // Also update cached profile if present
+    const profileStored = localStorage.getItem("mediary_user_profile");
+    if (profileStored) {
+      try {
+        const parsed = JSON.parse(profileStored);
+        parsed.rating_scale = scale;
+        localStorage.setItem("mediary_user_profile", JSON.stringify(parsed));
+      } catch {
+        // Ignore
+      }
+    }
+
+    const demoStored = localStorage.getItem("mediary_demo_auth_user");
+    if (demoStored) {
+      try {
+        const parsed = JSON.parse(demoStored);
+        if (parsed?.profile) {
+          parsed.profile.rating_scale = scale;
+          localStorage.setItem("mediary_demo_auth_user", JSON.stringify(parsed));
+        }
+      } catch {
+        // Ignore
+      }
+    }
+
     window.dispatchEvent(new Event("rating-scale-changed"));
   } catch {
     // Ignore error

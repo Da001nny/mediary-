@@ -44,14 +44,12 @@ export function useRatingScale(): {
       setSavedRatingScale(newScale);
 
       try {
-        if (profile) {
-          await updateProfile({ rating_scale: newScale });
-        }
+        await updateProfile({ rating_scale: newScale });
       } catch (err) {
         console.error("Failed to persist rating scale to profile:", err);
       }
     },
-    [profile, updateProfile]
+    [updateProfile]
   );
 
   return { scale, setScale };

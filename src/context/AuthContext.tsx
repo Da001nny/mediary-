@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import type { User, Session, AuthError } from "@supabase/supabase-js";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { getSavedRatingScale } from "@/lib/rating";
 import type { Profile, TablesUpdate } from "@/types/database.types";
 
 interface AuthContextType {
@@ -35,6 +36,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const DEMO_STORAGE_KEY = "mediary_demo_auth_user";
+const PROFILE_STORAGE_KEY = "mediary_user_profile";
 
 function getInitialDemoState(): { user: User | null; profile: Profile | null } {
   if (typeof window !== "undefined") {
@@ -51,6 +53,25 @@ function getInitialDemoState(): { user: User | null; profile: Profile | null } {
   return { user: null, profile: null };
 }
 
+function getInitialStoredProfile(): Profile | null {
+  if (typeof window !== "undefined") {
+    try {
+      const profileStored = localStorage.getItem(PROFILE_STORAGE_KEY);
+      if (profileStored) {
+        return JSON.parse(profileStored);
+      }
+      const demoStored = localStorage.getItem(DEMO_STORAGE_KEY);
+      if (demoStored) {
+        const parsed = JSON.parse(demoStored);
+        if (parsed?.profile) return parsed.profile;
+      }
+    } catch {
+      // Ignore
+    }
+  }
+  return null;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isConfigured = isSupabaseConfigured();
 
@@ -62,10 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   const [profile, setProfile] = useState<Profile | null>(() => {
-    if (!isConfigured) {
-      return getInitialDemoState().profile;
-    }
-    return null;
+    return getInitialStoredProfile() || (!isConfigured ? getInitialDemoState().profile : null);
   });
 
   const [session, setSession] = useState<Session | null>(null);
@@ -97,7 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             avatar_url: currentUser.user_metadata?.avatar_url || null,
             region: null,
             locale: "en",
-            rating_scale: "100",
+            rating_scale: getSavedRatingScale() || "5-star",
             theme: "system",
             default_privacy: "public",
             dashboard_widgets: [],
@@ -105,11 +123,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             updated_at: new Date().toISOString(),
           };
           setProfile(fallbackProfile);
+          if (typeof window !== "undefined") {
+            localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(fallbackProfile));
+          }
           return;
         }
 
         if (data) {
-          setProfile(data as Profile);
+          const loadedProfile = data as Profile;
+          setProfile(loadedProfile);
+          if (typeof window !== "undefined") {
+            localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(loadedProfile));
+            if (loadedProfile.rating_scale) {
+              localStorage.setItem("mediary_user_rating_scale", loadedProfile.rating_scale);
+              window.dispatchEvent(new Event("rating-scale-changed"));
+            }
+          }
         }
       } catch (err) {
         console.warn("Could not fetch profile record:", err);
@@ -261,7 +290,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       avatar_url: null,
       region: "Pacific Northwest",
       locale: "en",
-      rating_scale: "100",
+      rating_scale: getSavedRatingScale() || "5-star",
       theme: "system",
       default_privacy: "public",
       dashboard_widgets: [],
@@ -277,31 +306,90 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         DEMO_STORAGE_KEY,
         JSON.stringify({ user: demoUser, profile: demoProfile })
       );
+      localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(demoProfile));
     }
   };
 
   const updateProfile = async (updates: TablesUpdate<"profiles">) => {
-    if (!user) return { error: new Error("Not authenticated") };
+    // 1. Build next profile state, ensuring we have a valid baseline even for guests
+    const current: Profile = profile || {
+      id: user?.id || "local-user",
+      display_name: user?.user_metadata?.full_name || "Coffee Reader",
+      bio: null,
+      avatar_url: null,
+      region: null,
+      locale: "en",
+      rating_scale: getSavedRatingScale() || "5-star",
+      theme: "system",
+      default_privacy: "public",
+      dashboard_widgets: [],
+      joined_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
 
-    if (!isConfigured) {
-      setProfile((prev) => (prev ? { ...prev, ...updates } : null));
-      return { error: null };
+    const nextProfile: Profile = {
+      ...current,
+      ...updates,
+      updated_at: new Date().toISOString(),
+    };
+
+    // 2. Immediately update React state and persistent storage
+    setProfile(nextProfile);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(nextProfile));
+        if (user) {
+          localStorage.setItem(
+            DEMO_STORAGE_KEY,
+            JSON.stringify({ user, profile: nextProfile })
+          );
+        }
+        if (updates.rating_scale) {
+          localStorage.setItem("mediary_user_rating_scale", updates.rating_scale);
+          window.dispatchEvent(new Event("rating-scale-changed"));
+        }
+      } catch (err) {
+        console.warn("Could not save profile to localStorage:", err);
+      }
     }
 
-    try {
-      // Users can only update their own row per RLS policy: USING (auth.uid() = id)
-      const { error } = await supabase
-        .from("profiles")
-        .update(updates)
-        .eq("id", user.id);
+    // 3. Persist to server / Supabase Postgres if authenticated
+    if (isConfigured && user) {
+      try {
+        // Upsert to ensure profile row is created or updated
+        const { error } = await supabase
+          .from("profiles")
+          .upsert({
+            id: user.id,
+            ...updates,
+            updated_at: new Date().toISOString(),
+          });
 
-      if (error) return { error };
-
-      setProfile((prev) => (prev ? { ...prev, ...updates } : null));
-      return { error: null };
-    } catch (err) {
-      return { error: err as Error };
+        if (error) {
+          console.warn("Direct Supabase profile upsert error, trying API route fallback:", error);
+          await fetch("/api/profile", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(updates),
+          });
+        }
+      } catch (err) {
+        console.warn("Profile update exception:", err);
+      }
+    } else {
+      // In demo mode or offline, call API route
+      try {
+        await fetch("/api/profile", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updates),
+        });
+      } catch {
+        // Safe to ignore in offline demo mode
+      }
     }
+
+    return { error: null };
   };
 
   return (
