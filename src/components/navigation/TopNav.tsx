@@ -458,6 +458,14 @@ export function TopNav() {
                         <Settings className="w-3.5 h-3.5 text-accent" />
                         <span>Profile & Rating Scale</span>
                       </button>
+                      <Link
+                        href="/settings"
+                        onClick={() => setIsProfileMenuOpen(false)}
+                        className="px-4 py-1.5 flex items-center gap-2 text-xs text-text hover:bg-surface-hover transition-colors cursor-pointer"
+                      >
+                        <Zap className="w-3.5 h-3.5 text-accent" />
+                        <span>Settings & Algolia Index</span>
+                      </Link>
                       <div className="px-4 py-1.5 flex items-center justify-between text-xs text-text-muted">
                         <div className="flex items-center gap-2">
                           <ShieldCheck className="w-3.5 h-3.5 text-accent-secondary" />

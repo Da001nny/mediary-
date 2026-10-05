@@ -24,6 +24,7 @@ import {
   RATING_SCALE_CONFIG,
   normalizeRatingScale,
 } from "@/lib/rating";
+import { AlgoliaStatusCard } from "@/components/settings/AlgoliaStatusCard";
 import type { PrivacyLevel } from "@/types/database.types";
 
 interface SettingsModalProps {
@@ -344,6 +345,9 @@ function SettingsModalContent({ onClose }: { onClose: () => void }) {
               </div>
             </div>
           </div>
+
+          {/* Algolia Search & Catalog Indexing Status Card */}
+          <AlgoliaStatusCard />
 
           {/* Footer Actions */}
           <div className="pt-3 border-t border-border flex items-center justify-end gap-2.5">
