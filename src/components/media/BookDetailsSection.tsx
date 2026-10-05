@@ -73,35 +73,35 @@ export function BookDetailsSection({ media }: BookDetailsSectionProps) {
   };
 
   return (
-    <section className="bg-surface rounded-xl border border-border overflow-hidden shadow-xs transition-colors">
+    <section className="card-depth rounded-2xl overflow-hidden transition-all">
       {/* Header Bar */}
-      <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 bg-surface/50">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-accent/15 border border-accent/25 flex items-center justify-center text-accent shrink-0">
-            <BookOpen className="w-5 h-5" />
+      <div className="p-6 sm:p-8 lg:p-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6 border-b border-border/70 bg-surface/50">
+        <div className="flex items-center gap-4 sm:gap-5">
+          <div className="w-12 h-12 rounded-2xl bg-accent/15 border border-accent/25 flex items-center justify-center text-accent shrink-0 shadow-2xs">
+            <BookOpen className="w-6 h-6" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="font-serif text-lg sm:text-xl font-bold text-text">
+            <div className="flex items-center gap-3">
+              <h2 className="font-serif text-2xl sm:text-3xl font-extrabold text-text">
                 Book Details & Edition
               </h2>
-              <Badge variant="subtle" size="sm">
+              <Badge variant="subtle" size="sm" className="font-mono text-xs">
                 Book
               </Badge>
             </div>
-            <p className="text-xs text-text-muted mt-0.5">
+            <p className="text-xs sm:text-sm text-text-muted mt-1 leading-relaxed">
               Author credits, page length, ISBN, and publication metadata
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-end sm:self-auto">
+        <div className="flex items-center gap-3 self-end sm:self-auto">
           {previewLink && (
             <a
               href={previewLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-accent font-medium px-2.5 py-1.5 rounded-md hover:bg-surface border border-transparent hover:border-border transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-accent font-semibold px-3 py-2 rounded-xl bg-bg/80 hover:bg-bg border border-border transition-colors shadow-2xs"
             >
               <span>Google Books Preview</span>
               <ExternalLink className="w-3.5 h-3.5" />
@@ -109,10 +109,10 @@ export function BookDetailsSection({ media }: BookDetailsSectionProps) {
           )}
 
           <Button
-            variant="ghost"
+            variant="secondary"
             size="sm"
             onClick={() => setIsExpanded(!isExpanded)}
-            className="text-xs gap-1.5 text-text-muted hover:text-text cursor-pointer"
+            className="text-xs gap-1.5 cursor-pointer"
           >
             <span>{isExpanded ? "Collapse" : "Expand"}</span>
             <ChevronDown
@@ -124,32 +124,32 @@ export function BookDetailsSection({ media }: BookDetailsSectionProps) {
         </div>
       </div>
 
-      {/* Main Content Body */}
+      {/* Main Content Body with generous whitespace */}
       {isExpanded && (
-        <div className="p-5 sm:p-6 space-y-6">
+        <div className="p-6 sm:p-8 lg:p-10 space-y-8">
           {/* Key Specs Bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-5">
             {/* Author */}
-            <div className="p-3.5 rounded-lg bg-bg border border-border flex flex-col justify-between">
-              <span className="text-[11px] font-medium uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+            <div className="p-4 sm:p-5 rounded-2xl card-depth flex flex-col justify-between space-y-2 card-depth-hover">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5 font-mono">
                 <PenTool className="w-3.5 h-3.5 text-accent" />
                 <span>Primary Author</span>
               </span>
-              <div className="mt-2">
-                <span className="text-xs font-semibold text-text truncate block">
+              <div>
+                <span className="text-xs sm:text-sm font-bold text-text truncate block font-serif">
                   {primaryAuthor}
                 </span>
               </div>
             </div>
 
             {/* Page Count */}
-            <div className="p-3.5 rounded-lg bg-bg border border-border flex flex-col justify-between">
-              <span className="text-[11px] font-medium uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+            <div className="p-4 sm:p-5 rounded-2xl card-depth flex flex-col justify-between space-y-2 card-depth-hover">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5 font-mono">
                 <BookOpen className="w-3.5 h-3.5 text-accent" />
                 <span>Page Count</span>
               </span>
-              <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-sm font-bold text-text">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-base sm:text-lg font-black text-text font-serif">
                   {pageCount ? pageCount.toLocaleString() : "Unknown"}
                 </span>
                 {pageCount && <span className="text-xs text-text-muted">pages</span>}
@@ -157,26 +157,26 @@ export function BookDetailsSection({ media }: BookDetailsSectionProps) {
             </div>
 
             {/* Estimated Read Time */}
-            <div className="p-3.5 rounded-lg bg-bg border border-border flex flex-col justify-between">
-              <span className="text-[11px] font-medium uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+            <div className="p-4 sm:p-5 rounded-2xl card-depth flex flex-col justify-between space-y-2 card-depth-hover">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5 font-mono">
                 <Clock className="w-3.5 h-3.5 text-accent" />
                 <span>Est. Read Time</span>
               </span>
-              <div className="mt-2">
-                <span className="text-xs font-semibold text-text">
+              <div>
+                <span className="text-xs sm:text-sm font-bold text-text font-serif">
                   {estimatedHours ? `~${estimatedHours} Hours` : "Varied pace"}
                 </span>
               </div>
             </div>
 
             {/* Language / Format */}
-            <div className="p-3.5 rounded-lg bg-bg border border-border flex flex-col justify-between">
-              <span className="text-[11px] font-medium uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+            <div className="p-4 sm:p-5 rounded-2xl card-depth flex flex-col justify-between space-y-2 card-depth-hover">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5 font-mono">
                 <Globe className="w-3.5 h-3.5 text-accent" />
                 <span>Language & Format</span>
               </span>
-              <div className="mt-2">
-                <span className="text-xs font-semibold text-text">
+              <div>
+                <span className="text-xs sm:text-sm font-bold text-text font-serif">
                   {language} · Print Book
                 </span>
               </div>
@@ -184,22 +184,22 @@ export function BookDetailsSection({ media }: BookDetailsSectionProps) {
           </div>
 
           {/* Edition, Series & Publishing Details Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
             {/* Author & Series Information */}
-            <div className="p-4 rounded-lg bg-bg border border-border space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-text flex items-center gap-2">
+            <div className="p-6 sm:p-7 rounded-2xl card-depth space-y-4">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-text flex items-center gap-2">
                 <PenTool className="w-4 h-4 text-accent" />
                 <span>Author & Series Details</span>
               </h3>
 
-              <div className="space-y-3 pt-1">
+              <div className="space-y-4 pt-1">
                 <div>
-                  <span className="text-[11px] text-text-muted block mb-1 font-medium">
+                  <span className="text-xs text-text-muted block mb-1.5 font-semibold">
                     Authors ({authors.length})
                   </span>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-2">
                     {authors.map((auth) => (
-                      <Badge key={auth} variant="subtle" size="md">
+                      <Badge key={auth} variant="subtle" size="md" className="text-xs py-1 px-2.5">
                         {auth}
                       </Badge>
                     ))}
@@ -208,10 +208,10 @@ export function BookDetailsSection({ media }: BookDetailsSectionProps) {
 
                 {series && (
                   <div>
-                    <span className="text-[11px] text-text-muted block mb-1 font-medium">
+                    <span className="text-xs text-text-muted block mb-1.5 font-semibold">
                       Series / Subtitle
                     </span>
-                    <span className="text-xs font-medium text-text bg-surface px-2.5 py-1 rounded border border-border inline-block">
+                    <span className="text-xs sm:text-sm font-medium text-text bg-surface px-3 py-1.5 rounded-xl border border-border inline-block">
                       {series}
                     </span>
                   </div>
@@ -238,19 +238,19 @@ export function BookDetailsSection({ media }: BookDetailsSectionProps) {
             </div>
 
             {/* Publishing & ISBN Card */}
-            <div className="p-4 rounded-lg bg-bg border border-border space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-text flex items-center gap-2">
+            <div className="p-6 sm:p-7 rounded-2xl card-depth space-y-4">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-text flex items-center gap-2">
                 <Building className="w-4 h-4 text-accent" />
                 <span>Publication & ISBN</span>
               </h3>
 
-              <div className="space-y-3 pt-1">
+              <div className="space-y-4 pt-1">
                 {publisher && (
                   <div>
-                    <span className="text-[11px] text-text-muted block mb-0.5 font-medium">
+                    <span className="text-xs text-text-muted block mb-1 font-semibold">
                       Publisher
                     </span>
-                    <span className="text-xs font-semibold text-text">
+                    <span className="text-sm font-bold text-text font-serif">
                       {publisher}
                     </span>
                   </div>
@@ -258,10 +258,10 @@ export function BookDetailsSection({ media }: BookDetailsSectionProps) {
 
                 {publishedDate && (
                   <div>
-                    <span className="text-[11px] text-text-muted block mb-0.5 font-medium">
+                    <span className="text-xs text-text-muted block mb-1 font-semibold">
                       Publication Date
                     </span>
-                    <span className="text-xs text-text font-mono">
+                    <span className="text-sm text-text font-mono">
                       {publishedDate}
                     </span>
                   </div>
@@ -269,10 +269,10 @@ export function BookDetailsSection({ media }: BookDetailsSectionProps) {
 
                 {edition && (
                   <div>
-                    <span className="text-[11px] text-text-muted block mb-0.5 font-medium">
+                    <span className="text-xs text-text-muted block mb-1 font-semibold">
                       Edition Info
                     </span>
-                    <span className="text-xs text-text">
+                    <span className="text-xs sm:text-sm text-text">
                       {edition}
                     </span>
                   </div>
@@ -280,34 +280,34 @@ export function BookDetailsSection({ media }: BookDetailsSectionProps) {
 
                 {/* ISBN section with quick copy */}
                 {(isbn || isbn10) && (
-                  <div className="pt-1">
-                    <span className="text-[11px] text-text-muted block mb-1.5 font-medium">
+                  <div className="pt-2">
+                    <span className="text-xs text-text-muted block mb-2 font-semibold">
                       Standard Identifiers (ISBN)
                     </span>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-3">
                       {isbn && (
-                        <div className="flex items-center gap-1 bg-surface px-2 py-1 rounded border border-border text-xs font-mono">
-                          <span className="text-text-muted text-[10px]">ISBN-13:</span>
-                          <span className="font-semibold text-text">{isbn}</span>
+                        <div className="flex items-center gap-2 bg-surface px-3 py-1.5 rounded-xl border border-border text-xs font-mono poster-depth-sm">
+                          <span className="text-text-muted text-[11px]">ISBN-13:</span>
+                          <span className="font-bold text-text">{isbn}</span>
                           <button
                             type="button"
                             onClick={handleCopyIsbn}
                             title="Copy ISBN"
-                            className="ml-1 text-text-muted hover:text-accent cursor-pointer"
+                            className="ml-1.5 text-text-muted hover:text-accent cursor-pointer p-0.5 rounded transition-colors"
                           >
                             {copiedIsbn ? (
-                              <Check className="w-3 h-3 text-emerald-600" />
+                              <Check className="w-3.5 h-3.5 text-emerald-600" />
                             ) : (
-                              <Copy className="w-3 h-3" />
+                              <Copy className="w-3.5 h-3.5" />
                             )}
                           </button>
                         </div>
                       )}
 
                       {isbn10 && (
-                        <div className="flex items-center gap-1 bg-surface px-2 py-1 rounded border border-border text-xs font-mono">
-                          <span className="text-text-muted text-[10px]">ISBN-10:</span>
-                          <span className="text-text">{isbn10}</span>
+                        <div className="flex items-center gap-2 bg-surface px-3 py-1.5 rounded-xl border border-border text-xs font-mono poster-depth-sm">
+                          <span className="text-text-muted text-[11px]">ISBN-10:</span>
+                          <span className="text-text font-semibold">{isbn10}</span>
                         </div>
                       )}
                     </div>

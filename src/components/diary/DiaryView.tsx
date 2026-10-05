@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Card, CardContent } from "@/components/ui/Card";
 import { MediaSearchModal } from "@/components/media/MediaSearchModal";
 import { SpoilerReviewText } from "@/components/media/SpoilerReviewText";
 import { RatingBadge } from "@/components/ui/RatingBadge";
@@ -310,66 +309,67 @@ export function DiaryView() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10 sm:space-y-12 lg:space-y-14">
       {/* 1. Header Banner */}
-      <section className="bg-surface rounded-2xl border border-border p-6 sm:p-8 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-accent font-semibold">
+      <section className="card-depth rounded-3xl p-8 sm:p-10 lg:p-12 space-y-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-accent font-bold font-mono">
               <BookMarked className="w-4 h-4" />
               <span>Personal Media Archive</span>
             </div>
-            <h1 className="font-serif text-3xl sm:text-4xl font-bold text-text">
+            <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-black text-text tracking-tight leading-tight">
               My Media Diary
             </h1>
-            <p className="text-xs sm:text-sm text-text-muted max-w-xl">
+            <p className="text-xs sm:text-sm text-text-muted max-w-xl leading-relaxed">
               Log, review, and filter your movies, television shows, video games, and books over slow mornings.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 self-start sm:self-center">
             <Button
               variant="primary"
+              size="md"
               onClick={() => setIsSearchModalOpen(true)}
               leftIcon={<Plus className="w-4 h-4" />}
-              className="text-xs"
+              className="text-xs h-10 px-5 shadow-sm hover:shadow-md cursor-pointer"
             >
               Log New Title
             </Button>
           </div>
         </div>
 
-        {/* Quick Stats Row */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-6 border-t border-border/70">
-          <div className="bg-bg/60 p-3 rounded-lg border border-border">
-            <span className="text-[11px] text-text-muted uppercase font-mono">
+        {/* Quick Stats Row with Subtle Ambient Elevation */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 pt-6 border-t border-border/70">
+          <div className="p-4 sm:p-5 rounded-xl bg-surface/70 border border-border/80 card-depth-hover transition-all space-y-1">
+            <span className="text-[11px] text-text-muted uppercase font-mono font-semibold block">
               Total Logged
             </span>
-            <p className="font-serif text-2xl font-bold text-text mt-0.5">
+            <p className="font-serif text-2xl sm:text-3xl font-bold text-text">
               {entries.length}
             </p>
           </div>
-          <div className="bg-bg/60 p-3 rounded-lg border border-border">
-            <span className="text-[11px] text-text-muted uppercase font-mono">
+          <div className="p-4 sm:p-5 rounded-xl bg-surface/70 border border-border/80 card-depth-hover transition-all space-y-1">
+            <span className="text-[11px] text-text-muted uppercase font-mono font-semibold block">
               Completed
             </span>
-            <p className="font-serif text-2xl font-bold text-text mt-0.5">
+            <p className="font-serif text-2xl sm:text-3xl font-bold text-emerald-700 dark:text-emerald-400">
               {entries.filter((e) => e.status === "completed").length}
             </p>
           </div>
-          <div className="bg-bg/60 p-3 rounded-lg border border-border">
-            <span className="text-[11px] text-text-muted uppercase font-mono">
+          <div className="p-4 sm:p-5 rounded-xl bg-surface/70 border border-border/80 card-depth-hover transition-all space-y-1">
+            <span className="text-[11px] text-text-muted uppercase font-mono font-semibold block">
               In Progress
             </span>
-            <p className="font-serif text-2xl font-bold text-text mt-0.5">
+            <p className="font-serif text-2xl sm:text-3xl font-bold text-amber-700 dark:text-amber-400">
               {entries.filter((e) => e.status === "in_progress").length}
             </p>
           </div>
-          <div className="bg-bg/60 p-3 rounded-lg border border-border">
-            <span className="text-[11px] text-text-muted uppercase font-mono">
+          <div className="p-4 sm:p-5 rounded-xl bg-surface/70 border border-border/80 card-depth-hover transition-all space-y-1">
+            <span className="text-[11px] text-text-muted uppercase font-mono font-semibold block">
               Unique Performers
             </span>
-            <p className="font-serif text-2xl font-bold text-text mt-0.5">
+            <p className="font-serif text-2xl sm:text-3xl font-bold text-accent">
               {allPeopleInDiary.length}
             </p>
           </div>
@@ -377,7 +377,7 @@ export function DiaryView() {
       </section>
 
       {/* 2. Comprehensive Filter Toolbar */}
-      <section className="bg-surface rounded-2xl border border-border p-5 sm:p-6 shadow-xs space-y-4">
+      <section className="card-depth rounded-2xl p-6 sm:p-8 space-y-6">
         <div className="flex items-center justify-between pb-3 border-b border-border/60 flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-accent" />
@@ -629,7 +629,7 @@ export function DiaryView() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
             {filteredEntries.map((entry) => {
               const formattedDate = new Date(entry.logged_at).toLocaleDateString("en-US", {
                 year: "numeric",
@@ -638,41 +638,40 @@ export function DiaryView() {
               });
 
               return (
-                <Card
+                <div
                   key={entry.id}
-                  variant="book"
-                  className="flex flex-col justify-between hover:border-accent/40 transition-all shadow-2xs"
+                  className="rounded-2xl card-depth card-depth-hover transition-all flex flex-col justify-between overflow-hidden p-6 sm:p-7 space-y-5"
                 >
-                  <CardContent className="p-5 space-y-4">
+                  <div className="space-y-4">
                     {/* Header Row: Poster + Title + Rating */}
-                    <div className="flex gap-4">
-                      {/* Cover Poster */}
+                    <div className="flex gap-4 sm:gap-5 items-start">
+                      {/* Cover Poster with Physical Object Drop Shadow & Lift */}
                       <Link
                         href={`/media/${entry.media_id}`}
-                        className="relative w-20 sm:w-24 aspect-2/3 rounded-lg overflow-hidden bg-bg border border-border shadow-xs shrink-0 group block"
+                        className="relative w-24 sm:w-28 md:w-32 aspect-2/3 rounded-xl overflow-hidden poster-depth ring-1 ring-black/10 dark:ring-white/10 shrink-0 group block bg-bg"
                       >
                         {entry.cover_url ? (
                           <Image
                             src={entry.cover_url}
                             alt={entry.title}
                             fill
-                            sizes="(max-width: 640px) 80px, 96px"
-                            className="object-cover group-hover:scale-105 transition-transform duration-300"
+                            sizes="(max-width: 640px) 96px, 128px"
+                            className="object-cover group-hover:scale-106 transition-transform duration-500 ease-out"
                             referrerPolicy="no-referrer"
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center p-2 text-center text-[10px] text-text-muted bg-surface">
+                          <div className="w-full h-full flex flex-col items-center justify-center p-3 text-center text-xs text-text-muted bg-surface font-serif font-bold">
                             {entry.title}
                           </div>
                         )}
                       </Link>
 
                       {/* Title & Metadata */}
-                      <div className="flex-1 min-w-0 space-y-1.5">
-                        <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0 space-y-2">
+                        <div className="flex items-start justify-between gap-2.5">
                           <Link
                             href={`/media/${entry.media_id}`}
-                            className="font-serif text-base sm:text-lg font-bold text-text hover:text-accent transition-colors line-clamp-1"
+                            className="font-serif text-lg sm:text-xl font-bold text-text hover:text-accent transition-colors line-clamp-1"
                           >
                             {entry.title}
                           </Link>
@@ -739,16 +738,16 @@ export function DiaryView() {
                         </div>
 
                         {/* Logged Date */}
-                        <div className="flex items-center gap-1.5 text-[11px] text-text-muted pt-1">
-                          <Calendar className="w-3 h-3 text-accent" />
+                        <div className="flex items-center gap-1.5 text-[11px] text-text-muted pt-0.5">
+                          <Calendar className="w-3.5 h-3.5 text-accent" />
                           <span>Logged on {formattedDate}</span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Review Notes */}
+                    {/* Review Notes in padded card */}
                     {(entry.notes || entry.review) && (
-                      <div className="pt-0.5">
+                      <div className="p-3.5 sm:p-4 rounded-xl bg-bg/50 border border-border/70 text-xs sm:text-sm leading-relaxed">
                         <SpoilerReviewText
                           text={entry.notes || entry.review || ""}
                           containsSpoilers={Boolean(
@@ -762,7 +761,7 @@ export function DiaryView() {
 
                     {/* Cast & Crew Chips (Allows filtering right from entry!) */}
                     <div className="space-y-1.5 pt-2 border-t border-border/60">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">
                         Cast & Crew · Click to filter diary
                       </span>
                       <div className="flex flex-wrap gap-1.5">
@@ -774,7 +773,7 @@ export function DiaryView() {
                               key={c.id}
                               type="button"
                               onClick={() => handleSelectPerson(c.name)}
-                              className={`text-[11px] px-2 py-0.5 rounded transition-colors cursor-pointer border ${
+                              className={`text-[11px] px-2.5 py-0.5 rounded-md transition-colors cursor-pointer border ${
                                 isCurrentFilter
                                   ? "bg-accent text-accent-contrast border-accent font-semibold"
                                   : "bg-surface hover:bg-surface-hover text-text border-border"
@@ -794,7 +793,7 @@ export function DiaryView() {
                               key={c.id}
                               type="button"
                               onClick={() => handleSelectPerson(c.name)}
-                              className={`text-[11px] px-2 py-0.5 rounded transition-colors cursor-pointer border ${
+                              className={`text-[11px] px-2.5 py-0.5 rounded-md transition-colors cursor-pointer border ${
                                 isCurrentFilter
                                   ? "bg-accent-secondary text-accent-contrast border-accent-secondary font-semibold"
                                   : "bg-surface hover:bg-surface-hover text-accent-secondary border-accent-secondary/30"
@@ -807,8 +806,8 @@ export function DiaryView() {
                         })}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               );
             })}
           </div>

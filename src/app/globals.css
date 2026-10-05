@@ -11,8 +11,17 @@
   --color-accent-contrast: #FFFDF9;
   --color-accent-secondary: #2E5E3D;
   --color-accent-secondary-hover: #244B30;
-  --color-border: rgba(35, 37, 38, 0.14);
+  --color-border: rgba(35, 37, 38, 0.10);
+  --color-border-subtle: rgba(35, 37, 38, 0.05);
   --color-ring: rgba(200, 116, 20, 0.45);
+
+  /* Physical object drop shadows for posters and cover art */
+  --shadow-poster: 0 2px 4px rgba(35, 37, 38, 0.04), 0 10px 24px -4px rgba(35, 37, 38, 0.16), 0 24px 44px -8px rgba(35, 37, 38, 0.14);
+  --shadow-poster-hover: 0 4px 8px rgba(35, 37, 38, 0.06), 0 18px 36px -4px rgba(35, 37, 38, 0.22), 0 36px 64px -10px rgba(35, 37, 38, 0.20);
+
+  /* Subtle multi-elevation card shadows using warm charcoal tones */
+  --shadow-card: 0 1px 3px rgba(35, 37, 38, 0.03), 0 8px 24px -4px rgba(35, 37, 38, 0.06);
+  --shadow-card-hover: 0 2px 6px rgba(35, 37, 38, 0.05), 0 16px 36px -6px rgba(35, 37, 38, 0.10);
 }
 
 [data-theme="dark"],
@@ -27,8 +36,15 @@
   --color-accent-contrast: #171310;
   --color-accent-secondary: #529369;
   --color-accent-secondary-hover: #61A57A;
-  --color-border: rgba(245, 235, 217, 0.13);
+  --color-border: rgba(245, 235, 217, 0.09);
+  --color-border-subtle: rgba(245, 235, 217, 0.05);
   --color-ring: rgba(226, 139, 42, 0.45);
+
+  --shadow-poster: 0 4px 10px rgba(0, 0, 0, 0.5), 0 16px 36px -4px rgba(0, 0, 0, 0.65), 0 32px 64px -8px rgba(0, 0, 0, 0.55);
+  --shadow-poster-hover: 0 6px 14px rgba(0, 0, 0, 0.55), 0 24px 48px -6px rgba(0, 0, 0, 0.8), 0 44px 80px -10px rgba(0, 0, 0, 0.65);
+
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.35), 0 12px 32px -4px rgba(0, 0, 0, 0.45);
+  --shadow-card-hover: 0 4px 14px rgba(0, 0, 0, 0.45), 0 20px 48px -6px rgba(0, 0, 0, 0.55);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -43,8 +59,15 @@
     --color-accent-contrast: #171310;
     --color-accent-secondary: #529369;
     --color-accent-secondary-hover: #61A57A;
-    --color-border: rgba(245, 235, 217, 0.13);
+    --color-border: rgba(245, 235, 217, 0.09);
+    --color-border-subtle: rgba(245, 235, 217, 0.05);
     --color-ring: rgba(226, 139, 42, 0.45);
+
+    --shadow-poster: 0 4px 10px rgba(0, 0, 0, 0.5), 0 16px 36px -4px rgba(0, 0, 0, 0.65), 0 32px 64px -8px rgba(0, 0, 0, 0.55);
+    --shadow-poster-hover: 0 6px 14px rgba(0, 0, 0, 0.55), 0 24px 48px -6px rgba(0, 0, 0, 0.8), 0 44px 80px -10px rgba(0, 0, 0, 0.65);
+
+    --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.35), 0 12px 32px -4px rgba(0, 0, 0, 0.45);
+    --shadow-card-hover: 0 4px 14px rgba(0, 0, 0, 0.45), 0 20px 48px -6px rgba(0, 0, 0, 0.55);
   }
 }
 
@@ -70,6 +93,64 @@ body {
   background-color: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-work-sans), system-ui, -apple-system, sans-serif;
+  letter-spacing: -0.011em;
+}
+
+/* Premium Poster & Cover Art Physical Depth */
+.poster-depth {
+  box-shadow: var(--shadow-poster);
+  transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, box-shadow;
+}
+
+.poster-depth:hover {
+  transform: translateY(-5px) scale(1.02);
+  box-shadow: var(--shadow-poster-hover);
+}
+
+.poster-depth-sm {
+  box-shadow: var(--shadow-card);
+  transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.poster-depth-sm:hover {
+  transform: translateY(-3px) scale(1.015);
+  box-shadow: var(--shadow-card-hover);
+}
+
+/* Card Surface Elevation with subtle warm charcoal border & soft ambient shadow */
+.card-depth {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.28s ease;
+}
+
+.card-depth-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+  border-color: rgba(200, 116, 20, 0.28);
+}
+
+/* Skeleton Loading Shimmer */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface) 0%,
+    var(--color-surface-hover) 50%,
+    var(--color-surface) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.8s infinite ease-in-out;
 }
 
 @media (prefers-reduced-motion: reduce) {

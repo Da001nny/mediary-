@@ -65,11 +65,11 @@ export function CastCrewSection({ cast = [], crew = [] }: CastCrewSectionProps) 
   const totalCreditsCount = cast.length + crew.length;
 
   return (
-    <section className="bg-surface rounded-xl border border-border shadow-xs overflow-hidden transition-colors">
+    <section className="card-depth rounded-2xl overflow-hidden transition-all">
       {/* Collapsible Header */}
       <div
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:bg-surface-hover/40 transition-colors select-none group"
+        className="w-full p-6 sm:p-8 lg:p-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6 cursor-pointer hover:bg-surface-hover/40 transition-colors select-none group"
         role="button"
         tabIndex={0}
         aria-expanded={isExpanded}
@@ -80,20 +80,20 @@ export function CastCrewSection({ cast = [], crew = [] }: CastCrewSectionProps) 
           }
         }}
       >
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-accent/15 text-accent flex items-center justify-center shrink-0">
-            <Users className="w-5 h-5" />
+        <div className="flex items-center gap-4 sm:gap-5">
+          <div className="w-12 h-12 rounded-2xl bg-accent/15 text-accent flex items-center justify-center shrink-0 shadow-2xs">
+            <Users className="w-6 h-6" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="font-serif text-lg sm:text-xl font-bold text-text group-hover:text-accent transition-colors">
+            <div className="flex items-center gap-3">
+              <h2 className="font-serif text-2xl sm:text-3xl font-extrabold text-text group-hover:text-accent transition-colors">
                 Cast & Crew
               </h2>
-              <Badge variant="subtle" size="sm" className="font-mono">
+              <Badge variant="subtle" size="sm" className="font-mono text-xs">
                 {totalCreditsCount} credits ({cast.length} cast, {crew.length} crew)
               </Badge>
             </div>
-            <p className="text-xs text-text-muted mt-0.5">
+            <p className="text-xs sm:text-sm text-text-muted mt-1 leading-relaxed">
               Performers, directors, writers, and technical creators · Click any person to explore filmography
             </p>
           </div>
@@ -177,7 +177,7 @@ export function CastCrewSection({ cast = [], crew = [] }: CastCrewSectionProps) 
             transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden border-t border-border"
           >
-            <div className="p-5 sm:p-6 space-y-5">
+            <div className="p-6 sm:p-8 lg:p-10 space-y-8">
               {/* Tab Switcher & Search Bar */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/70">
                 {/* Segmented Tab Control */}
@@ -329,21 +329,21 @@ function CastCard({ member }: { member: CastMember }) {
   return (
     <Link
       href={`/person/${member.id}`}
-      className="flex flex-col bg-bg border border-border rounded-lg overflow-hidden group hover:border-accent hover:shadow-xs transition-all cursor-pointer"
+      className="flex flex-col card-depth rounded-2xl overflow-hidden group card-depth-hover transition-all duration-300 cursor-pointer"
     >
-      <div className="relative aspect-3/4 w-full bg-surface shrink-0 overflow-hidden">
+      <div className="relative aspect-3/4 w-full bg-surface shrink-0 overflow-hidden ring-1 ring-black/10 dark:ring-white/10">
         {photoUrl ? (
           <Image
             src={photoUrl}
             alt={member.name}
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 16vw"
-            className="object-cover group-hover:scale-104 transition-transform duration-300"
+            className="object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
             referrerPolicy="no-referrer"
           />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center p-3 text-center bg-surface text-text-muted">
-            <div className="w-10 h-10 rounded-full bg-accent/15 text-accent flex items-center justify-center text-xs font-bold font-serif mb-1">
+          <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-surface text-text-muted">
+            <div className="w-11 h-11 rounded-full bg-accent/15 text-accent flex items-center justify-center text-sm font-bold font-serif mb-1.5 shadow-2xs">
               {member.name
                 .split(" ")
                 .map((n) => n[0])
@@ -351,18 +351,18 @@ function CastCard({ member }: { member: CastMember }) {
                 .join("")
                 .toUpperCase()}
             </div>
-            <span className="text-[10px] opacity-60">No Photo</span>
+            <span className="text-[11px] opacity-60 font-sans">No Photo</span>
           </div>
         )}
       </div>
 
-      <div className="p-2.5 flex flex-col justify-between flex-1 min-w-0">
-        <h4 className="text-xs font-semibold text-text truncate group-hover:text-accent transition-colors">
+      <div className="p-3.5 sm:p-4 flex flex-col justify-between flex-1 min-w-0 space-y-1">
+        <h4 className="text-xs sm:text-sm font-bold text-text truncate group-hover:text-accent transition-colors font-serif">
           {member.name}
         </h4>
         {member.character && (
           <p
-            className="text-[11px] text-text-muted truncate mt-0.5"
+            className="text-xs text-text-muted truncate leading-tight"
             title={member.character}
           >
             {member.character}
@@ -381,36 +381,30 @@ function CrewCard({ member }: { member: CrewMember }) {
   return (
     <Link
       href={`/person/${member.id}`}
-      className="flex items-center gap-3 p-2.5 bg-bg border border-border rounded-lg hover:border-accent hover:shadow-2xs transition-all group cursor-pointer"
+      className="flex items-center gap-3.5 p-3.5 rounded-2xl card-depth group card-depth-hover transition-all duration-300 cursor-pointer"
     >
-      <div className="relative w-11 h-11 rounded-md overflow-hidden bg-surface shrink-0 border border-border/50">
+      <div className="relative w-12 h-15 rounded-xl overflow-hidden bg-bg shrink-0 poster-depth-sm ring-1 ring-black/10 dark:ring-white/10">
         {photoUrl ? (
           <Image
             src={photoUrl}
             alt={member.name}
             fill
-            sizes="44px"
-            className="object-cover"
+            sizes="48px"
+            className="object-cover group-hover:scale-106 transition-transform duration-500 ease-out"
             referrerPolicy="no-referrer"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-xs font-bold font-serif text-accent bg-accent/15">
-            {member.name
-              .split(" ")
-              .map((n) => n[0])
-              .slice(0, 2)
-              .join("")
-              .toUpperCase()}
+          <div className="w-full h-full flex items-center justify-center bg-surface text-text-muted font-serif text-sm font-bold">
+            {member.name[0]}
           </div>
         )}
       </div>
-
-      <div className="min-w-0 flex-1">
-        <h4 className="text-xs font-semibold text-text truncate group-hover:text-accent transition-colors">
+      <div className="min-w-0 flex-1 space-y-0.5">
+        <h4 className="text-xs sm:text-sm font-bold text-text truncate group-hover:text-accent transition-colors font-serif">
           {member.name}
         </h4>
-        <p className="text-[10px] text-accent font-medium truncate mt-0.5">
-          {member.job || member.department || "Crew"}
+        <p className="text-xs text-text-muted truncate">
+          {member.job || member.department}
         </p>
       </div>
     </Link>

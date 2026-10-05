@@ -12,7 +12,6 @@ import {
   Tv,
   Gamepad2,
   BookOpen,
-  Loader2,
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -22,6 +21,7 @@ import { useAuth } from "@/context/AuthContext";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { LogEntryModal } from "@/components/media/LogEntryModal";
 import { SpoilerReviewText } from "@/components/media/SpoilerReviewText";
+import { CardSkeleton } from "@/components/ui/Skeleton";
 import type { MediaItem, ReviewItem, MediaEntry } from "@/types/database.types";
 
 interface MediaReviewsFeedProps {
@@ -212,55 +212,55 @@ export function MediaReviewsFeed({ media }: MediaReviewsFeedProps) {
   const spoilerCount = reviews.filter((r) => r.contains_spoilers).length;
 
   return (
-    <section className="bg-surface rounded-xl border border-border overflow-hidden shadow-xs">
-      {/* 1. Header Bar */}
-      <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 bg-surface/50">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-accent/15 border border-accent/25 flex items-center justify-center text-accent shrink-0">
-            <MessageSquare className="w-5 h-5" />
+    <section className="card-depth rounded-2xl overflow-hidden transition-all">
+      {/* 1. Header Bar with generous spacing */}
+      <div className="p-6 sm:p-8 lg:p-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6 border-b border-border/70 bg-surface/50">
+        <div className="flex items-center gap-4 sm:gap-5">
+          <div className="w-12 h-12 rounded-2xl bg-accent/15 border border-accent/25 flex items-center justify-center text-accent shrink-0 shadow-2xs">
+            <MessageSquare className="w-6 h-6" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="font-serif text-lg sm:text-xl font-bold text-text">
+            <div className="flex items-center gap-3">
+              <h2 className="font-serif text-2xl sm:text-3xl font-extrabold text-text">
                 Community Reviews & Logs
               </h2>
-              <Badge variant="subtle" size="sm" className="font-mono text-[11px]">
+              <Badge variant="subtle" size="sm" className="font-mono text-xs">
                 {reviews.length} {reviews.length === 1 ? "entry" : "entries"}
               </Badge>
             </div>
-            <p className="text-xs text-text-muted mt-0.5">
+            <p className="text-xs sm:text-sm text-text-muted mt-1 leading-relaxed">
               Reflections, ratings, and slow notes from fellow diary readers
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 self-start sm:self-auto">
           <Button
             variant="primary"
-            size="sm"
+            size="md"
             onClick={handleOpenReviewModal}
-            className="text-xs h-8 gap-1.5 shadow-2xs font-medium cursor-pointer"
+            className="text-xs font-semibold h-11 px-5 gap-2 shadow-sm hover:shadow-md cursor-pointer"
           >
-            <PenLine className="w-3.5 h-3.5" />
+            <PenLine className="w-4 h-4" />
             <span>{userEntry ? "Edit Your Review" : "Write a Review"}</span>
           </Button>
         </div>
       </div>
 
       {/* 2. Filter & Sort Toolbar */}
-      <div className="px-4 py-3 bg-bg/40 border-b border-border/50 flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[11px] font-mono uppercase tracking-wider text-text-muted flex items-center gap-1">
-            <Filter className="w-3 h-3 text-accent" /> Filter:
+      <div className="px-6 sm:px-8 py-4 bg-bg/50 border-b border-border/60 flex flex-wrap items-center justify-between gap-4 text-xs">
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="text-[11px] font-mono uppercase tracking-wider text-text-muted flex items-center gap-1.5 font-semibold">
+            <Filter className="w-3.5 h-3.5 text-accent" /> Filter:
           </span>
 
-          <div className="flex items-center p-0.5 bg-surface rounded-md border border-border">
+          <div className="flex items-center p-1 bg-surface rounded-xl border border-border">
             <button
               type="button"
               onClick={() => setFilter("with_text")}
-              className={`px-2.5 py-1 text-xs rounded transition-colors cursor-pointer ${
+              className={`px-3 py-1 text-xs rounded-lg transition-all cursor-pointer ${
                 filter === "with_text"
-                  ? "bg-accent text-accent-contrast font-medium shadow-2xs"
+                  ? "bg-accent text-accent-contrast font-semibold shadow-2xs"
                   : "text-text-muted hover:text-text"
               }`}
             >
@@ -269,9 +269,9 @@ export function MediaReviewsFeed({ media }: MediaReviewsFeedProps) {
             <button
               type="button"
               onClick={() => setFilter("all")}
-              className={`px-2.5 py-1 text-xs rounded transition-colors cursor-pointer ${
+              className={`px-3 py-1 text-xs rounded-lg transition-all cursor-pointer ${
                 filter === "all"
-                  ? "bg-accent text-accent-contrast font-medium shadow-2xs"
+                  ? "bg-accent text-accent-contrast font-semibold shadow-2xs"
                   : "text-text-muted hover:text-text"
               }`}
             >
@@ -280,22 +280,22 @@ export function MediaReviewsFeed({ media }: MediaReviewsFeedProps) {
           </div>
 
           {spoilerCount > 0 && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
-              <EyeOff className="w-3 h-3" />
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+              <EyeOff className="w-3.5 h-3.5" />
               <span>{spoilerCount} spoiler protected</span>
             </span>
           )}
         </div>
 
         {/* Sort Selector */}
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-mono uppercase tracking-wider text-text-muted flex items-center gap-1">
-            <ArrowUpDown className="w-3 h-3 text-text-muted" /> Sort:
+        <div className="flex items-center gap-2.5">
+          <span className="text-[11px] font-mono uppercase tracking-wider text-text-muted flex items-center gap-1 font-semibold">
+            <ArrowUpDown className="w-3.5 h-3.5 text-text-muted" /> Sort:
           </span>
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as "recent" | "highest" | "lowest")}
-            className="h-8 bg-surface border border-border rounded-md px-2.5 text-xs text-text focus:outline-none focus:border-accent cursor-pointer shadow-2xs"
+            className="h-9 bg-surface border border-border rounded-xl px-3 text-xs text-text font-medium focus:outline-none focus:border-accent cursor-pointer shadow-2xs"
           >
             <option value="recent">Most Recent (Default)</option>
             <option value="highest">Highest Rating</option>
@@ -306,7 +306,7 @@ export function MediaReviewsFeed({ media }: MediaReviewsFeedProps) {
             type="button"
             onClick={loadReviews}
             disabled={isLoading}
-            className="p-1.5 rounded-md border border-border bg-surface text-text-muted hover:text-text transition-colors cursor-pointer"
+            className="p-2 rounded-xl border border-border bg-surface text-text-muted hover:text-text hover:border-accent/40 transition-colors cursor-pointer shadow-2xs"
             title="Refresh review feed"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin text-accent" : ""}`} />
@@ -315,40 +315,38 @@ export function MediaReviewsFeed({ media }: MediaReviewsFeedProps) {
       </div>
 
       {/* 3. Review Items Feed */}
-      <div className="p-4 sm:p-5 space-y-4">
+      <div className="p-6 sm:p-8 lg:p-10 space-y-6">
         {isLoading && reviews.length === 0 ? (
-          <div className="text-center py-12 space-y-2">
-            <Loader2 className="w-6 h-6 animate-spin text-accent mx-auto" />
-            <p className="text-xs text-text-muted font-sans">
-              Loading community reflections...
-            </p>
+          <div className="space-y-6">
+            <CardSkeleton />
+            <CardSkeleton />
           </div>
         ) : reviews.length === 0 ? (
           /* Empty State */
-          <div className="text-center py-12 px-4 rounded-xl border border-dashed border-border/80 bg-surface/30 space-y-3">
-            <div className="w-12 h-12 rounded-full bg-accent/10 border border-accent/20 text-accent mx-auto flex items-center justify-center">
-              <PenLine className="w-5 h-5" />
+          <div className="text-center py-16 px-6 rounded-2xl border border-dashed border-border/80 bg-surface/30 space-y-4">
+            <div className="w-16 h-16 rounded-2xl bg-accent/10 border border-accent/20 text-accent mx-auto flex items-center justify-center shadow-2xs">
+              <PenLine className="w-7 h-7" />
             </div>
-            <div className="space-y-1 max-w-sm mx-auto">
-              <h3 className="font-serif text-base font-semibold text-text">
+            <div className="space-y-1.5 max-w-sm mx-auto">
+              <h3 className="font-serif text-xl font-bold text-text">
                 Be the first to review {media.title}
               </h3>
-              <p className="text-xs text-text-muted leading-relaxed">
+              <p className="text-xs sm:text-sm text-text-muted leading-relaxed">
                 Log your rating, thoughts, or reflections. You can tag spoilers to protect other readers.
               </p>
             </div>
             <Button
               variant="primary"
-              size="sm"
+              size="md"
               onClick={handleOpenReviewModal}
-              className="text-xs h-8 gap-1.5"
+              className="text-xs h-10 px-5 gap-2 font-semibold shadow-xs"
             >
               <PenLine className="w-3.5 h-3.5" />
               <span>Write a Review</span>
             </Button>
           </div>
         ) : (
-          <div className="divide-y divide-border/60">
+          <div className="space-y-6">
             {reviews.map((item) => {
               const authorName = item.author?.display_name || "Community Member";
               const authorInitial = authorName.charAt(0).toUpperCase();
@@ -367,29 +365,29 @@ export function MediaReviewsFeed({ media }: MediaReviewsFeedProps) {
               return (
                 <article
                   key={item.id}
-                  className="py-4 first:pt-0 last:pb-0 space-y-3 transition-colors"
+                  className="p-6 sm:p-7 rounded-2xl card-depth card-depth-hover space-y-4 transition-all"
                 >
                   {/* Author Header */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                    <div className="flex items-center gap-2.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
                       {/* Monogram Avatar */}
-                      <div className="w-8 h-8 rounded-full bg-accent/15 border border-accent/25 flex items-center justify-center text-accent text-xs font-serif font-bold shrink-0">
+                      <div className="w-9 h-9 rounded-full bg-accent/15 border border-accent/25 flex items-center justify-center text-accent text-xs font-serif font-bold shrink-0 shadow-2xs">
                         {authorInitial}
                       </div>
 
                       <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-serif text-xs sm:text-sm font-semibold text-text">
+                        <div className="flex items-center gap-2">
+                          <span className="font-serif text-sm sm:text-base font-bold text-text">
                             {authorName}
                           </span>
                           {isCurrentUser && (
-                            <Badge variant="subtle" size="sm" className="text-[10px] py-0 px-1.5">
+                            <Badge variant="subtle" size="sm" className="text-[10px] py-0 px-2 font-mono">
                               You
                             </Badge>
                           )}
                         </div>
 
-                        <div className="flex items-center gap-1.5 text-[11px] text-text-muted">
+                        <div className="flex items-center gap-1.5 text-xs text-text-muted">
                           <Calendar className="w-3 h-3 text-text-muted/70" />
                           <span>{formattedDate}</span>
                         </div>
@@ -397,7 +395,7 @@ export function MediaReviewsFeed({ media }: MediaReviewsFeedProps) {
                     </div>
 
                     {/* Rating & Badges */}
-                    <div className="flex items-center gap-1.5 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap">
                       {item.rating !== null && item.rating !== undefined && (
                         <RatingBadge rating={item.rating} size="sm" />
                       )}
@@ -405,7 +403,7 @@ export function MediaReviewsFeed({ media }: MediaReviewsFeedProps) {
                       <Badge
                         variant={item.status === "completed" ? "forest" : "amber"}
                         size="sm"
-                        className="capitalize text-[10px]"
+                        className="capitalize text-xs font-semibold px-2.5 py-0.5"
                         dot
                         dotColor={item.status === "completed" ? "forest" : "amber"}
                       >

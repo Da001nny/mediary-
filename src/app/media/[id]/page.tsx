@@ -421,8 +421,8 @@ export default async function MediaDetailPage({ params }: PageProps) {
         {/* Editorial Header / Hero Section */}
         <MediaDetailHeader media={media} />
 
-        {/* Detail Sections Container */}
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-10">
+        {/* Detail Sections Container with generous desktop breathing room */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 pt-12 sm:pt-16 pb-24 space-y-14 sm:space-y-18 lg:space-y-20">
           {media.type === "book" ? (
             /* Book Title Page Sections: Edition, Author, Pages, ISBN */
             <BookDetailsSection media={media} />
@@ -444,9 +444,9 @@ export default async function MediaDetailPage({ params }: PageProps) {
           <MediaReviewsFeed media={media} />
 
           {/* Catalog Sync Metadata Footer */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 bg-surface/50 rounded-lg border border-border/70 text-xs text-text-muted">
-            <div className="flex items-center gap-2">
-              <Coffee className="w-4 h-4 text-accent" />
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 sm:p-6 card-depth rounded-2xl text-xs text-text-muted">
+            <div className="flex items-center gap-2.5">
+              <Coffee className="w-4 h-4 text-accent shrink-0" />
               <span>
                 Archived in your meDiary catalog · Database ID:{" "}
                 <code className="font-mono text-[11px] text-text">

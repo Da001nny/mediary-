@@ -25,6 +25,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { AddToListModal } from "@/components/lists/AddToListModal";
+import { SearchHitsSkeleton } from "@/components/ui/Skeleton";
 import type { TMDBNormalizedSearchResult } from "@/lib/tmdb";
 import type { RAWGGameSearchResult } from "@/lib/rawg";
 import type { BookSearchResult } from "@/lib/google-books";
@@ -368,23 +369,28 @@ function MediaSearchModalContent({
       role="dialog"
       aria-modal="true"
       aria-labelledby="tmdb-search-title"
-      className="fixed inset-0 z-50 flex items-start justify-center p-3 sm:p-6 sm:pt-16 bg-black/50 backdrop-blur-xs transition-opacity duration-200 animate-in fade-in"
+      className="fixed inset-0 z-50 flex items-start justify-center p-3 sm:p-6 lg:p-8 sm:pt-12 lg:pt-16 bg-black/60 backdrop-blur-sm transition-opacity duration-300 animate-in fade-in"
     >
-      <div className="w-full max-w-2xl bg-surface border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh]">
+      <div className="w-full max-w-4xl lg:max-w-5xl bg-surface border border-border/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] card-depth animate-in zoom-in-95 duration-200">
         {/* Search Header */}
-        <div className="p-4 sm:p-5 border-b border-border bg-bg/50 space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-md bg-accent text-accent-contrast flex items-center justify-center">
-                <Search className="w-3.5 h-3.5" />
+        <div className="p-5 sm:p-7 border-b border-border/70 bg-bg/50 space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-accent text-accent-contrast flex items-center justify-center shadow-xs">
+                <Search className="w-4 h-4" />
               </div>
-              <h2 id="tmdb-search-title" className="font-serif text-lg font-bold text-text">
-                Media Catalog Search
-              </h2>
+              <div>
+                <h2 id="tmdb-search-title" className="font-serif text-xl sm:text-2xl font-bold text-text">
+                  Media Catalog Search
+                </h2>
+                <p className="text-xs text-text-muted mt-0.5">
+                  Instant typo-tolerant Algolia search & live external discovery across movies, TV, games, and books
+                </p>
+              </div>
             </div>
             <button
               onClick={handleClose}
-              className="p-1 rounded-md text-text-muted hover:text-text hover:bg-bg transition-colors cursor-pointer"
+              className="p-2 rounded-xl text-text-muted hover:text-text hover:bg-surface-hover/80 transition-colors cursor-pointer"
               aria-label="Close search"
             >
               <X className="w-5 h-5" />
@@ -393,26 +399,26 @@ function MediaSearchModalContent({
 
           {/* Search Input Bar */}
           <div className="relative flex items-center">
-            <Search className="absolute left-3.5 w-4 h-4 text-text-muted pointer-events-none" />
+            <Search className="absolute left-4 w-4 h-4 text-text-muted pointer-events-none" />
             <input
               ref={inputRef}
               type="text"
               value={query}
               onChange={(e) => handleQueryChange(e.target.value)}
-              placeholder="Search movies, TV shows, games, or books (e.g. Dune, Elden Ring)..."
-              className="w-full h-11 pl-10 pr-20 bg-surface text-text text-sm rounded-lg border border-border focus:border-accent focus:ring-1 focus:ring-ring outline-none transition-all placeholder:text-text-muted/60"
+              placeholder="Search movies, TV shows, games, or books (e.g. Dune, Severance, Elden Ring)..."
+              className="w-full h-12 pl-11 pr-24 bg-surface text-text text-sm sm:text-base rounded-xl border border-border focus:border-accent focus:ring-2 focus:ring-accent/20 outline-none transition-all placeholder:text-text-muted/60 shadow-2xs"
             />
             {isLoading ? (
-              <div className="absolute right-3.5 flex items-center text-text-muted">
+              <div className="absolute right-4 flex items-center text-text-muted">
                 <Loader2 className="w-4 h-4 animate-spin text-accent" />
               </div>
             ) : query ? (
               <button
                 type="button"
                 onClick={() => handleQueryChange("")}
-                className="absolute right-3.5 p-1 text-text-muted hover:text-text rounded cursor-pointer"
+                className="absolute right-4 p-1 text-text-muted hover:text-text rounded cursor-pointer"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-4 h-4" />
               </button>
             ) : null}
           </div>
@@ -544,101 +550,110 @@ function MediaSearchModalContent({
           </div>
         )}
 
-        {/* Results List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {/* Results List / Grid */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-7 space-y-4">
           {query.trim() === "" ? (
-            <div className="text-center py-12 px-4 space-y-3">
-              <div className="w-12 h-12 rounded-full bg-accent/15 text-accent mx-auto flex items-center justify-center">
+            <div className="text-center py-16 px-4 space-y-4">
+              <div className="w-14 h-14 rounded-2xl bg-accent/15 border border-accent/25 text-accent mx-auto flex items-center justify-center shadow-2xs">
                 {searchMode === "algolia" ? (
-                  <Zap className="w-6 h-6" />
+                  <Zap className="w-7 h-7" />
                 ) : (
-                  <Globe className="w-6 h-6" />
+                  <Globe className="w-7 h-7" />
                 )}
               </div>
-              <p className="font-serif text-text font-medium text-base">
-                {searchMode === "algolia"
-                  ? "Instant Typo-Tolerant Catalog Search"
-                  : "Discover Movies, TV Shows, Games & Books"}
-              </p>
-              <p className="text-xs text-text-muted max-w-sm mx-auto leading-relaxed">
-                {searchMode === "algolia"
-                  ? "Search your synchronized media catalog with instant typo-tolerance, fast ranking, and direct access."
-                  : "Search live TMDB, RAWG, and Google Books metadata with cover art, release details, platforms, developers, and authors."}
-              </p>
+              <div className="space-y-1 max-w-md mx-auto">
+                <p className="font-serif text-text font-bold text-lg sm:text-xl">
+                  {searchMode === "algolia"
+                    ? "Instant Typo-Tolerant Catalog Search"
+                    : "Discover Movies, TV Shows, Games & Books"}
+                </p>
+                <p className="text-xs sm:text-sm text-text-muted leading-relaxed">
+                  {searchMode === "algolia"
+                    ? "Search your synchronized media catalog with instant typo-tolerance, fast ranking, and direct access."
+                    : "Search live TMDB, RAWG, and Google Books metadata with cover art, release details, platforms, developers, and authors."}
+                </p>
+              </div>
             </div>
           ) : searchMode === "algolia" ? (
             /* Algolia Search Mode */
             isLoading && algoliaHits.length === 0 ? (
-              <div className="text-center py-12 space-y-2">
-                <Loader2 className="w-6 h-6 animate-spin text-accent mx-auto" />
-                <p className="text-xs text-text-muted">Querying Algolia index...</p>
+              <div className="py-2">
+                <SearchHitsSkeleton count={6} />
               </div>
             ) : algoliaHits.length === 0 ? (
-              <div className="text-center py-12 space-y-3 max-w-md mx-auto">
-                <p className="text-sm font-medium text-text">
-                  No catalog matches found in Algolia for &ldquo;{query}&rdquo;
-                </p>
-                <p className="text-xs text-text-muted leading-relaxed">
-                  This title might not be in your local catalog yet. Search external databases to fetch full metadata and index it into Algolia.
-                </p>
+              <div className="text-center py-16 space-y-4 max-w-md mx-auto">
+                <div className="w-12 h-12 rounded-xl bg-surface border border-border text-text-muted mx-auto flex items-center justify-center">
+                  <Search className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-base font-bold text-text font-serif">
+                    No catalog matches found in Algolia for &ldquo;{query}&rdquo;
+                  </p>
+                  <p className="text-xs text-text-muted leading-relaxed">
+                    This title might not be in your local catalog yet. Search external databases to fetch full metadata and index it into Algolia.
+                  </p>
+                </div>
                 <Button
                   variant="primary"
-                  size="sm"
+                  size="md"
                   onClick={() => setSearchMode("external")}
-                  leftIcon={<Globe className="w-3.5 h-3.5" />}
-                  className="mx-auto"
+                  leftIcon={<Globe className="w-4 h-4" />}
+                  className="mx-auto text-xs font-semibold"
                 >
                   Discover & Index from TMDB / RAWG / Books
                 </Button>
               </div>
             ) : (
-              algoliaHits.map((hit) => {
-                return (
-                  <div
-                    key={hit.id}
-                    className="flex gap-3 sm:gap-4 p-3 rounded-lg border border-border bg-bg/40 hover:bg-bg/80 transition-colors group"
-                  >
-                    {/* Poster Thumbnail */}
-                    <div className="relative w-16 h-24 sm:w-20 sm:h-28 rounded-md overflow-hidden bg-surface shrink-0 border border-border shadow-2xs">
-                      {hit.cover_url ? (
-                        <Image
-                          src={hit.cover_url}
-                          alt={hit.title}
-                          fill
-                          sizes="(max-width: 640px) 64px, 80px"
-                          className="object-cover transition-transform duration-200 group-hover:scale-105"
-                          referrerPolicy="no-referrer"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center p-1 text-center bg-surface text-text-muted">
-                          {hit.type === "movie" ? (
-                            <Film className="w-5 h-5 mb-1 opacity-50" />
-                          ) : hit.type === "tv" ? (
-                            <Tv className="w-5 h-5 mb-1 opacity-50" />
-                          ) : hit.type === "book" ? (
-                            <BookOpen className="w-5 h-5 mb-1 opacity-50" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+                {algoliaHits.map((hit) => {
+                  return (
+                    <div
+                      key={hit.id}
+                      className="p-4 sm:p-5 rounded-2xl card-depth card-depth-hover border border-border/80 bg-surface/90 transition-all group flex flex-col justify-between"
+                    >
+                      <div className="flex gap-4 items-start">
+                        {/* Poster Thumbnail with Physical Object Drop Shadow */}
+                        <div className="relative w-20 sm:w-24 aspect-2/3 rounded-xl overflow-hidden bg-bg shrink-0 poster-depth ring-1 ring-black/10 dark:ring-white/10 group-hover:scale-105 transition-transform duration-300">
+                          {hit.cover_url ? (
+                            <Image
+                              src={hit.cover_url}
+                              alt={hit.title}
+                              fill
+                              sizes="(max-width: 640px) 80px, 96px"
+                              className="object-cover"
+                              referrerPolicy="no-referrer"
+                            />
                           ) : (
-                            <Gamepad2 className="w-5 h-5 mb-1 opacity-50" />
+                            <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center bg-surface text-text-muted">
+                              {hit.type === "movie" ? (
+                                <Film className="w-5 h-5 mb-1 opacity-50 text-accent" />
+                              ) : hit.type === "tv" ? (
+                                <Tv className="w-5 h-5 mb-1 opacity-50 text-accent" />
+                              ) : hit.type === "book" ? (
+                                <BookOpen className="w-5 h-5 mb-1 opacity-50 text-accent" />
+                              ) : (
+                                <Gamepad2 className="w-5 h-5 mb-1 opacity-50 text-accent" />
+                              )}
+                              <span className="text-[10px] font-mono leading-tight line-clamp-2">
+                                No cover
+                              </span>
+                            </div>
                           )}
-                          <span className="text-[9px] font-mono leading-tight line-clamp-2">
-                            No cover
-                          </span>
                         </div>
-                      )}
-                    </div>
 
-                    {/* Content Info */}
-                    <div className="flex-1 flex flex-col justify-between min-w-0">
-                      <div className="space-y-1">
-                        <div className="flex items-start justify-between gap-2">
-                          <h3
-                            className="font-serif text-sm sm:text-base font-semibold text-text truncate"
-                            dangerouslySetInnerHTML={{
-                              __html: hit._highlightResult?.title?.value || hit.title,
-                            }}
-                          />
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        {/* Content Info */}
+                        <div className="flex-1 min-w-0 space-y-1.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <h3
+                              className="font-serif text-base sm:text-lg font-bold text-text truncate group-hover:text-accent transition-colors"
+                              dangerouslySetInnerHTML={{
+                                __html: hit._highlightResult?.title?.value || hit.title,
+                              }}
+                            />
+                          </div>
+
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25">
                               <Sparkles className="w-2.5 h-2.5" />
                               Indexed
                             </span>
@@ -661,68 +676,48 @@ function MediaSearchModalContent({
                               </span>
                             )}
                           </div>
-                        </div>
 
-                        {hit.community_rating_avg !== undefined &&
-                          hit.community_rating_avg !== null &&
-                          hit.community_rating_avg > 0 && (
-                            <div className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
-                              <Star className="w-3.5 h-3.5 fill-current" />
-                              <span>{(hit.community_rating_avg / 10).toFixed(1)}</span>
-                              {hit.community_rating_count ? (
-                                <span className="text-[10px] text-text-muted">
-                                  ({hit.community_rating_count.toLocaleString()} ratings)
-                                </span>
-                              ) : null}
+                          {hit.community_rating_avg !== undefined &&
+                            hit.community_rating_avg !== null &&
+                            hit.community_rating_avg > 0 && (
+                              <div className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 font-semibold">
+                                <Star className="w-3.5 h-3.5 fill-current" />
+                                <span>{(hit.community_rating_avg / 10).toFixed(1)}</span>
+                                {hit.community_rating_count ? (
+                                  <span className="text-[10px] text-text-muted">
+                                    ({hit.community_rating_count.toLocaleString()})
+                                  </span>
+                                ) : null}
+                              </div>
+                            )}
+
+                          {hit.author && (
+                            <div className="text-xs text-text-muted truncate">
+                              Author: <span className="font-semibold text-text">{hit.author}</span>
+                            </div>
+                          )}
+                          {hit.director && (
+                            <div className="text-xs text-text-muted truncate">
+                              Dir: <span className="font-semibold text-text">{hit.director}</span>
                             </div>
                           )}
 
-                        {/* Author or Director */}
-                        {hit.author && (
-                          <div className="text-xs text-text-muted">
-                            Author: <span className="font-medium text-text">{hit.author}</span>
-                          </div>
-                        )}
-                        {hit.director && (
-                          <div className="text-xs text-text-muted">
-                            Director: <span className="font-medium text-text">{hit.director}</span>
-                          </div>
-                        )}
-
-                        {/* Platforms Preview for Games */}
-                        {hit.type === "game" && hit.platforms && hit.platforms.length > 0 && (
-                          <div className="flex flex-wrap gap-1 pt-0.5">
-                            {hit.platforms.slice(0, 3).map((plat) => (
-                              <span
-                                key={plat}
-                                className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface border border-border text-text-muted"
-                              >
-                                {plat}
-                              </span>
-                            ))}
-                            {hit.platforms.length > 3 && (
-                              <span className="text-[10px] text-text-muted">
-                                +{hit.platforms.length - 3}
-                              </span>
-                            )}
-                          </div>
-                        )}
-
-                        {hit.synopsis && (
-                          <p className="text-xs text-text-muted line-clamp-2 leading-relaxed">
-                            {hit.synopsis}
-                          </p>
-                        )}
+                          {hit.synopsis && (
+                            <p className="text-xs text-text-muted line-clamp-2 leading-relaxed pt-0.5">
+                              {hit.synopsis}
+                            </p>
+                          )}
+                        </div>
                       </div>
 
                       {/* Action buttons */}
-                      <div className="pt-2 flex items-center justify-between gap-2 border-t border-border/50 mt-2">
+                      <div className="pt-3 flex items-center justify-between gap-2 border-t border-border/70 mt-3">
                         <span className="text-[10px] font-mono text-text-muted flex items-center gap-1">
                           <Zap className="w-3 h-3 text-accent" />
                           <span>Algolia Instant</span>
                         </span>
 
-                        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                        <div className="flex items-center gap-2 justify-end">
                           <Button
                             variant="secondary"
                             size="sm"
@@ -737,233 +732,209 @@ function MediaSearchModalContent({
                                 synopsis: hit.synopsis || null,
                               })
                             }
-                            className="text-xs h-7 gap-1"
+                            className="text-xs h-8 px-3 gap-1.5 font-semibold cursor-pointer"
                             title="Add to custom list"
                           >
                             <ListPlus className="w-3.5 h-3.5 text-accent" />
-                            <span>Add to List</span>
+                            <span>Add</span>
                           </Button>
 
                           <Link
                             href={`/media/${hit.id}`}
                             onClick={handleClose}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-accent hover:text-accent/80 bg-accent/10 hover:bg-accent/20 rounded-md transition-colors"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-accent hover:text-accent-contrast hover:bg-accent bg-accent/15 border border-accent/30 rounded-lg transition-all"
                           >
                             <span>View Page</span>
-                            <ChevronRight className="w-3 h-3" />
+                            <ChevronRight className="w-3.5 h-3.5" />
                           </Link>
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })
+                  );
+                })}
+              </div>
             )
           ) : (
             /* External Provider Search Mode */
             isLoading && results.length === 0 ? (
-              <div className="text-center py-12 space-y-2">
-                <Loader2 className="w-6 h-6 animate-spin text-accent mx-auto" />
-                <p className="text-xs text-text-muted">Searching external providers...</p>
+              <div className="py-2">
+                <SearchHitsSkeleton count={6} />
               </div>
             ) : results.length === 0 ? (
-              <div className="text-center py-12 space-y-2">
-                <p className="text-sm font-medium text-text">No external results found for &ldquo;{query}&rdquo;</p>
-                <p className="text-xs text-text-muted">
-                  Try searching for a different keyword or checking your spelling.
+              <div className="text-center py-16 space-y-3 max-w-md mx-auto">
+                <div className="w-12 h-12 rounded-xl bg-surface border border-border text-text-muted mx-auto flex items-center justify-center">
+                  <Search className="w-6 h-6" />
+                </div>
+                <p className="text-base font-bold text-text font-serif">No external results found for &ldquo;{query}&rdquo;</p>
+                <p className="text-xs text-text-muted leading-relaxed">
+                  Try searching for a different keyword or checking your spelling across movies, TV, games, and books.
                 </p>
               </div>
             ) : (
-            results.map((item) => {
-              const itemKey = `${item.type}-${item.id}`;
-              const isSyncing = syncingId === itemKey;
-              const syncedItem = syncedMap[itemKey];
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+                {results.map((item) => {
+                  const itemKey = `${item.type}-${item.id}`;
+                  const isSyncing = syncingId === itemKey;
+                  const syncedItem = syncedMap[itemKey];
 
-              return (
-                <div
-                  key={itemKey}
-                  className="flex gap-3 sm:gap-4 p-3 rounded-lg border border-border bg-bg/40 hover:bg-bg/80 transition-colors group"
-                >
-                  {/* Poster Thumbnail */}
-                  <div className="relative w-16 h-24 sm:w-20 sm:h-28 rounded-md overflow-hidden bg-surface shrink-0 border border-border shadow-2xs">
-                    {item.poster_url ? (
-                      <Image
-                        src={item.poster_url}
-                        alt={item.title}
-                        fill
-                        sizes="(max-width: 640px) 64px, 80px"
-                        className="object-cover transition-transform duration-200 group-hover:scale-105"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center p-1 text-center bg-surface text-text-muted">
-                        {item.type === "movie" ? (
-                          <Film className="w-5 h-5 mb-1 opacity-50" />
-                        ) : item.type === "tv" ? (
-                          <Tv className="w-5 h-5 mb-1 opacity-50" />
-                        ) : item.type === "book" ? (
-                          <BookOpen className="w-5 h-5 mb-1 opacity-50" />
-                        ) : (
-                          <Gamepad2 className="w-5 h-5 mb-1 opacity-50" />
-                        )}
-                        <span className="text-[9px] font-mono leading-tight line-clamp-2">
-                          No cover
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Content Info */}
-                  <div className="flex-1 flex flex-col justify-between min-w-0">
-                    <div className="space-y-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="font-serif text-sm sm:text-base font-semibold text-text truncate">
-                          {item.title}
-                        </h3>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <Badge
-                            variant={
-                              item.type === "movie"
-                                ? "amber"
-                                : item.type === "tv"
-                                ? "forest"
-                                : "subtle"
-                            }
-                            size="sm"
-                            className="capitalize text-[10px]"
-                          >
-                            {item.type}
-                          </Badge>
-                          {item.year && (
-                            <span className="text-xs font-mono text-text-muted">
-                              {item.year}
-                            </span>
+                  return (
+                    <div
+                      key={itemKey}
+                      className="p-4 sm:p-5 rounded-2xl card-depth card-depth-hover border border-border/80 bg-surface/90 transition-all group flex flex-col justify-between"
+                    >
+                      <div className="flex gap-4 items-start">
+                        {/* Poster Thumbnail with Physical Object Drop Shadow */}
+                        <div className="relative w-20 sm:w-24 aspect-2/3 rounded-xl overflow-hidden bg-bg shrink-0 poster-depth ring-1 ring-black/10 dark:ring-white/10 group-hover:scale-105 transition-transform duration-300">
+                          {item.poster_url ? (
+                            <Image
+                              src={item.poster_url}
+                              alt={item.title}
+                              fill
+                              sizes="(max-width: 640px) 80px, 96px"
+                              className="object-cover"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center bg-surface text-text-muted">
+                              {item.type === "movie" ? (
+                                <Film className="w-5 h-5 mb-1 opacity-50 text-accent" />
+                              ) : item.type === "tv" ? (
+                                <Tv className="w-5 h-5 mb-1 opacity-50 text-accent" />
+                              ) : item.type === "book" ? (
+                                <BookOpen className="w-5 h-5 mb-1 opacity-50 text-accent" />
+                              ) : (
+                                <Gamepad2 className="w-5 h-5 mb-1 opacity-50 text-accent" />
+                              )}
+                              <span className="text-[10px] font-mono leading-tight line-clamp-2">
+                                No cover
+                              </span>
+                            </div>
                           )}
                         </div>
-                      </div>
 
-                      {item.vote_average !== undefined && item.vote_average > 0 && (
-                        <div className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
-                          <Star className="w-3.5 h-3.5 fill-current" />
-                          <span>{item.vote_average.toFixed(1)}</span>
-                          {item.vote_count ? (
-                            <span className="text-[10px] text-text-muted">
-                              ({item.vote_count.toLocaleString()} votes)
-                            </span>
-                          ) : null}
-                        </div>
-                      )}
-
-                      {/* Author & Pages for Books */}
-                      {item.type === "book" && (
-                        <div className="flex flex-wrap items-center gap-2 pt-0.5 text-xs text-text-muted">
-                          {item.author && <span className="font-medium text-text">{item.author}</span>}
-                          {item.page_count && (
-                            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface border border-border">
-                              {item.page_count} pages
-                            </span>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Platforms Preview for Games */}
-                      {item.type === "game" && item.platforms && item.platforms.length > 0 && (
-                        <div className="flex flex-wrap gap-1 pt-0.5">
-                          {item.platforms.slice(0, 3).map((plat) => (
-                            <span
-                              key={plat}
-                              className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface border border-border text-text-muted"
-                            >
-                              {plat}
-                            </span>
-                          ))}
-                          {item.platforms.length > 3 && (
-                            <span className="text-[10px] text-text-muted">
-                              +{item.platforms.length - 3}
-                            </span>
-                          )}
-                        </div>
-                      )}
-
-                      {item.overview && (
-                        <p className="text-xs text-text-muted line-clamp-2 leading-relaxed">
-                          {item.overview}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Action buttons */}
-                    <div className="pt-2 flex items-center justify-between gap-2 border-t border-border/50 mt-2">
-                      <span className="text-[10px] font-mono text-text-muted">
-                        {item.type === "game"
-                          ? "RAWG ID"
-                          : item.type === "book"
-                          ? "Google Books ID"
-                          : "TMDB ID"}
-                        : {item.id}
-                      </span>
-
-                      <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => handleOpenAddToList(item, syncedItem)}
-                          className="text-xs h-7 gap-1"
-                          title="Add to custom list"
-                        >
-                          <ListPlus className="w-3.5 h-3.5 text-accent" />
-                          <span>Add to List</span>
-                        </Button>
-
-                        {syncedItem ? (
-                          <div className="flex items-center gap-1.5">
-                            <Link
-                              href={`/media/${syncedItem.id}`}
-                              onClick={onClose}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-accent hover:text-accent/80 bg-accent/10 hover:bg-accent/20 rounded-md transition-colors"
-                            >
-                              <span>View Page</span>
-                              <ChevronRight className="w-3 h-3" />
-                            </Link>
-
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => setSelectedItemDetails(syncedItem)}
-                              className="text-xs h-7 gap-1 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                              <span>Details</span>
-                            </Button>
+                        {/* Content Info */}
+                        <div className="flex-1 min-w-0 space-y-1.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <h3 className="font-serif text-base sm:text-lg font-bold text-text truncate group-hover:text-accent transition-colors">
+                              {item.title}
+                            </h3>
                           </div>
-                        ) : (
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            disabled={isSyncing}
-                            onClick={() => handleSync(item)}
-                            className="text-xs h-7 gap-1.5"
-                          >
-                            {isSyncing ? (
-                              <>
-                                <RefreshCw className="w-3 h-3 animate-spin" />
-                                <span>Syncing...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Layers className="w-3 h-3" />
-                                <span>Sync to DB</span>
-                              </>
+
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Badge
+                              variant={
+                                item.type === "movie"
+                                  ? "amber"
+                                  : item.type === "tv"
+                                  ? "forest"
+                                  : "subtle"
+                              }
+                              size="sm"
+                              className="capitalize text-[10px]"
+                            >
+                              {item.type}
+                            </Badge>
+                            {item.year && (
+                              <span className="text-xs font-mono text-text-muted">
+                                {item.year}
+                              </span>
                             )}
+                          </div>
+
+                          {item.vote_average !== undefined && item.vote_average > 0 && (
+                            <div className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 font-semibold">
+                              <Star className="w-3.5 h-3.5 fill-current" />
+                              <span>{item.vote_average.toFixed(1)}</span>
+                              {item.vote_count ? (
+                                <span className="text-[10px] text-text-muted">
+                                  ({item.vote_count.toLocaleString()})
+                                </span>
+                              ) : null}
+                            </div>
+                          )}
+
+                          {item.type === "book" && item.author && (
+                            <div className="text-xs text-text-muted truncate">
+                              Author: <span className="font-semibold text-text">{item.author}</span>
+                            </div>
+                          )}
+
+                          {item.overview && (
+                            <p className="text-xs text-text-muted line-clamp-2 leading-relaxed pt-0.5">
+                              {item.overview}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="pt-3 flex items-center justify-between gap-2 border-t border-border/70 mt-3">
+                        <span className="text-[10px] font-mono text-text-muted truncate">
+                          {item.type.toUpperCase()} #{item.id}
+                        </span>
+
+                        <div className="flex items-center gap-2 justify-end">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleOpenAddToList(item, syncedItem)}
+                            className="text-xs h-8 px-3 gap-1.5 font-semibold cursor-pointer"
+                            title="Add to custom list"
+                          >
+                            <ListPlus className="w-3.5 h-3.5 text-accent" />
+                            <span>Add</span>
                           </Button>
-                        )}
+
+                          {syncedItem ? (
+                            <div className="flex items-center gap-1.5">
+                              <Link
+                                href={`/media/${syncedItem.id}`}
+                                onClick={onClose}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-accent hover:text-accent-contrast hover:bg-accent bg-accent/15 border border-accent/30 rounded-lg transition-all"
+                              >
+                                <span>View Page</span>
+                                <ChevronRight className="w-3.5 h-3.5" />
+                              </Link>
+
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => setSelectedItemDetails(syncedItem)}
+                                className="text-xs h-8 px-2.5 gap-1 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>Details</span>
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              disabled={isSyncing}
+                              onClick={() => handleSync(item)}
+                              className="text-xs h-8 px-3 gap-1.5 font-semibold shadow-xs"
+                            >
+                              {isSyncing ? (
+                                <>
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                  <span>Syncing...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Layers className="w-3.5 h-3.5" />
+                                  <span>Sync to DB</span>
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-              );
-            })
-          ))}
+                  );
+                })}
+              </div>
+            )
+          )}
         </div>
 
         {/* Selected Item Detail Drawer */}

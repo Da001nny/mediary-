@@ -104,11 +104,11 @@ export function WatchProvidersSection({
   const selectedCountryName = getCountryName(selectedCountry);
 
   return (
-    <section className="bg-surface rounded-xl border border-border shadow-xs overflow-hidden transition-colors">
+    <section className="card-depth rounded-2xl overflow-hidden transition-all">
       {/* Collapsible Header */}
       <div
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:bg-surface-hover/40 transition-colors select-none group"
+        className="w-full p-6 sm:p-8 lg:p-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6 cursor-pointer hover:bg-surface-hover/40 transition-colors select-none group"
         role="button"
         tabIndex={0}
         aria-expanded={isExpanded}
@@ -119,23 +119,23 @@ export function WatchProvidersSection({
           }
         }}
       >
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-accent/15 text-accent flex items-center justify-center shrink-0">
-            <Globe className="w-5 h-5" />
+        <div className="flex items-center gap-4 sm:gap-5">
+          <div className="w-12 h-12 rounded-2xl bg-accent/15 text-accent flex items-center justify-center shrink-0 shadow-2xs">
+            <Globe className="w-6 h-6" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="font-serif text-lg sm:text-xl font-bold text-text group-hover:text-accent transition-colors">
+            <div className="flex items-center gap-3">
+              <h2 className="font-serif text-2xl sm:text-3xl font-extrabold text-text group-hover:text-accent transition-colors">
                 Where to Watch
               </h2>
-              <Badge variant="subtle" size="sm" className="font-mono">
+              <Badge variant="subtle" size="sm" className="font-mono text-xs">
                 {totalOptionsCount > 0
                   ? `${totalOptionsCount} in ${selectedCountry}`
                   : `${availableCountryCodes.length} regions`}
               </Badge>
             </div>
-            <p className="text-xs text-text-muted mt-0.5">
-              Streaming availability, digital rentals, and purchase options
+            <p className="text-xs sm:text-sm text-text-muted mt-1 leading-relaxed">
+              Streaming availability, digital rentals, and purchase options across digital platforms
             </p>
           </div>
         </div>
@@ -209,16 +209,16 @@ export function WatchProvidersSection({
             transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden border-t border-border"
           >
-            <div className="p-5 sm:p-6 space-y-6">
+            <div className="p-6 sm:p-8 lg:p-10 space-y-8">
               {/* Country Selector Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/70">
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold text-text">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 pb-5 border-b border-border/70">
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-text uppercase tracking-wider font-mono">
                     Select Your Country
                   </p>
-                  <p className="text-[11px] text-text-muted">
+                  <p className="text-xs text-text-muted leading-relaxed">
                     Showing availability for{" "}
-                    <strong className="text-text">{selectedCountryName}</strong>. Swapping
+                    <strong className="text-text font-bold">{selectedCountryName}</strong>. Swapping
                     countries filters instant offline TMDB data without extra API calls.
                   </p>
                 </div>
@@ -360,44 +360,44 @@ function ProviderCategoryCard({
   emptyMessage: string;
 }) {
   return (
-    <div className="bg-bg/60 border border-border rounded-lg p-4 flex flex-col justify-between space-y-3">
+    <div className="card-depth rounded-2xl p-5 sm:p-6 flex flex-col justify-between space-y-4 hover:border-accent/30 transition-all">
       <div>
-        <div className="flex items-center justify-between border-b border-border/60 pb-2 mb-3">
-          <div className="flex items-center gap-1.5 font-semibold text-xs text-text">
+        <div className="flex items-center justify-between border-b border-border/70 pb-3 mb-4">
+          <div className="flex items-center gap-2 font-bold text-xs sm:text-sm text-text">
             {icon}
             <span>{title}</span>
           </div>
-          <span className="text-[11px] font-mono text-text-muted">
+          <span className="text-xs font-mono text-text-muted">
             {items.length} {items.length === 1 ? "option" : "options"}
           </span>
         </div>
 
         {items.length === 0 ? (
-          <p className="text-xs text-text-muted italic py-3">{emptyMessage}</p>
+          <p className="text-xs text-text-muted italic py-4">{emptyMessage}</p>
         ) : (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2.5">
             {items.map((item) => (
               <div
                 key={item.provider_id}
-                className="flex items-center gap-2 p-1.5 rounded-md bg-surface border border-border/70 hover:border-accent/40 transition-colors group"
+                className="flex items-center gap-2.5 p-2 rounded-xl bg-bg/60 hover:bg-bg border border-border/70 hover:border-accent/40 transition-colors group cursor-pointer"
               >
                 {item.logo_path ? (
-                  <div className="relative w-7 h-7 rounded-sm overflow-hidden shrink-0 border border-border/50">
+                  <div className="relative w-8 h-8 rounded-lg overflow-hidden shrink-0 border border-border/50 poster-depth-sm">
                     <Image
                       src={`https://image.tmdb.org/t/p/w92${item.logo_path}`}
                       alt={item.provider_name}
                       fill
-                      sizes="28px"
+                      sizes="32px"
                       className="object-cover"
                       referrerPolicy="no-referrer"
                     />
                   </div>
                 ) : (
-                  <div className="w-7 h-7 rounded-sm bg-border/40 shrink-0 flex items-center justify-center text-[10px] font-bold text-text-muted">
+                  <div className="w-8 h-8 rounded-lg bg-border/40 shrink-0 flex items-center justify-center text-xs font-bold text-text-muted">
                     {item.provider_name.charAt(0)}
                   </div>
                 )}
-                <span className="text-[11px] font-medium text-text group-hover:text-accent transition-colors line-clamp-1 leading-tight">
+                <span className="text-xs font-medium text-text group-hover:text-accent transition-colors line-clamp-1 leading-tight">
                   {item.provider_name}
                 </span>
               </div>
