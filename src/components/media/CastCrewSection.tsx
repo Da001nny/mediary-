@@ -69,7 +69,7 @@ export function CastCrewSection({ cast = [], crew = [] }: CastCrewSectionProps) 
       {/* Collapsible Header */}
       <div
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full p-6 sm:p-8 lg:p-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6 cursor-pointer hover:bg-surface-hover/40 transition-colors select-none group"
+        className="w-full p-4 sm:p-8 lg:p-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6 cursor-pointer hover:bg-surface-hover/40 transition-colors select-none group"
         role="button"
         tabIndex={0}
         aria-expanded={isExpanded}
@@ -80,20 +80,20 @@ export function CastCrewSection({ cast = [], crew = [] }: CastCrewSectionProps) 
           }
         }}
       >
-        <div className="flex items-center gap-4 sm:gap-5">
-          <div className="w-12 h-12 rounded-2xl bg-accent/15 text-accent flex items-center justify-center shrink-0 shadow-2xs">
-            <Users className="w-6 h-6" />
+        <div className="flex items-center gap-3.5 sm:gap-5">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-accent/15 text-accent flex items-center justify-center shrink-0 shadow-2xs">
+            <Users className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
           <div>
-            <div className="flex items-center gap-3">
-              <h2 className="font-serif text-2xl sm:text-3xl font-extrabold text-text group-hover:text-accent transition-colors">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <h2 className="font-serif text-xl sm:text-3xl font-extrabold text-text group-hover:text-accent transition-colors">
                 Cast & Crew
               </h2>
-              <Badge variant="subtle" size="sm" className="font-mono text-xs">
+              <Badge variant="subtle" size="sm" className="font-mono text-[10px] sm:text-xs">
                 {totalCreditsCount} credits ({cast.length} cast, {crew.length} crew)
               </Badge>
             </div>
-            <p className="text-xs sm:text-sm text-text-muted mt-1 leading-relaxed">
+            <p className="text-xs sm:text-sm text-text-muted mt-0.5 sm:mt-1 leading-relaxed">
               Performers, directors, writers, and technical creators · Click any person to explore filmography
             </p>
           </div>
@@ -177,7 +177,7 @@ export function CastCrewSection({ cast = [], crew = [] }: CastCrewSectionProps) 
             transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden border-t border-border"
           >
-            <div className="p-6 sm:p-8 lg:p-10 space-y-8">
+            <div className="p-4 sm:p-8 lg:p-10 space-y-6 sm:space-y-8">
               {/* Tab Switcher & Search Bar */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/70">
                 {/* Segmented Tab Control */}

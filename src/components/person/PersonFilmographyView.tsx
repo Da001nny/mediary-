@@ -90,10 +90,10 @@ export function PersonFilmographyView({ person }: PersonFilmographyViewProps) {
     : null;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       {/* 1. Header / Biographical Banner */}
-      <section className="bg-surface rounded-2xl border border-border p-6 sm:p-8 shadow-xs">
-        <div className="flex items-center justify-between pb-6 border-b border-border/70">
+      <section className="bg-surface rounded-2xl border border-border p-4 sm:p-8 shadow-xs">
+        <div className="flex items-center justify-between pb-4 sm:pb-6 border-b border-border/70 flex-wrap gap-2">
           <Link
             href="/"
             className="inline-flex items-center gap-1.5 text-xs font-medium text-text-muted hover:text-text transition-colors group cursor-pointer"
@@ -270,11 +270,11 @@ export function PersonFilmographyView({ person }: PersonFilmographyViewProps) {
       )}
 
       {/* 3. Complete Filmography Directory */}
-      <section className="bg-surface rounded-2xl border border-border p-6 shadow-xs space-y-6">
+      <section className="bg-surface rounded-2xl border border-border p-4 sm:p-6 shadow-xs space-y-4 sm:space-y-6">
         {/* Controls Bar: Tabs + Search */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/70">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-4 border-b border-border/70">
           <div>
-            <h2 className="font-serif text-xl font-bold text-text">
+            <h2 className="font-serif text-lg sm:text-xl font-bold text-text">
               Filmography
             </h2>
             <p className="text-xs text-text-muted mt-0.5">
@@ -282,9 +282,9 @@ export function PersonFilmographyView({ person }: PersonFilmographyViewProps) {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
             {/* Filter Pills */}
-            <div className="flex items-center p-1 bg-bg border border-border rounded-lg text-xs font-medium">
+            <div className="flex flex-wrap items-center p-1 bg-bg border border-border rounded-lg text-xs font-medium">
               <button
                 type="button"
                 onClick={() => setActiveFilter("all")}

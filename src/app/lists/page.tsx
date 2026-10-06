@@ -73,7 +73,7 @@ export default function ListsPage() {
     <div className="min-h-screen bg-bg text-text flex flex-col font-sans">
       <TopNav />
 
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-3.5 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
         {/* Editorial Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-border pb-6">
           <div className="space-y-1.5">
@@ -81,10 +81,10 @@ export default function ListsPage() {
               <Sparkles className="w-3.5 h-3.5" />
               <span>Curated Collections</span>
             </span>
-            <h1 className="font-serif text-3xl sm:text-4xl font-bold text-text tracking-tight">
+            <h1 className="font-serif text-2xl sm:text-4xl font-bold text-text tracking-tight">
               Custom Lists & Rankings
             </h1>
-            <p className="text-sm text-text-muted font-sans max-w-xl">
+            <p className="text-xs sm:text-sm text-text-muted font-sans max-w-xl">
               Build ranked personal canons, unranked moodboards, and themed reading or watchlist anthologies.
             </p>
           </div>
@@ -92,7 +92,7 @@ export default function ListsPage() {
           <Button
             variant="primary"
             onClick={() => setIsCreateModalOpen(true)}
-            className="gap-2 shadow-xs cursor-pointer self-start sm:self-auto"
+            className="gap-2 shadow-xs cursor-pointer self-start sm:self-auto text-xs h-10 px-4"
           >
             <FolderPlus className="w-4 h-4" />
             <span>Create Custom List</span>
@@ -100,9 +100,9 @@ export default function ListsPage() {
         </div>
 
         {/* Filter Controls Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           {/* Tab Selector */}
-          <div className="flex items-center gap-1.5 p-1 bg-surface rounded-lg border border-border">
+          <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 p-1 bg-surface rounded-lg border border-border self-start">
             {(
               [
                 { id: "all", label: "All Lists" },
@@ -115,7 +115,7 @@ export default function ListsPage() {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
                   activeTab === tab.id
                     ? "bg-accent text-accent-contrast shadow-2xs font-semibold"
                     : "text-text-muted hover:text-text hover:bg-surface-hover"
@@ -127,14 +127,14 @@ export default function ListsPage() {
           </div>
 
           {/* Search Input */}
-          <div className="relative max-w-xs w-full">
+          <div className="relative w-full sm:max-w-xs">
             <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search lists or titles..."
-              className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg bg-surface border border-border text-text placeholder:text-text-muted/60 focus:border-accent focus:ring-1 focus:ring-accent outline-hidden"
+              className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg bg-surface border border-border text-text placeholder:text-text-muted/60 focus:border-accent focus:ring-1 focus:ring-accent outline-hidden shadow-2xs"
             />
           </div>
         </div>

@@ -422,7 +422,7 @@ export default async function MediaDetailPage({ params }: PageProps) {
         <MediaDetailHeader media={media} />
 
         {/* Detail Sections Container with generous desktop breathing room */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 pt-12 sm:pt-16 pb-24 space-y-14 sm:space-y-18 lg:space-y-20">
+        <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 xl:px-12 pt-8 sm:pt-16 pb-16 sm:pb-24 space-y-10 sm:space-y-18 lg:space-y-20">
           {media.type === "book" ? (
             /* Book Title Page Sections: Edition, Author, Pages, ISBN */
             <BookDetailsSection media={media} />
@@ -444,7 +444,7 @@ export default async function MediaDetailPage({ params }: PageProps) {
           <MediaReviewsFeed media={media} />
 
           {/* Catalog Sync Metadata Footer */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 sm:p-6 card-depth rounded-2xl text-xs text-text-muted">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 p-4 sm:p-6 card-depth rounded-2xl text-xs text-text-muted">
             <div className="flex items-center gap-2.5">
               <Coffee className="w-4 h-4 text-accent shrink-0" />
               <span>

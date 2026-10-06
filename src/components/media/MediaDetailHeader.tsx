@@ -173,9 +173,9 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
         </div>
       )}
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 pt-10 sm:pt-14 pb-14 sm:pb-20">
+      <div className="relative z-10 max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 xl:px-12 pt-6 sm:pt-14 pb-10 sm:pb-20">
         {/* Navigation Breadcrumbs */}
-        <div className="flex items-center justify-between pb-8 sm:pb-10">
+        <div className="flex items-center justify-between pb-6 sm:pb-10">
           <Link
             href="/"
             className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide uppercase text-text-muted hover:text-accent transition-colors group cursor-pointer"
@@ -188,7 +188,7 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
             <button
               onClick={handleCopyLink}
               type="button"
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium text-text-muted hover:text-text bg-bg/90 hover:bg-bg border border-border rounded-xl shadow-2xs hover:shadow-xs transition-all cursor-pointer active:scale-98"
+              className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-xs font-medium text-text-muted hover:text-text bg-bg/90 hover:bg-bg border border-border rounded-xl shadow-2xs hover:shadow-xs transition-all cursor-pointer active:scale-98"
             >
               {isCopied ? (
                 <>
@@ -473,14 +473,14 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
 
               {/* User's Written Review Snippet with Card Depth */}
               {userEntry?.review && (
-                <div className="w-full mt-6 p-6 sm:p-7 rounded-2xl card-depth text-sm space-y-3.5">
+                <div className="w-full mt-4 sm:mt-6 p-4 sm:p-7 rounded-2xl card-depth text-xs sm:text-sm space-y-3 sm:space-y-3.5">
                   <div className="flex items-center justify-between text-xs text-text-muted pb-3 border-b border-border">
-                    <span className="font-bold text-text text-sm flex items-center gap-2">
+                    <span className="font-bold text-text text-xs sm:text-sm flex items-center gap-2">
                       <span>Your Logged Notes & Reflections</span>
                     </span>
                     {userEntry.contains_spoilers && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/25 font-medium">
-                        <EyeOff className="w-3.5 h-3.5" />
+                      <span className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-[11px] bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/25 font-medium">
+                        <EyeOff className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                         <span>Spoiler tagged</span>
                       </span>
                     )}
@@ -496,7 +496,7 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
               )}
 
               {/* External TMDB / IMDb Links */}
-              <div className="flex items-center gap-2 ml-auto text-xs">
+              <div className="flex items-center gap-2 sm:ml-auto w-full sm:w-auto justify-start sm:justify-end text-xs pt-1 sm:pt-0">
                 {tmdbId ? (
                   <a
                     href={`https://www.themoviedb.org/${media.type}/${tmdbId}`}

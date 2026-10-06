@@ -143,7 +143,7 @@ function SettingsModalContent({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-xs animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/65 backdrop-blur-xs animate-in fade-in duration-200">
       <div
         className="w-full max-w-xl bg-surface border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
         role="dialog"
@@ -151,24 +151,24 @@ function SettingsModalContent({ onClose }: { onClose: () => void }) {
         aria-labelledby="settings-modal-title"
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-surface-elevated/40">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-accent/15 text-accent flex items-center justify-center">
+        <div className="px-3.5 sm:px-6 py-3 sm:py-4 border-b border-border flex items-center justify-between bg-surface-elevated/40">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-accent/15 text-accent flex items-center justify-center shrink-0">
               <Settings className="w-4 h-4" />
             </div>
-            <div>
-              <h2 id="settings-modal-title" className="font-serif text-lg font-bold text-text">
+            <div className="min-w-0">
+              <h2 id="settings-modal-title" className="font-serif text-sm sm:text-lg font-bold text-text truncate">
                 Profile & Journal Preferences
               </h2>
-              <p className="text-xs text-text-muted">
-                Configure your preferred rating scale and journal defaults.
+              <p className="text-[10px] sm:text-xs text-text-muted truncate">
+                Configure your rating scale and journal defaults.
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-md text-text-muted hover:text-text hover:bg-surface-hover transition-colors cursor-pointer"
+            className="p-1 rounded-md text-text-muted hover:text-text hover:bg-surface-hover transition-colors cursor-pointer shrink-0 ml-2"
             aria-label="Close"
           >
             <X className="w-4 h-4" />
@@ -176,7 +176,7 @@ function SettingsModalContent({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSave} className="p-6 space-y-6 flex-1 overflow-y-auto">
+        <form onSubmit={handleSave} className="p-3 sm:p-6 space-y-4 sm:space-y-6 flex-1 overflow-y-auto">
           {error && (
             <div className="p-3 text-xs rounded-md bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-400">
               {error}
@@ -191,17 +191,17 @@ function SettingsModalContent({ onClose }: { onClose: () => void }) {
           )}
 
           {/* Section 1: Rating Scale (Primary User Request) */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
+          <div className="space-y-2.5 sm:space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-text">
                   Rating Scale
                 </label>
-                <p className="text-xs text-text-muted mt-0.5">
+                <p className="text-[11px] sm:text-xs text-text-muted mt-0.5 leading-relaxed">
                   Choose how ratings are entered and displayed across all journal entries, title pages, and feeds.
                 </p>
               </div>
-              <Badge variant="amber" size="sm" className="font-mono text-[10px]">
+              <Badge variant="amber" size="sm" className="font-mono text-[10px] self-start sm:self-auto shrink-0">
                 Stored as 0-100 internally
               </Badge>
             </div>
@@ -315,7 +315,7 @@ function SettingsModalContent({ onClose }: { onClose: () => void }) {
               <label className="block text-xs font-semibold text-text-muted">
                 Default Entry Privacy
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {[
                   { id: "public", label: "Public", desc: "Visible to all", icon: Globe },
                   { id: "friends", label: "Friends", desc: "Shared only", icon: Users },
@@ -330,7 +330,7 @@ function SettingsModalContent({ onClose }: { onClose: () => void }) {
                       onClick={() => setPrivacyInput(item.id as PrivacyLevel)}
                       className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer flex flex-col gap-1 ${
                         isSelected
-                          ? "border-accent bg-accent/10 text-text"
+                          ? "border-accent bg-accent/10 text-text ring-1 ring-accent"
                           : "border-border bg-bg/50 hover:bg-surface-hover text-text-muted"
                       }`}
                     >

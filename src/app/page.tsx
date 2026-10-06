@@ -153,14 +153,14 @@ CREATE POLICY "Users can delete their own profile"
       <TopNav />
 
       {/* Main Content Area with generous desktop breathing room */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-12 sm:py-16 space-y-16 sm:space-y-20">
+      <main className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 xl:px-12 py-8 sm:py-16 space-y-12 sm:space-y-20">
         {/* Intro Hero: Editorial & Restrained */}
-        <section className="space-y-5 max-w-4xl">
+        <section className="space-y-4 sm:space-y-5 max-w-4xl">
           <div className="inline-flex items-center gap-2 text-xs uppercase tracking-wider text-accent font-bold font-mono">
             <Sparkles className="w-3.5 h-3.5" />
             <span>Phase 2.0 · Supabase Client, Auth & Profiles RLS</span>
           </div>
-          <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-text leading-[1.12]">
+          <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-text leading-[1.12]">
             A calm, warm morning at the corner table.
           </h1>
           <p className="text-base sm:text-lg text-text-muted leading-relaxed font-sans">

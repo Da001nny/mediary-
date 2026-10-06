@@ -132,7 +132,7 @@ export default function SettingsPage() {
     <div className="min-h-screen bg-bg text-text flex flex-col font-sans">
       <TopNav />
 
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-10 sm:py-16 space-y-12 sm:space-y-14">
+      <main className="flex-1 max-w-5xl w-full mx-auto px-3.5 sm:px-6 lg:px-8 xl:px-12 py-6 sm:py-16 space-y-6 sm:space-y-12">
         {/* Breadcrumb / Return */}
         <div>
           <Link
@@ -145,51 +145,51 @@ export default function SettingsPage() {
         </div>
 
         {/* Page Title */}
-        <div className="border-b border-border/80 pb-8 space-y-3">
+        <div className="border-b border-border/80 pb-6 sm:pb-8 space-y-2 sm:space-y-3">
           <div className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-accent font-bold font-mono">
             <Sparkles className="w-3.5 h-3.5" />
             <span>User Preferences</span>
           </div>
-          <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-black text-text tracking-tight">
+          <h1 className="font-serif text-2xl sm:text-4xl lg:text-5xl font-black text-text tracking-tight">
             Profile & Journal Settings
           </h1>
-          <p className="text-sm sm:text-base text-text-muted font-sans max-w-2xl leading-relaxed">
+          <p className="text-xs sm:text-base text-text-muted font-sans max-w-2xl leading-relaxed">
             Customize your rating scale format, journal privacy defaults, and catalog synchronization.
           </p>
         </div>
 
         {error && (
-          <div className="p-4 text-xs sm:text-sm rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-400">
+          <div className="p-3.5 sm:p-4 text-xs sm:text-sm rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-400">
             {error}
           </div>
         )}
 
         {successMessage && (
-          <div className="p-4 text-xs sm:text-sm rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 flex items-center gap-2 font-medium">
+          <div className="p-3.5 sm:p-4 text-xs sm:text-sm rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 flex items-center gap-2 font-medium">
             <Check className="w-4 h-4 text-emerald-600" />
             <span>{successMessage}</span>
           </div>
         )}
 
-        <form onSubmit={handleSave} className="space-y-10 sm:space-y-12">
+        <form onSubmit={handleSave} className="space-y-8 sm:space-y-12">
           {/* Card: Rating Scale */}
-          <div className="p-7 sm:p-9 rounded-2xl bg-surface border border-border/80 card-depth space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/70 pb-5">
+          <div className="p-4 sm:p-7 lg:p-9 rounded-2xl bg-surface border border-border/80 card-depth space-y-5 sm:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/70 pb-4 sm:pb-5">
               <div>
-                <h2 className="font-serif text-xl sm:text-2xl font-bold text-text">
+                <h2 className="font-serif text-lg sm:text-2xl font-bold text-text">
                   Rating Scale
                 </h2>
                 <p className="text-xs sm:text-sm text-text-muted mt-1 leading-relaxed">
                   Select your preferred evaluation format. All ratings are stored as 0–100 internally and seamlessly convert between scales.
                 </p>
               </div>
-              <Badge variant="amber" size="sm" className="font-mono text-xs self-start sm:self-auto py-1 px-2.5">
+              <Badge variant="amber" size="sm" className="font-mono text-[10px] sm:text-xs self-start sm:self-auto py-1 px-2.5">
                 Normalized 0–100 Engine
               </Badge>
             </div>
 
             {/* 4 Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pt-1">
               {(["5-star", "10-point", "100-point", "thumbs"] as RatingScale[]).map(
                 (scaleOption) => {
                   const isSelected = activeScale === scaleOption;
@@ -201,22 +201,22 @@ export default function SettingsPage() {
                       key={scaleOption}
                       type="button"
                       onClick={() => handleSelectScale(scaleOption)}
-                      className={`p-5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-4 card-depth-hover ${
+                      className={`p-3.5 sm:p-5 rounded-xl sm:rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-3 sm:gap-4 card-depth-hover ${
                         isSelected
                           ? "border-accent bg-accent/10 shadow-sm ring-1 ring-accent"
                           : "border-border/80 bg-bg/50 hover:bg-surface-hover hover:border-text/25"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-surface flex items-center justify-center border border-border/80 shadow-2xs">
+                        <div className="flex items-center gap-2.5 sm:gap-3">
+                          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-surface flex items-center justify-center border border-border/80 shadow-2xs shrink-0">
                             {getScaleIcon(scaleOption)}
                           </div>
                           <div>
-                            <span className="font-serif text-base sm:text-lg font-bold text-text block">
+                            <span className="font-serif text-sm sm:text-lg font-bold text-text block">
                               {config.name}
                             </span>
-                            <span className="text-xs font-mono text-text-muted">
+                            <span className="text-[11px] sm:text-xs font-mono text-text-muted">
                               {config.example}
                             </span>
                           </div>
@@ -224,8 +224,8 @@ export default function SettingsPage() {
                         {isSavingThis ? (
                           <Loader2 className="w-4 h-4 animate-spin text-accent" />
                         ) : isSelected ? (
-                          <div className="w-6 h-6 rounded-full bg-accent text-accent-contrast flex items-center justify-center shadow-xs">
-                            <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-accent text-accent-contrast flex items-center justify-center shadow-xs shrink-0">
+                            <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 stroke-[3]" />
                           </div>
                         ) : null}
                       </div>
@@ -235,8 +235,8 @@ export default function SettingsPage() {
                       </p>
 
                       {/* Live preview */}
-                      <div className="pt-3 border-t border-border/50 flex items-center justify-between text-xs">
-                        <span className="text-text-muted text-[11px] uppercase font-mono font-semibold">
+                      <div className="pt-2.5 sm:pt-3 border-t border-border/50 flex items-center justify-between text-xs">
+                        <span className="text-text-muted text-[10px] sm:text-[11px] uppercase font-mono font-semibold">
                           Live Sample:
                         </span>
                         <RatingBadge rating={85} scale={scaleOption} size="sm" />
@@ -247,7 +247,7 @@ export default function SettingsPage() {
               )}
             </div>
 
-            <div className="p-4 rounded-xl bg-surface-elevated/60 border border-border/70 flex items-start gap-3 text-xs text-text-muted">
+            <div className="p-3.5 sm:p-4 rounded-xl bg-surface-elevated/60 border border-border/70 flex items-start gap-2.5 sm:gap-3 text-xs text-text-muted">
               <Info className="w-4 h-4 text-accent shrink-0 mt-0.5" />
               <p className="leading-relaxed">
                 <strong className="text-text font-semibold">Cross-Scale Preservation:</strong> If you switch from 5-Star (e.g. 4.0 ★) to 100-Point, your score displays as 80 / 100. Switching to Thumbs Up/Down displays as 👍 Liked. Your diary entries and reviews adapt everywhere.
@@ -256,13 +256,13 @@ export default function SettingsPage() {
           </div>
 
           {/* Card: Profile Defaults */}
-          <div className="p-7 sm:p-9 rounded-2xl bg-surface border border-border/80 card-depth space-y-6">
-            <h2 className="font-serif text-xl sm:text-2xl font-bold text-text border-b border-border/70 pb-4">
+          <div className="p-4 sm:p-7 lg:p-9 rounded-2xl bg-surface border border-border/80 card-depth space-y-5 sm:space-y-6">
+            <h2 className="font-serif text-lg sm:text-2xl font-bold text-text border-b border-border/70 pb-3 sm:pb-4">
               Journal Byline & Privacy
             </h2>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div className="space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+              <div className="space-y-1.5 sm:space-y-2">
                 <label className="block text-xs font-bold uppercase tracking-wider text-text-muted">
                   Display Name
                 </label>
@@ -271,11 +271,11 @@ export default function SettingsPage() {
                   value={displayName}
                   onChange={(e) => setDisplayNameInput(e.target.value)}
                   placeholder="Your Name"
-                  className="w-full h-11 px-4 text-sm rounded-xl bg-bg border border-border text-text placeholder:text-text-muted/60 focus:border-accent focus:ring-1 focus:ring-accent outline-hidden transition-all shadow-2xs"
+                  className="w-full h-10 sm:h-11 px-3.5 sm:px-4 text-xs sm:text-sm rounded-xl bg-bg border border-border text-text placeholder:text-text-muted/60 focus:border-accent focus:ring-1 focus:ring-accent outline-hidden transition-all shadow-2xs"
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5 sm:space-y-2">
                 <label className="block text-xs font-bold uppercase tracking-wider text-text-muted">
                   Bio / Journal Intro
                 </label>
@@ -284,16 +284,16 @@ export default function SettingsPage() {
                   value={bio}
                   onChange={(e) => setBioInput(e.target.value)}
                   placeholder="Short tagline about your media taste"
-                  className="w-full h-11 px-4 text-sm rounded-xl bg-bg border border-border text-text placeholder:text-text-muted/60 focus:border-accent focus:ring-1 focus:ring-accent outline-hidden transition-all shadow-2xs"
+                  className="w-full h-10 sm:h-11 px-3.5 sm:px-4 text-xs sm:text-sm rounded-xl bg-bg border border-border text-text placeholder:text-text-muted/60 focus:border-accent focus:ring-1 focus:ring-accent outline-hidden transition-all shadow-2xs"
                 />
               </div>
             </div>
 
-            <div className="space-y-3 pt-2">
+            <div className="space-y-2.5 sm:space-y-3 pt-1 sm:pt-2">
               <label className="block text-xs font-bold uppercase tracking-wider text-text-muted">
                 Default Entry Privacy
               </label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3.5">
                 {[
                   { id: "public", label: "Public", desc: "Visible to all", icon: Globe },
                   { id: "friends", label: "Friends", desc: "Shared only", icon: Users },
@@ -306,7 +306,7 @@ export default function SettingsPage() {
                       key={item.id}
                       type="button"
                       onClick={() => setPrivacyInput(item.id as PrivacyLevel)}
-                      className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-1.5 ${
+                      className={`p-3 sm:p-4 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-1 sm:gap-1.5 ${
                         isSelected
                           ? "border-accent bg-accent/10 text-text ring-1 ring-accent"
                           : "border-border/80 bg-bg/50 hover:bg-surface-hover text-text-muted"
@@ -314,9 +314,9 @@ export default function SettingsPage() {
                     >
                       <div className="flex items-center gap-2">
                         <Icon className={`w-4 h-4 ${isSelected ? "text-accent" : ""}`} />
-                        <span className="text-sm font-bold text-text">{item.label}</span>
+                        <span className="text-xs sm:text-sm font-bold text-text">{item.label}</span>
                       </div>
-                      <span className="text-xs text-text-muted">{item.desc}</span>
+                      <span className="text-[11px] sm:text-xs text-text-muted">{item.desc}</span>
                     </button>
                   );
                 })}
@@ -328,9 +328,9 @@ export default function SettingsPage() {
           <AlgoliaStatusCard />
 
           {/* Submit Button */}
-          <div className="flex items-center justify-end gap-3 pt-2">
-            <Link href="/diary">
-              <Button type="button" variant="secondary" size="md">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-2">
+            <Link href="/diary" className="w-full sm:w-auto">
+              <Button type="button" variant="secondary" size="md" className="w-full sm:w-auto text-xs justify-center">
                 Cancel
               </Button>
             </Link>
@@ -339,7 +339,7 @@ export default function SettingsPage() {
               variant="primary"
               size="md"
               disabled={isSaving}
-              className="gap-2 font-semibold shadow-xs"
+              className="w-full sm:w-auto gap-2 font-semibold shadow-xs text-xs justify-center"
             >
               {isSaving ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

@@ -171,27 +171,27 @@ export function TopNav() {
   return (
     <>
       <header className="sticky top-0 z-40 w-full backdrop-blur-md bg-bg/90 border-b border-border transition-colors">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-4">
           {/* 1. Brand Logo */}
           <Link
             href="/"
-            className="flex items-center gap-2.5 group outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
+            className="flex items-center gap-2 group outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md shrink-0"
           >
             <div className="w-8 h-8 rounded-md bg-accent text-accent-contrast flex items-center justify-center shadow-xs transition-transform duration-150 motion-safe:group-hover:scale-105">
               <Coffee className="w-4 h-4" />
             </div>
             <div className="flex flex-col">
-              <span className="font-serif text-xl font-bold tracking-tight text-text leading-none">
+              <span className="font-serif text-lg sm:text-xl font-bold tracking-tight text-text leading-none">
                 meDiary
               </span>
-              <span className="text-[10px] text-text-muted tracking-wider uppercase font-sans mt-0.5">
+              <span className="hidden sm:block text-[10px] text-text-muted tracking-wider uppercase font-sans mt-0.5">
                 Slow media journal
               </span>
             </div>
           </Link>
 
-          {/* 2. Algolia Instant Search Bar */}
-          <div ref={searchContainerRef} className="flex-1 max-w-md mx-2 sm:mx-6 relative">
+          {/* 2. Algolia Instant Search Bar (Desktop/Tablet) */}
+          <div ref={searchContainerRef} className="hidden sm:block flex-1 max-w-md mx-2 sm:mx-6 relative">
             <div className="relative flex items-center">
               <div className="absolute left-3 flex items-center pointer-events-none text-text-muted">
                 <Search className="w-4 h-4" />
@@ -362,22 +362,35 @@ export function TopNav() {
             )}
           </div>
 
-          {/* 3. Right Controls: Diary + Lists + Theme + Profile / Auth */}
-          <div className="flex items-center gap-3">
+          {/* 3. Right Controls: Mobile search button + Diary + Lists + Theme + Profile / Auth */}
+          <div className="flex items-center gap-0.5 sm:gap-2 shrink-0">
+            {/* Mobile Search Button (Quick trigger for full catalog search) */}
+            <button
+              type="button"
+              onClick={() => setIsSearchModalOpen(true)}
+              className="sm:hidden flex items-center justify-center w-8 h-8 rounded-lg text-text-muted hover:text-text hover:bg-surface transition-colors cursor-pointer shrink-0"
+              title="Search catalog (⌘K)"
+              aria-label="Search catalog"
+            >
+              <Search className="w-4 h-4 text-accent" />
+            </button>
+
             <Link
               href="/diary"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-text hover:text-accent rounded-md hover:bg-surface transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 p-1.5 sm:px-3 sm:py-1.5 text-xs font-medium text-text hover:text-accent rounded-md hover:bg-surface transition-colors cursor-pointer shrink-0"
+              title="Media Diary"
             >
               <BookMarked className="w-3.5 h-3.5 text-accent" />
-              <span>Diary</span>
+              <span className="hidden md:inline">Diary</span>
             </Link>
 
             <Link
               href="/lists"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-text hover:text-accent rounded-md hover:bg-surface transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 p-1.5 sm:px-3 sm:py-1.5 text-xs font-medium text-text hover:text-accent rounded-md hover:bg-surface transition-colors cursor-pointer shrink-0"
+              title="Custom Lists"
             >
               <ListOrdered className="w-3.5 h-3.5 text-accent" />
-              <span>Lists</span>
+              <span className="hidden md:inline">Lists</span>
             </Link>
 
             <ThemeToggle className="hidden sm:inline-flex" />
@@ -385,7 +398,7 @@ export function TopNav() {
             <button
               type="button"
               onClick={() => setIsSettingsModalOpen(true)}
-              className="inline-flex items-center justify-center w-8 h-8 rounded-md text-text-muted hover:text-text hover:bg-surface transition-colors cursor-pointer"
+              className="inline-flex items-center justify-center w-8 h-8 rounded-md text-text-muted hover:text-text hover:bg-surface transition-colors cursor-pointer shrink-0"
               title="Settings & Rating Scale"
               aria-label="Settings & Rating Scale"
             >
@@ -394,13 +407,13 @@ export function TopNav() {
 
             {user ? (
               /* Authenticated Profile Menu */
-              <div className="relative" ref={profileMenuRef}>
+              <div className="relative shrink-0" ref={profileMenuRef}>
                 <button
                   type="button"
                   onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
                   aria-expanded={isProfileMenuOpen}
                   aria-haspopup="true"
-                  className="flex items-center gap-2 p-1 pl-1.5 pr-2.5 rounded-full bg-surface border border-border hover:border-text/25 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring shadow-2xs"
+                  className="flex items-center gap-1 sm:gap-2 p-1 pl-1 sm:pl-1.5 pr-1.5 sm:pr-2.5 rounded-full bg-surface border border-border hover:border-text/25 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring shadow-2xs"
                 >
                   <div className="w-7 h-7 rounded-full bg-accent text-accent-contrast font-serif font-semibold text-xs flex items-center justify-center">
                     {userInitial}
@@ -501,12 +514,12 @@ export function TopNav() {
               </div>
             ) : (
               /* Unauthenticated Buttons */
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={openLogin}
-                  className="text-xs"
+                  className="hidden xs:inline-flex text-xs px-2 sm:px-3"
                 >
                   Log In
                 </Button>
@@ -514,10 +527,11 @@ export function TopNav() {
                   variant="primary"
                   size="sm"
                   onClick={openSignup}
-                  className="text-xs"
+                  className="text-xs px-2.5 sm:px-3.5"
                   leftIcon={<Sparkles className="w-3.5 h-3.5" />}
                 >
-                  Sign Up
+                  <span className="hidden xs:inline">Sign Up</span>
+                  <span className="xs:hidden">Join</span>
                 </Button>
               </div>
             )}

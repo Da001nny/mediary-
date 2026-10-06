@@ -311,14 +311,14 @@ export function DiaryView() {
   return (
     <div className="space-y-10 sm:space-y-12 lg:space-y-14">
       {/* 1. Header Banner */}
-      <section className="card-depth rounded-3xl p-8 sm:p-10 lg:p-12 space-y-8">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-          <div className="space-y-2">
+      <section className="card-depth rounded-2xl sm:rounded-3xl p-4 sm:p-8 lg:p-10 xl:p-12 space-y-6 sm:space-y-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6">
+          <div className="space-y-1.5 sm:space-y-2">
             <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-accent font-bold font-mono">
               <BookMarked className="w-4 h-4" />
               <span>Personal Media Archive</span>
             </div>
-            <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-black text-text tracking-tight leading-tight">
+            <h1 className="font-serif text-2xl sm:text-4xl lg:text-5xl font-black text-text tracking-tight leading-tight">
               My Media Diary
             </h1>
             <p className="text-xs sm:text-sm text-text-muted max-w-xl leading-relaxed">
@@ -332,7 +332,7 @@ export function DiaryView() {
               size="md"
               onClick={() => setIsSearchModalOpen(true)}
               leftIcon={<Plus className="w-4 h-4" />}
-              className="text-xs h-10 px-5 shadow-sm hover:shadow-md cursor-pointer"
+              className="text-xs h-9 sm:h-10 px-4 sm:px-5 shadow-sm hover:shadow-md cursor-pointer"
             >
               Log New Title
             </Button>
@@ -340,36 +340,36 @@ export function DiaryView() {
         </div>
 
         {/* Quick Stats Row with Subtle Ambient Elevation */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 pt-6 border-t border-border/70">
-          <div className="p-4 sm:p-5 rounded-xl bg-surface/70 border border-border/80 card-depth-hover transition-all space-y-1">
-            <span className="text-[11px] text-text-muted uppercase font-mono font-semibold block">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-6 pt-5 sm:pt-6 border-t border-border/70">
+          <div className="p-3 sm:p-5 rounded-xl bg-surface/70 border border-border/80 card-depth-hover transition-all space-y-0.5 sm:space-y-1">
+            <span className="text-[10px] sm:text-[11px] text-text-muted uppercase font-mono font-semibold block">
               Total Logged
             </span>
-            <p className="font-serif text-2xl sm:text-3xl font-bold text-text">
+            <p className="font-serif text-xl sm:text-3xl font-bold text-text">
               {entries.length}
             </p>
           </div>
-          <div className="p-4 sm:p-5 rounded-xl bg-surface/70 border border-border/80 card-depth-hover transition-all space-y-1">
-            <span className="text-[11px] text-text-muted uppercase font-mono font-semibold block">
+          <div className="p-3 sm:p-5 rounded-xl bg-surface/70 border border-border/80 card-depth-hover transition-all space-y-0.5 sm:space-y-1">
+            <span className="text-[10px] sm:text-[11px] text-text-muted uppercase font-mono font-semibold block">
               Completed
             </span>
-            <p className="font-serif text-2xl sm:text-3xl font-bold text-emerald-700 dark:text-emerald-400">
+            <p className="font-serif text-xl sm:text-3xl font-bold text-emerald-700 dark:text-emerald-400">
               {entries.filter((e) => e.status === "completed").length}
             </p>
           </div>
-          <div className="p-4 sm:p-5 rounded-xl bg-surface/70 border border-border/80 card-depth-hover transition-all space-y-1">
-            <span className="text-[11px] text-text-muted uppercase font-mono font-semibold block">
+          <div className="p-3 sm:p-5 rounded-xl bg-surface/70 border border-border/80 card-depth-hover transition-all space-y-0.5 sm:space-y-1">
+            <span className="text-[10px] sm:text-[11px] text-text-muted uppercase font-mono font-semibold block">
               In Progress
             </span>
-            <p className="font-serif text-2xl sm:text-3xl font-bold text-amber-700 dark:text-amber-400">
+            <p className="font-serif text-xl sm:text-3xl font-bold text-amber-700 dark:text-amber-400">
               {entries.filter((e) => e.status === "in_progress").length}
             </p>
           </div>
-          <div className="p-4 sm:p-5 rounded-xl bg-surface/70 border border-border/80 card-depth-hover transition-all space-y-1">
-            <span className="text-[11px] text-text-muted uppercase font-mono font-semibold block">
+          <div className="p-3 sm:p-5 rounded-xl bg-surface/70 border border-border/80 card-depth-hover transition-all space-y-0.5 sm:space-y-1">
+            <span className="text-[10px] sm:text-[11px] text-text-muted uppercase font-mono font-semibold block">
               Unique Performers
             </span>
-            <p className="font-serif text-2xl sm:text-3xl font-bold text-accent">
+            <p className="font-serif text-xl sm:text-3xl font-bold text-accent">
               {allPeopleInDiary.length}
             </p>
           </div>
@@ -377,11 +377,11 @@ export function DiaryView() {
       </section>
 
       {/* 2. Comprehensive Filter Toolbar */}
-      <section className="card-depth rounded-2xl p-6 sm:p-8 space-y-6">
+      <section className="card-depth rounded-2xl p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
         <div className="flex items-center justify-between pb-3 border-b border-border/60 flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-accent" />
-            <h2 className="text-sm font-bold uppercase tracking-wider text-text">
+            <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-text">
               Filter Your Diary
             </h2>
           </div>
@@ -394,7 +394,7 @@ export function DiaryView() {
         </div>
 
         {/* Primary Filter Rows */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {/* A. Actor / Crew Filter (Target feature from prompt!) */}
           <div className="space-y-1 relative">
             <label className="text-[11px] font-semibold text-text uppercase tracking-wider flex items-center justify-between">
@@ -528,7 +528,7 @@ export function DiaryView() {
         </div>
 
         {/* Text Search Bar */}
-        <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-border/50">
+        <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-border/50">
           <div className="relative w-full sm:w-80">
             <input
               type="text"
@@ -552,19 +552,19 @@ export function DiaryView() {
           {/* Active Filter Chips */}
           <div className="flex flex-wrap items-center gap-1.5 self-start sm:self-center">
             {personFilter && (
-              <Badge variant="amber" size="sm" className="gap-1">
+              <Badge variant="amber" size="sm" className="gap-1 text-[10px] sm:text-xs">
                 <span>Actor: {personFilter}</span>
                 <X className="w-3 h-3 cursor-pointer" onClick={clearPersonFilter} />
               </Badge>
             )}
             {selectedType !== "all" && (
-              <Badge variant="subtle" size="sm" className="gap-1 capitalize">
+              <Badge variant="subtle" size="sm" className="gap-1 capitalize text-[10px] sm:text-xs">
                 <span>Type: {selectedType}</span>
                 <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedType("all")} />
               </Badge>
             )}
             {selectedStatus !== "all" && (
-              <Badge variant="subtle" size="sm" className="gap-1 capitalize">
+              <Badge variant="subtle" size="sm" className="gap-1 capitalize text-[10px] sm:text-xs">
                 <span>Status: {selectedStatus.replace("_", " ")}</span>
                 <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedStatus("all")} />
               </Badge>
@@ -590,7 +590,7 @@ export function DiaryView() {
       {/* 3. Logged Entries Feed / Grid */}
       <section className="space-y-4">
         {filteredEntries.length === 0 ? (
-          <div className="bg-surface rounded-2xl border border-dashed border-border p-12 text-center space-y-4">
+          <div className="bg-surface rounded-2xl border border-dashed border-border p-8 sm:p-12 text-center space-y-4">
             <div className="w-12 h-12 rounded-full bg-accent/15 text-accent mx-auto flex items-center justify-center">
               <Search className="w-6 h-6" />
             </div>
@@ -604,7 +604,7 @@ export function DiaryView() {
                   : "Try clearing your type, status, or search filters to see all logged titles."}
               </p>
             </div>
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
               <Button
                 variant="secondary"
                 size="sm"
@@ -629,7 +629,7 @@ export function DiaryView() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
             {filteredEntries.map((entry) => {
               const formattedDate = new Date(entry.logged_at).toLocaleDateString("en-US", {
                 year: "numeric",
@@ -640,27 +640,27 @@ export function DiaryView() {
               return (
                 <div
                   key={entry.id}
-                  className="rounded-2xl card-depth card-depth-hover transition-all flex flex-col justify-between overflow-hidden p-6 sm:p-7 space-y-5"
+                  className="rounded-2xl card-depth card-depth-hover transition-all flex flex-col justify-between overflow-hidden p-4 sm:p-6 lg:p-7 space-y-4 sm:space-y-5"
                 >
-                  <div className="space-y-4">
+                  <div className="space-y-3.5 sm:space-y-4">
                     {/* Header Row: Poster + Title + Rating */}
-                    <div className="flex gap-4 sm:gap-5 items-start">
+                    <div className="flex gap-3 sm:gap-5 items-start">
                       {/* Cover Poster with Physical Object Drop Shadow & Lift */}
                       <Link
                         href={`/media/${entry.media_id}`}
-                        className="relative w-24 sm:w-28 md:w-32 aspect-2/3 rounded-xl overflow-hidden poster-depth ring-1 ring-black/10 dark:ring-white/10 shrink-0 group block bg-bg"
+                        className="relative w-20 sm:w-28 md:w-32 aspect-2/3 rounded-xl overflow-hidden poster-depth ring-1 ring-black/10 dark:ring-white/10 shrink-0 group block bg-bg"
                       >
                         {entry.cover_url ? (
                           <Image
                             src={entry.cover_url}
                             alt={entry.title}
                             fill
-                            sizes="(max-width: 640px) 96px, 128px"
+                            sizes="(max-width: 640px) 80px, 128px"
                             className="object-cover group-hover:scale-106 transition-transform duration-500 ease-out"
                             referrerPolicy="no-referrer"
                           />
                         ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center p-3 text-center text-xs text-text-muted bg-surface font-serif font-bold">
+                          <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center text-xs text-text-muted bg-surface font-serif font-bold">
                             {entry.title}
                           </div>
                         )}

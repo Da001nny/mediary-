@@ -214,21 +214,21 @@ export function MediaReviewsFeed({ media }: MediaReviewsFeedProps) {
   return (
     <section className="card-depth rounded-2xl overflow-hidden transition-all">
       {/* 1. Header Bar with generous spacing */}
-      <div className="p-6 sm:p-8 lg:p-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6 border-b border-border/70 bg-surface/50">
-        <div className="flex items-center gap-4 sm:gap-5">
-          <div className="w-12 h-12 rounded-2xl bg-accent/15 border border-accent/25 flex items-center justify-center text-accent shrink-0 shadow-2xs">
-            <MessageSquare className="w-6 h-6" />
+      <div className="p-4 sm:p-8 lg:p-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6 border-b border-border/70 bg-surface/50">
+        <div className="flex items-center gap-3.5 sm:gap-5">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-accent/15 border border-accent/25 flex items-center justify-center text-accent shrink-0 shadow-2xs">
+            <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
           <div>
-            <div className="flex items-center gap-3">
-              <h2 className="font-serif text-2xl sm:text-3xl font-extrabold text-text">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <h2 className="font-serif text-xl sm:text-3xl font-extrabold text-text">
                 Community Reviews & Logs
               </h2>
-              <Badge variant="subtle" size="sm" className="font-mono text-xs">
+              <Badge variant="subtle" size="sm" className="font-mono text-[10px] sm:text-xs">
                 {reviews.length} {reviews.length === 1 ? "entry" : "entries"}
               </Badge>
             </div>
-            <p className="text-xs sm:text-sm text-text-muted mt-1 leading-relaxed">
+            <p className="text-xs sm:text-sm text-text-muted mt-0.5 sm:mt-1 leading-relaxed">
               Reflections, ratings, and slow notes from fellow diary readers
             </p>
           </div>
@@ -239,7 +239,7 @@ export function MediaReviewsFeed({ media }: MediaReviewsFeedProps) {
             variant="primary"
             size="md"
             onClick={handleOpenReviewModal}
-            className="text-xs font-semibold h-11 px-5 gap-2 shadow-sm hover:shadow-md cursor-pointer"
+            className="text-xs font-semibold h-10 sm:h-11 px-4 sm:px-5 gap-2 shadow-sm hover:shadow-md cursor-pointer"
           >
             <PenLine className="w-4 h-4" />
             <span>{userEntry ? "Edit Your Review" : "Write a Review"}</span>
@@ -248,8 +248,8 @@ export function MediaReviewsFeed({ media }: MediaReviewsFeedProps) {
       </div>
 
       {/* 2. Filter & Sort Toolbar */}
-      <div className="px-6 sm:px-8 py-4 bg-bg/50 border-b border-border/60 flex flex-wrap items-center justify-between gap-4 text-xs">
-        <div className="flex items-center gap-3 flex-wrap">
+      <div className="px-3.5 sm:px-8 py-3 sm:py-4 bg-bg/50 border-b border-border/60 flex flex-wrap items-center justify-between gap-3 sm:gap-4 text-xs">
+        <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
           <span className="text-[11px] font-mono uppercase tracking-wider text-text-muted flex items-center gap-1.5 font-semibold">
             <Filter className="w-3.5 h-3.5 text-accent" /> Filter:
           </span>
@@ -258,7 +258,7 @@ export function MediaReviewsFeed({ media }: MediaReviewsFeedProps) {
             <button
               type="button"
               onClick={() => setFilter("with_text")}
-              className={`px-3 py-1 text-xs rounded-lg transition-all cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1 text-xs rounded-lg transition-all cursor-pointer ${
                 filter === "with_text"
                   ? "bg-accent text-accent-contrast font-semibold shadow-2xs"
                   : "text-text-muted hover:text-text"
@@ -269,7 +269,7 @@ export function MediaReviewsFeed({ media }: MediaReviewsFeedProps) {
             <button
               type="button"
               onClick={() => setFilter("all")}
-              className={`px-3 py-1 text-xs rounded-lg transition-all cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1 text-xs rounded-lg transition-all cursor-pointer ${
                 filter === "all"
                   ? "bg-accent text-accent-contrast font-semibold shadow-2xs"
                   : "text-text-muted hover:text-text"
@@ -280,7 +280,7 @@ export function MediaReviewsFeed({ media }: MediaReviewsFeedProps) {
           </div>
 
           {spoilerCount > 0 && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+            <span className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-xl text-xs font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
               <EyeOff className="w-3.5 h-3.5" />
               <span>{spoilerCount} spoiler protected</span>
             </span>
@@ -288,14 +288,14 @@ export function MediaReviewsFeed({ media }: MediaReviewsFeedProps) {
         </div>
 
         {/* Sort Selector */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
           <span className="text-[11px] font-mono uppercase tracking-wider text-text-muted flex items-center gap-1 font-semibold">
             <ArrowUpDown className="w-3.5 h-3.5 text-text-muted" /> Sort:
           </span>
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as "recent" | "highest" | "lowest")}
-            className="h-9 bg-surface border border-border rounded-xl px-3 text-xs text-text font-medium focus:outline-none focus:border-accent cursor-pointer shadow-2xs"
+            className="h-9 bg-surface border border-border rounded-xl px-2.5 sm:px-3 text-xs text-text font-medium focus:outline-none focus:border-accent cursor-pointer shadow-2xs"
           >
             <option value="recent">Most Recent (Default)</option>
             <option value="highest">Highest Rating</option>
@@ -315,7 +315,7 @@ export function MediaReviewsFeed({ media }: MediaReviewsFeedProps) {
       </div>
 
       {/* 3. Review Items Feed */}
-      <div className="p-6 sm:p-8 lg:p-10 space-y-6">
+      <div className="p-3.5 sm:p-8 lg:p-10 space-y-4 sm:space-y-6">
         {isLoading && reviews.length === 0 ? (
           <div className="space-y-6">
             <CardSkeleton />

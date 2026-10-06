@@ -89,6 +89,12 @@
   --font-sans: var(--font-work-sans), system-ui, -apple-system, sans-serif;
 }
 
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
 body {
   background-color: var(--color-bg);
   color: var(--color-text);

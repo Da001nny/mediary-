@@ -109,15 +109,15 @@ export function AlgoliaStatusCard({ className = "" }: { className?: string }) {
 
   return (
     <div
-      className={`p-7 sm:p-9 rounded-2xl bg-surface border border-border/80 card-depth space-y-7 ${className}`}
+      className={`p-3.5 sm:p-7 lg:p-9 rounded-2xl bg-surface border border-border/80 card-depth space-y-4 sm:space-y-7 ${className}`}
     >
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-border/70 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4 border-b border-border/70 pb-3.5 sm:pb-5">
         <div>
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-accent text-accent-contrast flex items-center justify-center shadow-xs">
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-accent text-accent-contrast flex items-center justify-center shadow-xs shrink-0">
               <Zap className="w-4 h-4" />
             </div>
-            <h2 className="font-serif text-xl sm:text-2xl font-bold text-text">
+            <h2 className="font-serif text-lg sm:text-2xl font-bold text-text">
               Algolia Search & Catalog Indexing
             </h2>
           </div>
@@ -126,13 +126,13 @@ export function AlgoliaStatusCard({ className = "" }: { className?: string }) {
           </p>
         </div>
 
-        <div className="flex items-center gap-3 self-start">
+        <div className="flex items-center gap-2 self-start flex-wrap">
           <button
             type="button"
             onClick={refreshStatus}
             disabled={isLoadingStatus}
             title="Refresh status"
-            className="p-2 rounded-xl border border-border hover:bg-surface-hover text-text-muted hover:text-text transition-colors cursor-pointer"
+            className="p-1.5 sm:p-2 rounded-xl border border-border hover:bg-surface-hover text-text-muted hover:text-text transition-colors cursor-pointer shrink-0"
           >
             <RefreshCw
               className={`w-4 h-4 ${isLoadingStatus ? "animate-spin text-accent" : ""}`}
@@ -141,7 +141,7 @@ export function AlgoliaStatusCard({ className = "" }: { className?: string }) {
           <Badge
             variant={isConnected ? "forest" : "amber"}
             size="md"
-            className="shrink-0 text-xs font-semibold py-1 px-3"
+            className="shrink-0 text-[10px] sm:text-xs font-semibold py-1 px-2 sm:px-3"
           >
             {isConnected ? "Algolia Connected" : "Algolia Pending Setup"}
           </Badge>
@@ -149,7 +149,7 @@ export function AlgoliaStatusCard({ className = "" }: { className?: string }) {
       </div>
 
       {/* Algolia Configuration Status Indicators */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 text-xs">
         {/* App ID */}
         <div className="p-4 rounded-xl bg-bg/50 border border-border/80 card-depth-hover transition-all space-y-1.5">
           <span className="text-[10px] font-mono uppercase text-text-muted font-bold block">
@@ -238,10 +238,10 @@ export function AlgoliaStatusCard({ className = "" }: { className?: string }) {
       </div>
 
       {/* Backfill Trigger Section */}
-      <div className="p-6 rounded-2xl border border-border/80 bg-surface-elevated/40 space-y-4 card-depth-hover">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="p-3.5 sm:p-6 rounded-xl sm:rounded-2xl border border-border/80 bg-surface-elevated/40 space-y-3 sm:space-y-4 card-depth-hover">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           <div className="space-y-1">
-            <h3 className="text-base font-bold text-text flex items-center gap-2">
+            <h3 className="text-sm sm:text-base font-bold text-text flex items-center gap-2">
               <RefreshCw className="w-4 h-4 text-accent" />
               <span>Run Algolia Catalog Backfill</span>
             </h3>
@@ -260,7 +260,7 @@ export function AlgoliaStatusCard({ className = "" }: { className?: string }) {
             size="md"
             disabled={isBackfilling}
             onClick={handleRunBackfill}
-            className="shrink-0 gap-2 text-xs font-semibold h-10 px-5 shadow-xs hover:shadow-md cursor-pointer"
+            className="w-full sm:w-auto shrink-0 gap-2 text-xs font-semibold h-9 sm:h-10 px-3.5 sm:px-5 shadow-xs hover:shadow-md cursor-pointer justify-center"
           >
             {isBackfilling ? (
               <>
@@ -290,11 +290,11 @@ export function AlgoliaStatusCard({ className = "" }: { className?: string }) {
             ) : (
               <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
             )}
-            <div className="space-y-0.5 leading-relaxed">
+            <div className="space-y-0.5 leading-relaxed min-w-0">
               <strong className="block font-semibold">
                 {backfillResult.success ? "Backfill Complete" : "Backfill Failed"}
               </strong>
-              <span>
+              <span className="break-words">
                 {backfillResult.message || backfillResult.error}
               </span>
               {backfillResult.totalIndexed !== undefined && (
@@ -309,44 +309,44 @@ export function AlgoliaStatusCard({ className = "" }: { className?: string }) {
       </div>
 
       {/* Developer Reference Snippet */}
-      <div className="p-3.5 rounded-lg bg-bg/60 border border-border/80 space-y-2 text-xs text-text-muted">
-        <div className="flex items-center justify-between">
+      <div className="p-3.5 rounded-lg bg-bg/60 border border-border/80 space-y-2 text-xs text-text-muted overflow-hidden">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-1.5 font-semibold text-text">
-            <Terminal className="w-3.5 h-3.5 text-accent" />
-            <span>CLI, API & Database Integration Details</span>
+            <Terminal className="w-3.5 h-3.5 text-accent shrink-0" />
+            <span className="truncate">CLI, API & Database Integration Details</span>
           </div>
           <a
             href="/api/admin/algolia/status"
             target="_blank"
             rel="noreferrer"
-            className="text-[11px] text-accent hover:underline flex items-center gap-1"
+            className="text-[11px] text-accent hover:underline flex items-center gap-1 shrink-0"
           >
             <span>Raw Status API</span>
             <ExternalLink className="w-3 h-3" />
           </a>
         </div>
-        <ul className="space-y-1 font-mono text-[11px] list-disc list-inside text-text-muted">
-          <li>
+        <ul className="space-y-1.5 font-mono text-[11px] list-disc list-inside text-text-muted">
+          <li className="break-words">
             <strong className="text-text">CLI Command:</strong>{" "}
-            <code className="bg-surface px-1 py-0.5 rounded border border-border">
+            <code className="bg-surface px-1.5 py-0.5 rounded border border-border break-all">
               npm run algolia:backfill
             </code>
           </li>
-          <li>
+          <li className="break-words">
             <strong className="text-text">Admin API Route:</strong>{" "}
-            <code className="bg-surface px-1 py-0.5 rounded border border-border">
+            <code className="bg-surface px-1.5 py-0.5 rounded border border-border break-all">
               POST /api/admin/algolia/backfill
             </code>
           </li>
-          <li>
+          <li className="break-words">
             <strong className="text-text">Postgres Trigger:</strong>{" "}
-            <code className="bg-surface px-1 py-0.5 rounded border border-border">
+            <code className="bg-surface px-1.5 py-0.5 rounded border border-border break-all">
               AFTER INSERT OR UPDATE ON public.media
             </code>
           </li>
-          <li>
+          <li className="break-words">
             <strong className="text-text">Supabase Edge Function:</strong>{" "}
-            <code className="bg-surface px-1 py-0.5 rounded border border-border">
+            <code className="bg-surface px-1.5 py-0.5 rounded border border-border break-all">
               supabase/functions/algolia-sync
             </code>
           </li>

@@ -70,33 +70,33 @@ export function GameDetailsSection({ media }: GameDetailsSectionProps) {
   return (
     <section className="card-depth rounded-2xl overflow-hidden transition-all">
       {/* Header Bar */}
-      <div className="p-6 sm:p-8 lg:p-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6 border-b border-border/70 bg-surface/50">
-        <div className="flex items-center gap-4 sm:gap-5">
-          <div className="w-12 h-12 rounded-2xl bg-accent/15 border border-accent/25 flex items-center justify-center text-accent shrink-0 shadow-2xs">
-            <Gamepad2 className="w-6 h-6" />
+      <div className="p-4 sm:p-8 lg:p-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6 border-b border-border/70 bg-surface/50">
+        <div className="flex items-center gap-3.5 sm:gap-5">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-accent/15 border border-accent/25 flex items-center justify-center text-accent shrink-0 shadow-2xs">
+            <Gamepad2 className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
           <div>
-            <div className="flex items-center gap-3">
-              <h2 className="font-serif text-2xl sm:text-3xl font-extrabold text-text">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <h2 className="font-serif text-xl sm:text-3xl font-extrabold text-text">
                 Game Specs & Platforms
               </h2>
-              <Badge variant="subtle" size="sm" className="font-mono text-xs">
+              <Badge variant="subtle" size="sm" className="font-mono text-[10px] sm:text-xs">
                 Video Game
               </Badge>
             </div>
-            <p className="text-xs sm:text-sm text-text-muted mt-1 leading-relaxed">
+            <p className="text-xs sm:text-sm text-text-muted mt-0.5 sm:mt-1 leading-relaxed">
               Available platforms, developer studios, and gameplay details
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 self-end sm:self-auto">
+        <div className="flex items-center gap-2 sm:gap-3 self-start sm:self-auto flex-wrap">
           {website && (
             <a
               href={website}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-accent font-semibold px-3 py-2 rounded-xl bg-bg/80 hover:bg-bg border border-border transition-colors shadow-2xs"
+              className="inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-accent font-semibold px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-bg/80 hover:bg-bg border border-border transition-colors shadow-2xs"
             >
               <span>Official Site</span>
               <ExternalLink className="w-3.5 h-3.5" />
@@ -121,9 +121,9 @@ export function GameDetailsSection({ media }: GameDetailsSectionProps) {
 
       {/* Main Content Body */}
       {isExpanded && (
-        <div className="p-6 sm:p-8 lg:p-10 space-y-8">
+        <div className="p-4 sm:p-8 lg:p-10 space-y-6 sm:space-y-8">
           {/* Key Specs Row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-5">
             {/* Metacritic */}
             {metacritic !== null ? (
               <div className="p-4 sm:p-5 rounded-2xl card-depth flex flex-col justify-between space-y-2 card-depth-hover">

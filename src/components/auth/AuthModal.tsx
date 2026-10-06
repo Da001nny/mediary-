@@ -123,7 +123,7 @@ export function AuthModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="auth-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-text/30 backdrop-blur-xs motion-safe:transition-opacity"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-text/30 backdrop-blur-xs motion-safe:transition-opacity"
       onClick={handleClose}
     >
       <div

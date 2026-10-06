@@ -15,11 +15,11 @@ export default function DiaryPage() {
     <div className="min-h-screen bg-bg text-text flex flex-col font-sans">
       <TopNav />
 
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-10 sm:py-14 w-full">
+      <main className="flex-1 max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 xl:px-12 py-6 sm:py-12 lg:py-14 w-full">
         <Suspense
           fallback={
-            <div className="space-y-10 sm:space-y-14">
-              <div className="p-8 sm:p-12 rounded-3xl card-depth space-y-4 animate-pulse">
+            <div className="space-y-6 sm:space-y-10 lg:space-y-14">
+              <div className="p-4 sm:p-8 lg:p-12 rounded-2xl sm:rounded-3xl card-depth space-y-4 animate-pulse">
                 <div className="h-4 w-36 rounded bg-surface-hover/60" />
                 <div className="h-10 sm:h-12 w-3/5 rounded-lg bg-surface-hover/60" />
                 <div className="h-4 w-4/5 rounded bg-surface-hover/60" />

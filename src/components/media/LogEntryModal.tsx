@@ -388,18 +388,18 @@ function LogEntryModalContent({
       role="dialog"
       aria-modal="true"
       aria-labelledby="log-entry-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-text/40 backdrop-blur-xs transition-opacity"
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-text/40 backdrop-blur-xs transition-opacity"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg bg-surface border border-border rounded-2xl shadow-xl overflow-hidden animate-in fade-in-50 zoom-in-95"
+        className="w-full max-w-lg bg-surface border border-border rounded-2xl shadow-xl overflow-hidden animate-in fade-in-50 zoom-in-95 max-h-[92vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-5 sm:p-6 border-b border-border bg-surface-hover/30 flex items-start justify-between gap-4">
-          <div className="flex gap-3.5 items-center">
+        <div className="p-3.5 sm:p-6 border-b border-border bg-surface-hover/30 flex items-start justify-between gap-3 shrink-0">
+          <div className="flex gap-3 items-center min-w-0">
             {/* Media thumbnail */}
-            <div className="relative w-12 h-16 rounded-md overflow-hidden bg-bg border border-border shrink-0 shadow-2xs">
+            <div className="relative w-10 sm:w-12 h-14 sm:h-16 rounded-md overflow-hidden bg-bg border border-border shrink-0 shadow-2xs">
               {media.cover_url ? (
                 <Image
                   src={media.cover_url}
@@ -416,18 +416,18 @@ function LogEntryModalContent({
               )}
             </div>
 
-            <div>
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-accent">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>meDiary Journal Entry</span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-accent truncate">
+                <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+                <span className="truncate">meDiary Journal Entry</span>
               </div>
               <h2
                 id="log-entry-title"
-                className="font-serif text-xl sm:text-2xl font-bold text-text leading-tight"
+                className="font-serif text-lg sm:text-2xl font-bold text-text leading-tight truncate"
               >
                 {media.title}
               </h2>
-              <div className="flex items-center gap-2 text-xs text-text-muted mt-0.5">
+              <div className="flex items-center gap-1.5 sm:gap-2 text-xs text-text-muted mt-0.5">
                 <span className="capitalize">{media.type}</span>
                 {releaseYear && <span>· {releaseYear}</span>}
               </div>
@@ -438,14 +438,14 @@ function LogEntryModalContent({
             type="button"
             onClick={onClose}
             aria-label="Close modal"
-            className="p-1.5 rounded-lg text-text-muted hover:text-text hover:bg-surface-hover transition-colors cursor-pointer"
+            className="p-1 sm:p-1.5 rounded-lg text-text-muted hover:text-text hover:bg-surface-hover transition-colors cursor-pointer shrink-0"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="p-3.5 sm:p-6 space-y-4 sm:space-y-6 flex-1 overflow-y-auto">
           {error && (
             <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/25 text-red-600 dark:text-red-400 text-xs flex items-start gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
