@@ -365,7 +365,8 @@ CREATE POLICY "Users can delete their own profile"
 
                     <Button
                       variant="primary"
-                      className="w-full text-xs"
+                      size="sm"
+                      className="w-full justify-center"
                       disabled={isSyncTesting || !syncTestId}
                       onClick={() => handleTestSync()}
                       leftIcon={
@@ -401,7 +402,7 @@ CREATE POLICY "Users can delete their own profile"
                     {syncTestResult?.media?.id && (
                       <Link
                         href={`/media/${syncTestResult.media.id}`}
-                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-accent text-accent-contrast text-xs font-semibold rounded-md hover:bg-accent-hover transition-colors shadow-xs"
+                        className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-accent text-accent-contrast text-xs font-semibold rounded-lg hover:bg-accent-hover transition-colors shadow-xs"
                       >
                         <span>Open Title Page</span>
                         <ExternalLink className="w-3.5 h-3.5" />
@@ -745,8 +746,7 @@ CREATE POLICY "Users can delete their own profile"
                       variant="ghost"
                       size="sm"
                       onClick={copyToClipboard}
-                      className="text-xs h-7 px-2"
-                      leftIcon={<Copy className="w-3 h-3" />}
+                      leftIcon={<Copy className="w-3.5 h-3.5" />}
                     >
                       {copiedSql ? "Copied!" : "Copy SQL"}
                     </Button>
@@ -951,7 +951,7 @@ CREATE POLICY "Users can delete their own profile"
               {/* Sizes */}
               <div>
                 <p className="text-xs uppercase tracking-wider text-text-muted font-medium mb-3">
-                  Sizes (sm: 32px, md: 40px, lg: 44px)
+                  Sizes (sm: 36px, md: 42px, lg: 50px)
                 </p>
                 <div className="flex flex-wrap items-center gap-3">
                   <Button size="sm" variant="secondary">

@@ -364,15 +364,10 @@ function SettingsModalContent({ onClose }: { onClose: () => void }) {
               type="submit"
               variant="primary"
               size="sm"
-              disabled={isSaving}
-              className="gap-1.5"
+              isLoading={isSaving}
+              leftIcon={<Check className="w-3.5 h-3.5" />}
             >
-              {isSaving ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Check className="w-3.5 h-3.5" />
-              )}
-              <span>Save Preferences</span>
+              Save Preferences
             </Button>
           </div>
         </form>

@@ -56,9 +56,12 @@ export default function SingleListPage({ params }: PageProps) {
             </p>
             <div className="pt-2">
               <Link href="/lists">
-                <Button variant="primary" size="sm" className="gap-1.5">
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>Return to Lists</span>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  leftIcon={<ArrowLeft className="w-3.5 h-3.5" />}
+                >
+                  Return to Lists
                 </Button>
               </Link>
             </div>

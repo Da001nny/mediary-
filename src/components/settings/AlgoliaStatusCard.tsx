@@ -8,7 +8,6 @@ import {
   Terminal,
   CheckCircle2,
   AlertCircle,
-  Loader2,
   ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -258,21 +257,12 @@ export function AlgoliaStatusCard({ className = "" }: { className?: string }) {
             type="button"
             variant="primary"
             size="md"
-            disabled={isBackfilling}
+            isLoading={isBackfilling}
+            leftIcon={<RefreshCw className="w-4 h-4" />}
             onClick={handleRunBackfill}
-            className="w-full sm:w-auto shrink-0 gap-2 text-xs font-semibold h-9 sm:h-10 px-3.5 sm:px-5 shadow-xs hover:shadow-md cursor-pointer justify-center"
+            className="w-full sm:w-auto shrink-0 justify-center"
           >
-            {isBackfilling ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Indexing Rows...</span>
-              </>
-            ) : (
-              <>
-                <RefreshCw className="w-4 h-4" />
-                <span>Run Algolia Catalog Backfill</span>
-              </>
-            )}
+            {isBackfilling ? "Indexing Rows..." : "Run Algolia Catalog Backfill"}
           </Button>
         </div>
 

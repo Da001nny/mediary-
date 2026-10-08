@@ -8,7 +8,6 @@ import {
   Globe,
   Users,
   Lock,
-  Loader2,
   FolderPlus,
   Edit3,
 } from "lucide-react";
@@ -299,11 +298,9 @@ function CreateListModalContent({
               type="submit"
               variant="primary"
               size="sm"
-              disabled={isSubmitting}
-              className="gap-1.5"
+              isLoading={isSubmitting}
             >
-              {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              <span>{listToEdit ? "Save Changes" : "Create List"}</span>
+              {listToEdit ? "Save Changes" : "Create List"}
             </Button>
           </div>
         </form>

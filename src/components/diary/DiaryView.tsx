@@ -332,7 +332,6 @@ export function DiaryView() {
               size="md"
               onClick={() => setIsSearchModalOpen(true)}
               leftIcon={<Plus className="w-4 h-4" />}
-              className="text-xs h-9 sm:h-10 px-4 sm:px-5 shadow-sm hover:shadow-md cursor-pointer"
             >
               Log New Title
             </Button>
@@ -614,7 +613,6 @@ export function DiaryView() {
                   setSelectedStatus("all");
                   setSearchQuery("");
                 }}
-                className="text-xs"
               >
                 Clear Filters
               </Button>
@@ -622,7 +620,6 @@ export function DiaryView() {
                 variant="primary"
                 size="sm"
                 onClick={() => setIsSearchModalOpen(true)}
-                className="text-xs"
               >
                 Discover Titles on TMDB
               </Button>
@@ -773,9 +770,9 @@ export function DiaryView() {
                               key={c.id}
                               type="button"
                               onClick={() => handleSelectPerson(c.name)}
-                              className={`text-[11px] px-2.5 py-0.5 rounded-md transition-colors cursor-pointer border ${
+                              className={`text-xs px-3 py-1 rounded-md transition-colors cursor-pointer border ${
                                 isCurrentFilter
-                                  ? "bg-accent text-accent-contrast border-accent font-semibold"
+                                  ? "bg-accent text-[#0E0902] dark:text-[#0A0702] border-amber-950/20 font-semibold"
                                   : "bg-surface hover:bg-surface-hover text-text border-border"
                               }`}
                               title={`Filter diary to ${c.name}`}
@@ -793,9 +790,9 @@ export function DiaryView() {
                               key={c.id}
                               type="button"
                               onClick={() => handleSelectPerson(c.name)}
-                              className={`text-[11px] px-2.5 py-0.5 rounded-md transition-colors cursor-pointer border ${
+                              className={`text-xs px-3 py-1 rounded-md transition-colors cursor-pointer border ${
                                 isCurrentFilter
-                                  ? "bg-accent-secondary text-accent-contrast border-accent-secondary font-semibold"
+                                  ? "bg-accent-secondary text-white border-accent-secondary font-semibold"
                                   : "bg-surface hover:bg-surface-hover text-accent-secondary border-accent-secondary/30"
                               }`}
                               title={`Filter diary to ${c.name}`}

@@ -303,15 +303,12 @@ function AddToListModalContent({
                 type="submit"
                 variant="primary"
                 size="sm"
-                disabled={creatingInline || !newListName.trim()}
-                className="w-full text-xs h-7.5"
+                isLoading={creatingInline}
+                leftIcon={<Plus className="w-3.5 h-3.5" />}
+                disabled={!newListName.trim()}
+                className="w-full justify-center"
               >
-                {creatingInline ? (
-                  <Loader2 className="w-3 h-3 animate-spin mr-1" />
-                ) : (
-                  <Plus className="w-3 h-3 mr-1" />
-                )}
-                <span>Create & Add Item</span>
+                Create & Add Item
               </Button>
             </form>
           )}
@@ -382,10 +379,10 @@ function AddToListModalContent({
                         type="button"
                         onClick={() => handleToggle(list)}
                         disabled={isProcessing}
-                        className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+                        className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
                           isInList
-                            ? "bg-accent text-accent-contrast shadow-2xs hover:bg-accent/90"
-                            : "bg-surface border border-border text-text hover:border-accent"
+                            ? "bg-accent text-[#0E0902] dark:text-[#0A0702] shadow-2xs hover:bg-accent-hover"
+                            : "bg-surface border border-border text-text hover:border-accent hover:bg-surface-hover"
                         }`}
                       >
                         {isProcessing ? (
@@ -443,7 +440,7 @@ function AddToListModalContent({
                                 variant="primary"
                                 onClick={() => handleSaveNotes(list.id)}
                                 disabled={isProcessing}
-                                className="text-[11px] h-6 px-2"
+                                className="h-7.5 px-3 text-xs"
                               >
                                 Save Note
                               </Button>

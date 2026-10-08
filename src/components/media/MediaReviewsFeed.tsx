@@ -258,10 +258,10 @@ export function MediaReviewsFeed({ media }: MediaReviewsFeedProps) {
             <button
               type="button"
               onClick={() => setFilter("with_text")}
-              className={`px-2.5 sm:px-3 py-1 text-xs rounded-lg transition-all cursor-pointer ${
+              className={`px-3 sm:px-3.5 py-1.5 text-xs rounded-lg transition-all cursor-pointer ${
                 filter === "with_text"
-                  ? "bg-accent text-accent-contrast font-semibold shadow-2xs"
-                  : "text-text-muted hover:text-text"
+                  ? "bg-accent text-[#0E0902] dark:text-[#0A0702] font-semibold shadow-2xs"
+                  : "text-text-muted hover:text-text font-medium"
               }`}
             >
               Written Reviews
@@ -269,10 +269,10 @@ export function MediaReviewsFeed({ media }: MediaReviewsFeedProps) {
             <button
               type="button"
               onClick={() => setFilter("all")}
-              className={`px-2.5 sm:px-3 py-1 text-xs rounded-lg transition-all cursor-pointer ${
+              className={`px-3 sm:px-3.5 py-1.5 text-xs rounded-lg transition-all cursor-pointer ${
                 filter === "all"
-                  ? "bg-accent text-accent-contrast font-semibold shadow-2xs"
-                  : "text-text-muted hover:text-text"
+                  ? "bg-accent text-[#0E0902] dark:text-[#0A0702] font-semibold shadow-2xs"
+                  : "text-text-muted hover:text-text font-medium"
               }`}
             >
               All Logs & Ratings

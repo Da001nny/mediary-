@@ -391,9 +391,12 @@ export default async function MediaDetailPage({ params }: PageProps) {
           </p>
           <div className="flex items-center gap-3">
             <Link href="/">
-              <Button variant="primary" className="gap-2 text-xs">
-                <ArrowLeft className="w-4 h-4" />
-                <span>Return to Catalog</span>
+              <Button
+                variant="primary"
+                size="sm"
+                leftIcon={<ArrowLeft className="w-3.5 h-3.5" />}
+              >
+                Return to Catalog
               </Button>
             </Link>
           </div>

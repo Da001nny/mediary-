@@ -266,9 +266,9 @@ export function WatchProvidersSection({
                         key={code}
                         type="button"
                         onClick={() => setSelectedCountry(code)}
-                        className={`text-xs px-2.5 py-1 rounded-md transition-colors cursor-pointer border ${
+                        className={`text-xs px-3 py-1 rounded-md transition-colors cursor-pointer border ${
                           isActive
-                            ? "bg-accent text-accent-contrast border-accent font-semibold shadow-2xs"
+                            ? "bg-accent text-[#0E0902] dark:text-[#0A0702] border-amber-950/20 font-semibold shadow-2xs"
                             : "bg-bg text-text-muted border-border hover:text-text hover:border-text/25"
                         }`}
                       >

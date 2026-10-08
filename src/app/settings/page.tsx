@@ -330,7 +330,7 @@ export default function SettingsPage() {
           {/* Submit Button */}
           <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-2">
             <Link href="/diary" className="w-full sm:w-auto">
-              <Button type="button" variant="secondary" size="md" className="w-full sm:w-auto text-xs justify-center">
+              <Button type="button" variant="secondary" size="md" className="w-full sm:w-auto justify-center">
                 Cancel
               </Button>
             </Link>
@@ -338,15 +338,11 @@ export default function SettingsPage() {
               type="submit"
               variant="primary"
               size="md"
-              disabled={isSaving}
-              className="w-full sm:w-auto gap-2 font-semibold shadow-xs text-xs justify-center"
+              isLoading={isSaving}
+              leftIcon={<Check className="w-4 h-4" />}
+              className="w-full sm:w-auto justify-center"
             >
-              {isSaving ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Check className="w-4 h-4" />
-              )}
-              <span>Save All Settings</span>
+              Save All Settings
             </Button>
           </div>
         </form>

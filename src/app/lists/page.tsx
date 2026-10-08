@@ -91,11 +91,12 @@ export default function ListsPage() {
 
           <Button
             variant="primary"
+            size="md"
             onClick={() => setIsCreateModalOpen(true)}
-            className="gap-2 shadow-xs cursor-pointer self-start sm:self-auto text-xs h-10 px-4"
+            leftIcon={<FolderPlus className="w-4 h-4" />}
+            className="self-start sm:self-auto shrink-0"
           >
-            <FolderPlus className="w-4 h-4" />
-            <span>Create Custom List</span>
+            Create Custom List
           </Button>
         </div>
 

@@ -755,8 +755,8 @@ function LogEntryModalContent({
                 size="sm"
                 onClick={handleDelete}
                 isLoading={isDeleting}
-                className="text-xs text-red-600 dark:text-red-400 hover:bg-red-500/10 gap-1.5"
-                leftIcon={<Trash2 className="w-3.5 h-3.5" />}
+                className="text-red-600 dark:text-red-400 hover:bg-red-500/10"
+                leftIcon={<Trash2 className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />}
               >
                 Delete Log
               </Button>
@@ -770,7 +770,6 @@ function LogEntryModalContent({
                 variant="ghost"
                 size="sm"
                 onClick={onClose}
-                className="text-xs"
               >
                 Cancel
               </Button>
@@ -780,7 +779,6 @@ function LogEntryModalContent({
                 variant="primary"
                 size="sm"
                 isLoading={isSubmitting}
-                className="text-xs px-5 font-semibold"
               >
                 {existingEntry?.id ? "Update Log" : "Save to Diary"}
               </Button>

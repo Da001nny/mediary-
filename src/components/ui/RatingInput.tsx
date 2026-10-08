@@ -214,7 +214,7 @@ export function RatingInput({
                     onClick={() => onChange(tenPointToStoredRating(pt))}
                     className={`h-8 sm:h-9 rounded font-mono font-bold text-xs transition-all cursor-pointer flex items-center justify-center ${
                       isSelected
-                        ? "bg-accent text-accent-contrast shadow-2xs scale-105"
+                        ? "bg-accent text-[#0E0902] dark:text-[#0A0702] font-bold shadow-2xs scale-105"
                         : "bg-surface border border-border/80 text-text-muted hover:text-text hover:border-accent/50"
                     }`}
                   >
@@ -305,9 +305,9 @@ export function RatingInput({
                   key={preset}
                   type="button"
                   onClick={() => onChange(hundredPointToStoredRating(preset))}
-                  className={`px-2 py-1 rounded text-[11px] font-mono transition-colors cursor-pointer ${
+                  className={`px-2.5 py-1 rounded-md text-xs font-mono transition-colors cursor-pointer ${
                     currentHundredPoint === preset
-                      ? "bg-accent text-accent-contrast font-bold shadow-2xs"
+                      ? "bg-accent text-[#0E0902] dark:text-[#0A0702] font-bold shadow-2xs"
                       : "bg-surface border border-border/80 text-text-muted hover:text-text hover:border-accent"
                   }`}
                 >

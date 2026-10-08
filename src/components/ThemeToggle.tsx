@@ -64,10 +64,10 @@ export function ThemeToggle({ className }: { className?: string }) {
         onClick={() => handleSelect("light")}
         aria-pressed={theme === "light"}
         className={cn(
-          "inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded transition-colors duration-150 motion-reduce:transition-none cursor-pointer",
+          "inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md transition-colors duration-150 motion-reduce:transition-none cursor-pointer",
           theme === "light"
-            ? "bg-accent text-accent-contrast shadow-2xs"
-            : "text-text-muted hover:text-text hover:bg-surface-hover"
+            ? "bg-accent text-[#0E0902] dark:text-[#0A0702] font-semibold shadow-2xs"
+            : "text-text-muted hover:text-text hover:bg-surface-hover font-medium"
         )}
         title="Light: Warm Honey Wood"
       >
@@ -80,10 +80,10 @@ export function ThemeToggle({ className }: { className?: string }) {
         onClick={() => handleSelect("dark")}
         aria-pressed={theme === "dark"}
         className={cn(
-          "inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded transition-colors duration-150 motion-reduce:transition-none cursor-pointer",
+          "inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md transition-colors duration-150 motion-reduce:transition-none cursor-pointer",
           theme === "dark"
-            ? "bg-accent text-accent-contrast shadow-2xs"
-            : "text-text-muted hover:text-text hover:bg-surface-hover"
+            ? "bg-accent text-[#0E0902] dark:text-[#0A0702] font-semibold shadow-2xs"
+            : "text-text-muted hover:text-text hover:bg-surface-hover font-medium"
         )}
         title="Dark: Cozy Cabin"
       >
@@ -96,10 +96,10 @@ export function ThemeToggle({ className }: { className?: string }) {
         onClick={() => handleSelect("system")}
         aria-pressed={theme === "system"}
         className={cn(
-          "inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded transition-colors duration-150 motion-reduce:transition-none cursor-pointer",
+          "inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md transition-colors duration-150 motion-reduce:transition-none cursor-pointer",
           theme === "system"
-            ? "bg-accent text-accent-contrast shadow-2xs"
-            : "text-text-muted hover:text-text hover:bg-surface-hover"
+            ? "bg-accent text-[#0E0902] dark:text-[#0A0702] font-semibold shadow-2xs"
+            : "text-text-muted hover:text-text hover:bg-surface-hover font-medium"
         )}
         title="System Preference"
       >

@@ -435,10 +435,9 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
                     variant="secondary"
                     size="md"
                     onClick={handleOpenLogModal}
-                    className="gap-2 text-xs font-semibold h-10 px-4 cursor-pointer"
-                    leftIcon={<Edit3 className="w-3.5 h-3.5 text-accent" />}
+                    leftIcon={<Edit3 className="w-4 h-4 text-accent" />}
                   >
-                    <span>Edit Log</span>
+                    Edit Log
                   </Button>
 
                   <Link
@@ -454,10 +453,9 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
                   variant="primary"
                   size="md"
                   onClick={handleOpenLogModal}
-                  className="gap-2 text-xs font-semibold h-11 px-6 cursor-pointer shadow-sm hover:shadow-md"
+                  leftIcon={<BookmarkPlus className="w-4 h-4" />}
                 >
-                  <BookmarkPlus className="w-4 h-4" />
-                  <span>Log to Diary</span>
+                  Log to Diary
                 </Button>
               )}
 
@@ -465,10 +463,9 @@ export function MediaDetailHeader({ media }: MediaDetailHeaderProps) {
                 variant="secondary"
                 size="md"
                 onClick={() => setIsAddToListOpen(true)}
-                className="gap-2 text-xs font-semibold h-11 px-5 cursor-pointer"
                 leftIcon={<ListPlus className="w-4 h-4 text-accent" />}
               >
-                <span>Add to List</span>
+                Add to List
               </Button>
 
               {/* User's Written Review Snippet with Card Depth */}

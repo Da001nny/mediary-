@@ -519,7 +519,7 @@ export function TopNav() {
                   variant="ghost"
                   size="sm"
                   onClick={openLogin}
-                  className="hidden xs:inline-flex text-xs px-2 sm:px-3"
+                  className="hidden xs:inline-flex"
                 >
                   Log In
                 </Button>
@@ -527,7 +527,6 @@ export function TopNav() {
                   variant="primary"
                   size="sm"
                   onClick={openSignup}
-                  className="text-xs px-2.5 sm:px-3.5"
                   leftIcon={<Sparkles className="w-3.5 h-3.5" />}
                 >
                   <span className="hidden xs:inline">Sign Up</span>

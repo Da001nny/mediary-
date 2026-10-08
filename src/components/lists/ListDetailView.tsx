@@ -235,10 +235,9 @@ export function ListDetailView({ initialList }: ListDetailViewProps) {
                 variant="primary"
                 size="sm"
                 onClick={() => setIsSearchModalOpen(true)}
-                className="gap-1.5 h-9"
+                leftIcon={<Plus className="w-4 h-4" />}
               >
-                <Plus className="w-4 h-4" />
-                <span>Add Media</span>
+                Add Media
               </Button>
             )}
 
@@ -246,19 +245,15 @@ export function ListDetailView({ initialList }: ListDetailViewProps) {
               variant="secondary"
               size="sm"
               onClick={handleShare}
-              className="gap-1.5 h-9"
-            >
-              {isCopied ? (
-                <>
+              leftIcon={
+                isCopied ? (
                   <Check className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>Link Copied</span>
-                </>
-              ) : (
-                <>
+                ) : (
                   <Share2 className="w-3.5 h-3.5" />
-                  <span>Share List</span>
-                </>
-              )}
+                )
+              }
+            >
+              {isCopied ? "Link Copied" : "Share List"}
             </Button>
 
             {isOwner && (
@@ -267,10 +262,9 @@ export function ListDetailView({ initialList }: ListDetailViewProps) {
                   variant="secondary"
                   size="sm"
                   onClick={() => setIsEditModalOpen(true)}
-                  className="gap-1.5 h-9"
+                  leftIcon={<Edit3 className="w-3.5 h-3.5 text-accent" />}
                 >
-                  <Edit3 className="w-3.5 h-3.5 text-accent" />
-                  <span>Edit Details</span>
+                  Edit Details
                 </Button>
 
                 {isConfirmingDelete ? (
@@ -280,18 +274,18 @@ export function ListDetailView({ initialList }: ListDetailViewProps) {
                       size="sm"
                       onClick={handleDelete}
                       disabled={isDeleting}
-                      className="gap-1 h-9 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs cursor-pointer"
+                      className="bg-rose-600 hover:bg-rose-700 text-white font-semibold cursor-pointer"
                     >
-                      <span>Confirm Delete</span>
+                      Confirm Delete
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => setIsConfirmingDelete(false)}
                       disabled={isDeleting}
-                      className="h-9 text-xs text-text-muted hover:text-text cursor-pointer"
+                      className="text-text-muted hover:text-text cursor-pointer"
                     >
-                      <span>Cancel</span>
+                      Cancel
                     </Button>
                   </div>
                 ) : (
@@ -300,10 +294,10 @@ export function ListDetailView({ initialList }: ListDetailViewProps) {
                     size="sm"
                     onClick={() => setIsConfirmingDelete(true)}
                     disabled={isDeleting}
-                    className="gap-1.5 h-9 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 cursor-pointer"
+                    leftIcon={<Trash2 className="w-3.5 h-3.5 text-rose-500" />}
+                    className="text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 cursor-pointer"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Delete</span>
+                    Delete
                   </Button>
                 )}
               </>
