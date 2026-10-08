@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import {
   MessageSquare,
   EyeOff,
@@ -369,15 +370,18 @@ export function MediaReviewsFeed({ media }: MediaReviewsFeedProps) {
                 >
                   {/* Author Header */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
+                    <Link
+                      href={`/u/${item.user_id}`}
+                      className="flex items-center gap-3 group/author hover:opacity-90 transition-opacity"
+                    >
                       {/* Monogram Avatar */}
-                      <div className="w-9 h-9 rounded-full bg-accent/15 border border-accent/25 flex items-center justify-center text-accent text-xs font-serif font-bold shrink-0 shadow-2xs">
+                      <div className="w-9 h-9 rounded-full bg-accent/15 border border-accent/25 flex items-center justify-center text-accent text-xs font-serif font-bold shrink-0 shadow-2xs group-hover/author:scale-105 transition-transform">
                         {authorInitial}
                       </div>
 
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-serif text-sm sm:text-base font-bold text-text">
+                          <span className="font-serif text-sm sm:text-base font-bold text-text group-hover/author:text-accent transition-colors">
                             {authorName}
                           </span>
                           {isCurrentUser && (
@@ -392,7 +396,7 @@ export function MediaReviewsFeed({ media }: MediaReviewsFeedProps) {
                           <span>{formattedDate}</span>
                         </div>
                       </div>
-                    </div>
+                    </Link>
 
                     {/* Rating & Badges */}
                     <div className="flex items-center gap-2 flex-wrap">

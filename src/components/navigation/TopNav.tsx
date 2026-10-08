@@ -445,11 +445,19 @@ export function TopNav() {
                     {/* Menu items */}
                     <div className="py-1">
                       <Link
-                        href="/diary"
+                        href={`/u/${user.id}`}
                         onClick={() => setIsProfileMenuOpen(false)}
                         className="px-4 py-1.5 flex items-center gap-2 text-xs text-text hover:bg-surface-hover transition-colors cursor-pointer"
                       >
                         <UserIcon className="w-3.5 h-3.5 text-accent" />
+                        <span>Public Profile</span>
+                      </Link>
+                      <Link
+                        href="/diary"
+                        onClick={() => setIsProfileMenuOpen(false)}
+                        className="px-4 py-1.5 flex items-center gap-2 text-xs text-text hover:bg-surface-hover transition-colors cursor-pointer"
+                      >
+                        <Film className="w-3.5 h-3.5 text-accent" />
                         <span>My Media Journal / Diary</span>
                       </Link>
                       <Link
