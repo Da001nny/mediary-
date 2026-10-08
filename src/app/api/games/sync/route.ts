@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchRAWGGameDetails, rawgGameToMediaPayload } from "@/lib/rawg";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { TablesInsert, Json } from "@/types/database.types";
+import { indexMediaItem } from "@/lib/algolia";
+import type { TablesInsert, Json, MediaItem } from "@/types/database.types";
 
 /**
  * POST /api/games/sync
@@ -106,6 +107,15 @@ export async function POST(req: NextRequest) {
         },
         { status: 500 }
       );
+    }
+
+    // Best-effort server-side indexing into Algolia
+    if (inserted) {
+      try {
+        await indexMediaItem(inserted as MediaItem);
+      } catch (algoliaErr) {
+        console.warn("Best-effort Algolia indexing failed for game item:", algoliaErr);
+      }
     }
 
     return NextResponse.json({

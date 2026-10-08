@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchGoogleBookDetails, bookToMediaPayload } from "@/lib/google-books";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { TablesInsert } from "@/types/database.types";
+import { indexMediaItem } from "@/lib/algolia";
+import type { TablesInsert, MediaItem } from "@/types/database.types";
 
 /**
  * POST /api/books/sync
@@ -94,6 +95,15 @@ export async function POST(req: NextRequest) {
         },
         { status: 500 }
       );
+    }
+
+    // Best-effort server-side indexing into Algolia
+    if (inserted) {
+      try {
+        await indexMediaItem(inserted as MediaItem);
+      } catch (algoliaErr) {
+        console.warn("Best-effort Algolia indexing failed for book item:", algoliaErr);
+      }
     }
 
     return NextResponse.json({

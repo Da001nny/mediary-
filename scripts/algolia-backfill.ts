@@ -131,6 +131,17 @@ async function main() {
       author: typeof typeSpecific.author === "string" ? typeSpecific.author : null,
       director: typeof typeSpecific.director === "string" ? typeSpecific.director : null,
       developer: typeof typeSpecific.developer === "string" ? typeSpecific.developer : null,
+      developers: Array.isArray(typeSpecific.developers)
+        ? (typeSpecific.developers as string[])
+        : typeof typeSpecific.developer === "string"
+        ? [typeSpecific.developer]
+        : [],
+      publisher: typeof typeSpecific.publisher === "string" ? typeSpecific.publisher : null,
+      publishers: Array.isArray(typeSpecific.publishers)
+        ? (typeSpecific.publishers as string[])
+        : typeof typeSpecific.publisher === "string"
+        ? [typeSpecific.publisher]
+        : [],
       platforms: Array.isArray(typeSpecific.platforms) ? (typeSpecific.platforms as string[]) : [],
       external_ids: (m.external_ids as Record<string, unknown>) || {},
       last_synced_at: (m.last_synced_at as string) || new Date().toISOString(),
@@ -153,12 +164,19 @@ async function main() {
           "author",
           "director",
           "developer",
+          "developers",
+          "publisher",
+          "publishers",
+          "platforms",
           "synopsis",
         ],
         attributesForFaceting: [
           "filterOnly(type)",
           "genres",
           "year",
+          "platforms",
+          "publisher",
+          "developer",
         ],
         customRanking: [
           "desc(community_rating_count)",

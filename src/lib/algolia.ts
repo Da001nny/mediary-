@@ -26,6 +26,9 @@ export interface AlgoliaMediaRecord {
   director?: string | null;
   platforms?: string[];
   developer?: string | null;
+  developers?: string[];
+  publisher?: string | null;
+  publishers?: string[];
   external_ids?: Record<string, unknown>;
   last_synced_at?: string;
   _highlightResult?: Record<
@@ -102,6 +105,17 @@ export function formatMediaForAlgolia(media: MediaItem): AlgoliaMediaRecord {
   const author = typeof typeSpecific.author === "string" ? typeSpecific.author : null;
   const director = typeof typeSpecific.director === "string" ? typeSpecific.director : null;
   const developer = typeof typeSpecific.developer === "string" ? typeSpecific.developer : null;
+  const developers = Array.isArray(typeSpecific.developers)
+    ? (typeSpecific.developers as string[])
+    : developer
+    ? [developer]
+    : [];
+  const publisher = typeof typeSpecific.publisher === "string" ? typeSpecific.publisher : null;
+  const publishers = Array.isArray(typeSpecific.publishers)
+    ? (typeSpecific.publishers as string[])
+    : publisher
+    ? [publisher]
+    : [];
   const platforms = Array.isArray(typeSpecific.platforms)
     ? (typeSpecific.platforms as string[])
     : [];
@@ -122,6 +136,9 @@ export function formatMediaForAlgolia(media: MediaItem): AlgoliaMediaRecord {
     director,
     platforms,
     developer,
+    developers,
+    publisher,
+    publishers,
     external_ids:
       typeof media.external_ids === "object" &&
       media.external_ids !== null &&
@@ -262,12 +279,19 @@ export async function configureAlgoliaIndex() {
         "author",
         "director",
         "developer",
+        "developers",
+        "publisher",
+        "publishers",
+        "platforms",
         "synopsis",
       ],
       attributesForFaceting: [
         "filterOnly(type)",
         "genres",
         "year",
+        "platforms",
+        "publisher",
+        "developer",
       ],
       customRanking: [
         "desc(community_rating_count)",

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchTMDBDetails } from "@/lib/tmdb";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { TablesInsert, Json } from "@/types/database.types";
+import { indexMediaItem } from "@/lib/algolia";
+import type { TablesInsert, Json, MediaItem } from "@/types/database.types";
 
 /**
  * POST /api/tmdb/sync
@@ -140,6 +141,15 @@ export async function POST(req: NextRequest) {
         },
         { status: 500 }
       );
+    }
+
+    // Best-effort server-side indexing into Algolia
+    if (upsertedData) {
+      try {
+        await indexMediaItem(upsertedData as MediaItem);
+      } catch (algoliaErr) {
+        console.warn("Best-effort Algolia indexing failed for TMDB item:", algoliaErr);
+      }
     }
 
     return NextResponse.json({
