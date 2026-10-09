@@ -25,6 +25,7 @@ import {
   normalizeRatingScale,
 } from "@/lib/rating";
 import { AlgoliaStatusCard } from "@/components/settings/AlgoliaStatusCard";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import type { PrivacyLevel } from "@/types/database.types";
 
 interface SettingsModalProps {
@@ -308,6 +309,20 @@ function SettingsModalContent({ onClose }: { onClose: () => void }) {
                 placeholder="A line about your taste in films, literature, and gaming..."
                 className="w-full px-3.5 py-2 text-sm rounded-lg bg-bg border border-border text-text placeholder:text-text-muted/60 focus:border-accent focus:ring-1 focus:ring-accent outline-hidden transition-colors resize-none"
               />
+            </div>
+
+            {/* Appearance & Color Theme */}
+            <div className="space-y-2 pt-1">
+              <label className="block text-xs font-semibold text-text-muted">
+                Color Theme & Atmosphere
+              </label>
+              <div className="p-3 rounded-xl bg-bg/50 border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-medium text-text">Interface Palette</p>
+                  <p className="text-[11px] text-text-muted">Switch between warm honey wood, cozy cabin dark, or match system.</p>
+                </div>
+                <ThemeToggle />
+              </div>
             </div>
 
             {/* Default Privacy */}

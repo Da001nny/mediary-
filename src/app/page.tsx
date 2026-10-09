@@ -791,7 +791,7 @@ CREATE POLICY "Users can delete their own profile"
                 <p className="text-xs font-semibold text-text">--color-bg</p>
                 <p className="text-[11px] text-text-muted">Honey Wood Background</p>
                 <p className="text-[11px] font-mono text-text-muted mt-1">
-                  #E8D5B5 / #1B1714
+                  #D9B98A / #1B1714
                 </p>
               </div>
             </div>
@@ -808,7 +808,7 @@ CREATE POLICY "Users can delete their own profile"
                 </p>
                 <p className="text-[11px] text-text-muted">Polished Pine Surface</p>
                 <p className="text-[11px] font-mono text-text-muted mt-1">
-                  #F4E8D3 / #26211C
+                  #E8D4AE / #26211C
                 </p>
               </div>
             </div>
@@ -821,9 +821,9 @@ CREATE POLICY "Users can delete their own profile"
               />
               <div>
                 <p className="text-xs font-semibold text-text">--color-text</p>
-                <p className="text-[11px] text-text-muted">Matte Charcoal Text</p>
+                <p className="text-[11px] text-text-muted">Warm Charcoal Text</p>
                 <p className="text-[11px] font-mono text-text-muted mt-1">
-                  #232526 / #F5EBD9
+                  #241F1B / #F5EBD9
                 </p>
               </div>
             </div>
@@ -838,9 +838,9 @@ CREATE POLICY "Users can delete their own profile"
                 <p className="text-xs font-semibold text-text">
                   --color-text-muted
                 </p>
-                <p className="text-[11px] text-text-muted">Woodsmoke Charcoal</p>
+                <p className="text-[11px] text-text-muted">Warm Brown-Grey</p>
                 <p className="text-[11px] font-mono text-text-muted mt-1">
-                  #5F5C56 / #A99F90
+                  #544638 / #A99F90
                 </p>
               </div>
             </div>
@@ -857,7 +857,7 @@ CREATE POLICY "Users can delete their own profile"
                 </p>
                 <p className="text-[11px] text-text-muted">Glowing Amber</p>
                 <p className="text-[11px] font-mono text-text-muted mt-1">
-                  #C87414 / #E28B2A
+                  #D98F3C / #E28B2A
                 </p>
               </div>
             </div>
@@ -874,7 +874,7 @@ CREATE POLICY "Users can delete their own profile"
                 </p>
                 <p className="text-[11px] text-text-muted">Forest Green</p>
                 <p className="text-[11px] font-mono text-text-muted mt-1">
-                  #2E5E3D / #529369
+                  #4F6146 / #529369
                 </p>
               </div>
             </div>

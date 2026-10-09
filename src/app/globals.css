@@ -1,27 +1,27 @@
 @import "tailwindcss";
 
 :root {
-  --color-bg: #E8D5B5;
-  --color-surface: #F4E8D3;
-  --color-surface-hover: #E2CEAB;
-  --color-text: #232526;
-  --color-text-muted: #5F5C56;
-  --color-accent: #C87414;
-  --color-accent-hover: #B4640C;
+  --color-bg: #D9B98A;
+  --color-surface: #E8D4AE;
+  --color-surface-hover: #DFC9A0;
+  --color-text: #241F1B;
+  --color-text-muted: #544638;
+  --color-accent: #D98F3C;
+  --color-accent-hover: #C67E2C;
   --color-accent-contrast: #0E0902;
-  --color-accent-secondary: #2E5E3D;
-  --color-accent-secondary-hover: #244B30;
-  --color-border: rgba(35, 37, 38, 0.10);
-  --color-border-subtle: rgba(35, 37, 38, 0.05);
-  --color-ring: rgba(200, 116, 20, 0.45);
+  --color-accent-secondary: #4F6146;
+  --color-accent-secondary-hover: #415239;
+  --color-border: rgba(36, 31, 27, 0.12);
+  --color-border-subtle: rgba(36, 31, 27, 0.06);
+  --color-ring: rgba(217, 143, 60, 0.45);
 
   /* Physical object drop shadows for posters and cover art */
-  --shadow-poster: 0 2px 4px rgba(35, 37, 38, 0.04), 0 10px 24px -4px rgba(35, 37, 38, 0.16), 0 24px 44px -8px rgba(35, 37, 38, 0.14);
-  --shadow-poster-hover: 0 4px 8px rgba(35, 37, 38, 0.06), 0 18px 36px -4px rgba(35, 37, 38, 0.22), 0 36px 64px -10px rgba(35, 37, 38, 0.20);
+  --shadow-poster: 0 2px 4px rgba(36, 31, 27, 0.05), 0 10px 24px -4px rgba(36, 31, 27, 0.18), 0 24px 44px -8px rgba(36, 31, 27, 0.16);
+  --shadow-poster-hover: 0 4px 8px rgba(36, 31, 27, 0.08), 0 18px 36px -4px rgba(36, 31, 27, 0.24), 0 36px 64px -10px rgba(36, 31, 27, 0.22);
 
   /* Subtle multi-elevation card shadows using warm charcoal tones */
-  --shadow-card: 0 1px 3px rgba(35, 37, 38, 0.03), 0 8px 24px -4px rgba(35, 37, 38, 0.06);
-  --shadow-card-hover: 0 2px 6px rgba(35, 37, 38, 0.05), 0 16px 36px -6px rgba(35, 37, 38, 0.10);
+  --shadow-card: 0 1px 3px rgba(36, 31, 27, 0.04), 0 8px 24px -4px rgba(36, 31, 27, 0.08);
+  --shadow-card-hover: 0 2px 6px rgba(36, 31, 27, 0.06), 0 16px 36px -6px rgba(36, 31, 27, 0.12);
 }
 
 [data-theme="dark"],

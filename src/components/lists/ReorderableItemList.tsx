@@ -191,10 +191,10 @@ export function ReorderableItemList({
                             displayRank === 1
                               ? "text-amber-500"
                               : displayRank === 2
-                              ? "text-slate-400"
+                              ? "text-text-muted"
                               : displayRank === 3
                               ? "text-amber-700 dark:text-amber-600"
-                              : "text-text-muted"
+                              : "text-text-muted/70"
                           }`}
                         >
                           #{displayRank}

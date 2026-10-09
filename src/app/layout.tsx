@@ -37,6 +37,27 @@ export default function RootLayout({
       className={`${fraunces.variable} ${workSans.variable} h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function() {
+              try {
+                var stored = localStorage.getItem('mediary-theme');
+                if (stored === 'dark') {
+                  document.documentElement.setAttribute('data-theme', 'dark');
+                  document.documentElement.classList.add('dark');
+                } else if (stored === 'light') {
+                  document.documentElement.setAttribute('data-theme', 'light');
+                  document.documentElement.classList.remove('dark');
+                } else {
+                  document.documentElement.removeAttribute('data-theme');
+                  document.documentElement.classList.remove('dark');
+                }
+              } catch (e) {}
+            })();`,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col font-sans selection:bg-accent/25 selection:text-text">
         <AuthProvider>{children}</AuthProvider>
       </body>

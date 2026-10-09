@@ -3,6 +3,7 @@
 import React, { useSyncExternalStore } from "react";
 import { Sun, Moon, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 type ThemeMode = "light" | "dark" | "system";
 
@@ -39,6 +40,7 @@ function applyTheme(mode: ThemeMode) {
 }
 
 export function ThemeToggle({ className }: { className?: string }) {
+  const { user, updateProfile } = useAuth();
   const theme = useSyncExternalStore(
     subscribe,
     getSnapshot,
@@ -48,6 +50,11 @@ export function ThemeToggle({ className }: { className?: string }) {
   const handleSelect = (mode: ThemeMode) => {
     applyTheme(mode);
     window.dispatchEvent(new Event("storage"));
+    if (user && updateProfile) {
+      updateProfile({ theme: mode }).catch((err) => {
+        console.warn("Could not save theme to profile:", err);
+      });
+    }
   };
 
   return (
