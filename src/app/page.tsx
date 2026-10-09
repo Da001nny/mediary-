@@ -1,1287 +1,863 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
-  BookOpen,
-  Film,
-  Tv,
-  Gamepad2,
-  Coffee,
-  Bookmark,
-  Sparkles,
-  Heart,
-  Sliders,
-  Compass,
-  ShieldCheck,
-  UserCheck,
-  Database,
-  Lock,
-  Edit3,
-  Copy,
-  CheckCircle2,
   Search,
-  RefreshCw,
-  Layers,
-  Cpu,
-  Globe,
-  ExternalLink,
+  Sparkles,
+  BookMarked,
+  Clock,
+  Users,
+  Compass,
+  Plus,
+  Lock,
+  ChevronRight,
+  Sliders,
 } from "lucide-react";
-import { Button } from "@/components/ui/Button";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-  CardDivider,
-} from "@/components/ui/Card";
-import { Badge, EditorialMetadata } from "@/components/ui/Badge";
-import { Input } from "@/components/ui/Input";
 import { TopNav } from "@/components/navigation/TopNav";
-import { useAuth } from "@/context/AuthContext";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { RatingBadge } from "@/components/ui/RatingBadge";
+import { Skeleton, PosterSkeleton } from "@/components/ui/Skeleton";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { MediaSearchModal } from "@/components/media/MediaSearchModal";
+import { useAuth } from "@/context/AuthContext";
+import type { MediaItem, EntryStatus } from "@/types/database.types";
 
-export default function DesignFoundationPage() {
-  const { user, profile, updateProfile, isConfigured, signOut } = useAuth();
+interface HomeEntryItem {
+  id: string;
+  user_id: string;
+  media_id: string;
+  status: EntryStatus;
+  rating: number | null;
+  progress?: {
+    season?: number;
+    episode?: number;
+    page?: number;
+    totalPages?: number;
+    percent?: number;
+  } | null;
+  review?: string | null;
+  contains_spoilers?: boolean;
+  privacy: string;
+  created_at: string;
+  updated_at?: string;
+  media: MediaItem | null;
+}
+
+// Sample fallback items for demo / preview mode
+const SAMPLE_IN_PROGRESS: HomeEntryItem[] = [
+  {
+    id: "sample-prog-1",
+    user_id: "demo",
+    media_id: "tv-95557",
+    status: "in_progress",
+    rating: 90,
+    progress: { season: 2, episode: 4 },
+    privacy: "public",
+    created_at: "2026-10-06T14:00:00Z",
+    media: {
+      id: "tv-95557",
+      type: "tv",
+      title: "Severance",
+      cover_url: "https://image.tmdb.org/t/p/w342/pG0vMpsuXpZ23B330i3sI6u2t9a.jpg",
+      release_date: "2022-02-18",
+      genres: ["Drama", "Mystery", "Sci-Fi"],
+      community_rating_avg: 84,
+      community_rating_count: 1200,
+      external_ids: { tmdb_id: 95557 },
+      last_synced_at: "2026-10-01",
+      localized_fields: {},
+      synopsis: null,
+      type_specific: null,
+      watch_providers: null,
+    },
+  },
+  {
+    id: "sample-prog-2",
+    user_id: "demo",
+    media_id: "game-3498",
+    status: "in_progress",
+    rating: 95,
+    progress: { percent: 65 },
+    privacy: "public",
+    created_at: "2026-10-04T18:30:00Z",
+    media: {
+      id: "game-3498",
+      type: "game",
+      title: "Elden Ring",
+      cover_url: "https://media.rawg.io/media/games/b54/b545f1638f886c0400b99a175b111429.jpg",
+      release_date: "2022-02-25",
+      genres: ["Action", "RPG"],
+      community_rating_avg: 92,
+      community_rating_count: 4800,
+      external_ids: { rawg_id: 3498 },
+      last_synced_at: "2026-10-01",
+      localized_fields: {},
+      synopsis: null,
+      type_specific: null,
+      watch_providers: null,
+    },
+  },
+];
+
+const SAMPLE_RECENT_LOGS: HomeEntryItem[] = [
+  {
+    id: "sample-log-1",
+    user_id: "demo",
+    media_id: "movie-157336",
+    status: "completed",
+    rating: 100,
+    review: "The docking sequence and Zimmer organ score remain completely unmatched.",
+    privacy: "public",
+    created_at: "2026-10-05T20:15:00Z",
+    media: {
+      id: "movie-157336",
+      type: "movie",
+      title: "Interstellar",
+      cover_url: "https://image.tmdb.org/t/p/w342/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg",
+      release_date: "2014-11-05",
+      genres: ["Adventure", "Drama", "Sci-Fi"],
+      community_rating_avg: 86,
+      community_rating_count: 32000,
+      external_ids: { tmdb_id: 157336 },
+      last_synced_at: "2026-10-01",
+      localized_fields: {},
+      synopsis: null,
+      type_specific: null,
+      watch_providers: null,
+    },
+  },
+  {
+    id: "sample-log-2",
+    user_id: "demo",
+    media_id: "movie-550",
+    status: "completed",
+    rating: 90,
+    review: "Masterful pacing and razor-sharp satire of modern consumerism.",
+    privacy: "public",
+    created_at: "2026-10-02T19:00:00Z",
+    media: {
+      id: "movie-550",
+      type: "movie",
+      title: "Fight Club",
+      cover_url: "https://image.tmdb.org/t/p/w342/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg",
+      release_date: "1999-10-15",
+      genres: ["Drama"],
+      community_rating_avg: 84,
+      community_rating_count: 27000,
+      external_ids: { tmdb_id: 550 },
+      last_synced_at: "2026-10-01",
+      localized_fields: {},
+      synopsis: null,
+      type_specific: null,
+      watch_providers: null,
+    },
+  },
+  {
+    id: "sample-log-3",
+    user_id: "demo",
+    media_id: "tv-94605",
+    status: "completed",
+    rating: 95,
+    review: "Visual masterpiece from Fortiche Studio. Incredible emotional gravity.",
+    privacy: "public",
+    created_at: "2026-09-28T21:30:00Z",
+    media: {
+      id: "tv-94605",
+      type: "tv",
+      title: "Arcane",
+      cover_url: "https://image.tmdb.org/t/p/w342/fqldf2t8ztc9aiwn397rgg3c9.jpg",
+      release_date: "2021-11-06",
+      genres: ["Animation", "Sci-Fi", "Action"],
+      community_rating_avg: 87,
+      community_rating_count: 3400,
+      external_ids: { tmdb_id: 94605 },
+      last_synced_at: "2026-10-01",
+      localized_fields: {},
+      synopsis: null,
+      type_specific: null,
+      watch_providers: null,
+    },
+  },
+  {
+    id: "sample-log-4",
+    user_id: "demo",
+    media_id: "game-452634",
+    status: "completed",
+    rating: 95,
+    review: "The pinnacle of reactive storytelling and CRPG roleplaying freedom.",
+    privacy: "public",
+    created_at: "2026-09-20T16:00:00Z",
+    media: {
+      id: "game-452634",
+      type: "game",
+      title: "Baldur's Gate 3",
+      cover_url: "https://media.rawg.io/media/games/699/699222d81a502178ea93d07976a3702c.jpg",
+      release_date: "2023-08-03",
+      genres: ["RPG", "Strategy"],
+      community_rating_avg: 96,
+      community_rating_count: 5200,
+      external_ids: { rawg_id: 452634 },
+      last_synced_at: "2026-10-01",
+      localized_fields: {},
+      synopsis: null,
+      type_specific: null,
+      watch_providers: null,
+    },
+  },
+];
+
+export default function HomePage() {
+  const { user, profile, isLoading: isAuthLoading } = useAuth();
+
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<"login" | "signup">("login");
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [searchInitialQuery, setSearchInitialQuery] = useState("");
 
-  // Media sync testing state
-  const [syncTestId, setSyncTestId] = useState("550");
-  const [syncTestType, setSyncTestType] = useState<"movie" | "tv" | "game">("movie");
-  const [isSyncTesting, setIsSyncTesting] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [syncTestResult, setSyncTestResult] = useState<any>(null);
-  const [syncTestError, setSyncTestError] = useState<string | null>(null);
+  // Data states for signed-in home dashboard
+  const [inProgressEntries, setInProgressEntries] = useState<HomeEntryItem[]>([]);
+  const [recentEntries, setRecentEntries] = useState<HomeEntryItem[]>([]);
+  const [isLoadingDashboard, setIsLoadingDashboard] = useState(false);
 
-  const [simulatedLoading, setSimulatedLoading] = useState(false);
-  const [buttonClickCount, setButtonClickCount] = useState(0);
+  // Time-of-day greeting
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  }, []);
 
-  // Profile update demo state for RLS testing
-  const [editBio, setEditBio] = useState(
-    profile?.bio || "Sipping pourover coffee, reviewing films and books."
-  );
-  const [isUpdatingBio, setIsUpdatingBio] = useState(false);
-  const [bioUpdateSuccess, setBioUpdateSuccess] = useState(false);
-  const [copiedSql, setCopiedSql] = useState(false);
+  const displayName = profile?.display_name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Reader";
 
-  const toggleLoading = () => {
-    setSimulatedLoading(true);
-    setTimeout(() => setSimulatedLoading(false), 1600);
-  };
+  // Load user entries when authenticated
+  useEffect(() => {
+    let cancelled = false;
 
-  const handleUpdateBio = async () => {
-    setIsUpdatingBio(true);
-    setBioUpdateSuccess(false);
-    await updateProfile({ bio: editBio });
-    setIsUpdatingBio(false);
-    setBioUpdateSuccess(true);
-    setTimeout(() => setBioUpdateSuccess(false), 3000);
-  };
+    if (user) {
+      Promise.resolve().then(() => {
+        if (cancelled) return;
+        setIsLoadingDashboard(true);
+        fetch("/api/home/entries")
+          .then((res) => (res.ok ? res.json() : Promise.reject(res)))
+          .then((data) => {
+            if (cancelled) return;
+            const fetchedProg = Array.isArray(data.inProgress) ? data.inProgress : [];
+            const fetchedRecent = Array.isArray(data.recent) ? data.recent : [];
 
-  const sqlPolicySnippet = `-- Enable Row Level Security
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-
--- 1. SELECT: Public profiles viewable by everyone, private by owner
-CREATE POLICY "Public profiles are viewable by everyone"
-  ON public.profiles FOR SELECT
-  USING (default_privacy = 'public' OR auth.uid() = id);
-
--- 2. INSERT: Users can only insert their own profile
-CREATE POLICY "Users can insert their own profile"
-  ON public.profiles FOR INSERT
-  WITH CHECK (auth.uid() = id);
-
--- 3. UPDATE: Users can only update their own row
-CREATE POLICY "Users can update their own profile"
-  ON public.profiles FOR UPDATE
-  USING (auth.uid() = id)
-  WITH CHECK (auth.uid() = id);
-
--- 4. DELETE: Users can only delete their own profile
-CREATE POLICY "Users can delete their own profile"
-  ON public.profiles FOR DELETE
-  USING (auth.uid() = id);`;
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(sqlPolicySnippet);
-    setCopiedSql(true);
-    setTimeout(() => setCopiedSql(false), 2000);
-  };
-
-  const handleTestSync = async (idToSync?: string, typeToSync?: "movie" | "tv" | "game") => {
-    const targetId = idToSync || syncTestId;
-    const targetType = typeToSync || syncTestType;
-
-    setIsSyncTesting(true);
-    setSyncTestError(null);
-    setSyncTestResult(null);
-
-    try {
-      const endpoint = targetType === "game" ? "/api/games/sync" : "/api/tmdb/sync";
-      const payload =
-        targetType === "game"
-          ? { id: targetId }
-          : { id: Number(targetId), type: targetType };
-
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+            // If database returned entries, use them; if empty demo user, fallback to sample entries
+            if (fetchedProg.length > 0 || fetchedRecent.length > 0) {
+              setInProgressEntries(fetchedProg);
+              setRecentEntries(fetchedRecent);
+            } else {
+              // Check local storage for demo items or use sample items
+              try {
+                const localDiary = localStorage.getItem("mediary_diary_entries");
+                if (localDiary) {
+                  const parsed = JSON.parse(localDiary);
+                  if (Array.isArray(parsed) && parsed.length > 0) {
+                    // Map local diary format
+                    const mapped: HomeEntryItem[] = parsed.map((item) => ({
+                      id: item.id || `entry-${item.media_id}`,
+                      user_id: user.id,
+                      media_id: item.media_id,
+                      status: item.status || "completed",
+                      rating: item.rating,
+                      review: item.notes || item.review,
+                      privacy: "public",
+                      created_at: item.logged_at || item.created_at || new Date().toISOString(),
+                      media: {
+                        id: item.media_id,
+                        type: item.type || "movie",
+                        title: item.title,
+                        cover_url: item.cover_url,
+                        release_date: item.release_year ? `${item.release_year}-01-01` : null,
+                        genres: item.genres || [],
+                        community_rating_avg: null,
+                        community_rating_count: 0,
+                        external_ids: {},
+                        last_synced_at: new Date().toISOString(),
+                        localized_fields: {},
+                        synopsis: null,
+                        type_specific: null,
+                        watch_providers: null,
+                      },
+                    }));
+                    setInProgressEntries(mapped.filter((m) => m.status === "in_progress"));
+                    setRecentEntries(mapped);
+                    return;
+                  }
+                }
+              } catch {
+                // ignore
+              }
+              setInProgressEntries(SAMPLE_IN_PROGRESS);
+              setRecentEntries(SAMPLE_RECENT_LOGS);
+            }
+          })
+          .catch((err) => {
+            console.warn("Could not load user home entries:", err);
+            if (!cancelled) {
+              setInProgressEntries(SAMPLE_IN_PROGRESS);
+              setRecentEntries(SAMPLE_RECENT_LOGS);
+            }
+          })
+          .finally(() => {
+            if (!cancelled) setIsLoadingDashboard(false);
+          });
       });
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        throw new Error(data.error || "Sync request failed");
-      }
-      setSyncTestResult(data);
-    } catch (err: unknown) {
-      setSyncTestError(
-        err instanceof Error ? err.message : "Failed to sync media item"
-      );
-    } finally {
-      setIsSyncTesting(false);
+    } else {
+      Promise.resolve().then(() => {
+        if (cancelled) return;
+        setInProgressEntries([]);
+        setRecentEntries([]);
+        setIsLoadingDashboard(false);
+      });
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  const openSearch = (initialQuery = "") => {
+    setSearchInitialQuery(initialQuery);
+    setIsSearchModalOpen(true);
+  };
+
+  const getMediaBadgeVariant = (type?: string) => {
+    switch (type) {
+      case "movie":
+        return "amber";
+      case "tv":
+        return "forest";
+      case "game":
+        return "subtle";
+      case "book":
+        return "forest";
+      default:
+        return "subtle";
+    }
+  };
+
+  const getStatusLabel = (status: EntryStatus) => {
+    switch (status) {
+      case "in_progress":
+        return "In Progress";
+      case "completed":
+        return "Completed";
+      case "planned":
+        return "Planned";
+      case "dropped":
+        return "Dropped";
+      case "on_hold":
+        return "On Hold";
+      default:
+        return status;
     }
   };
 
   return (
-    <div className="min-h-screen bg-bg text-text selection:bg-accent/25 selection:text-text">
-      {/* Top Navigation Bar */}
+    <div className="min-h-screen bg-bg text-text flex flex-col font-sans selection:bg-accent/25 selection:text-text">
+      {/* Top Navigation */}
       <TopNav />
 
-      {/* Main Content Area with generous desktop breathing room */}
-      <main className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 xl:px-12 py-8 sm:py-16 space-y-12 sm:space-y-20">
-        {/* Intro Hero: Editorial & Restrained */}
-        <section className="space-y-4 sm:space-y-5 max-w-4xl">
-          <div className="inline-flex items-center gap-2 text-xs uppercase tracking-wider text-accent font-bold font-mono">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Phase 2.0 · Supabase Client, Auth & Profiles RLS</span>
-          </div>
-          <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-text leading-[1.12]">
-            A calm, warm morning at the corner table.
-          </h1>
-          <p className="text-base sm:text-lg text-text-muted leading-relaxed font-sans">
-            meDiary departs from generic SaaS design in favor of a tactile,
-            coffee-table aesthetic. The app is now wired with a Supabase client
-            using <code className="font-mono text-sm bg-surface px-1.5 py-0.5 rounded border border-border">@supabase/ssr</code>,
-            email/password & Google OAuth sign-in, responsive top navigation with
-            profile menu, and strict Row Level Security (RLS) policies for user
-            profiles.
-          </p>
-
-          <EditorialMetadata
-            items={[
-              "@supabase/ssr App Router Client",
-              "Email & Google OAuth",
-              "TopNav with Search & Profile Menu",
-              "Profiles Table RLS Policies",
-              "Cozy Cabin Palette (Honey Wood, Matte Charcoal, Amber & Forest Green)",
-              "Fraunces & Work Sans",
-            ]}
-            className="pt-2"
-          />
-        </section>
-
-        {/* Phase 3: TMDB Integration & Media Catalog */}
-        <section className="space-y-6">
-          <div className="border-b border-border pb-3 flex items-baseline justify-between flex-wrap gap-2">
-            <div>
-              <div className="inline-flex items-center gap-1.5 text-xs text-accent font-medium mb-1">
-                <Layers className="w-3.5 h-3.5" />
-                <span>Phase 3.0</span>
+      <main className="flex-1 max-w-6xl mx-auto w-full px-3.5 sm:px-6 lg:px-8 py-6 sm:py-12 space-y-8 sm:space-y-14">
+        {/* ============================================================== */}
+        {/* SIGNED-OUT VIEW                                                */}
+        {/* ============================================================== */}
+        {!user && !isAuthLoading && (
+          <div className="space-y-10 sm:space-y-16 animate-in fade-in duration-300">
+            {/* Landing Hero */}
+            <section className="text-center max-w-3xl mx-auto space-y-4 sm:space-y-6 pt-4 sm:pt-8">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface border border-border text-xs font-medium text-text-muted shadow-2xs">
+                <Sparkles className="w-3.5 h-3.5 text-accent" />
+                <span>A Slow Media Journal</span>
               </div>
-              <h2 className="font-serif text-2xl font-semibold text-text">
-                TMDB Search & Media Table Upsert
-              </h2>
-              <p className="text-xs text-text-muted mt-0.5">
-                Fetch full TMDB metadata (cast, crew, watch providers, last_synced_at) and upsert into the public.media table
+
+              <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-text leading-[1.12]">
+                A quiet journal for everything you watch, read, and play.
+              </h1>
+
+              <p className="text-sm sm:text-lg text-text-muted font-sans leading-relaxed max-w-2xl mx-auto">
+                meDiary is a calm, slow-paced media diary for logging and reviewing movies, TV shows, video games, and books. Keep private reflections or share your journey with friends—free from algorithmic clutter and distraction.
               </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => setIsSearchModalOpen(true)}
-                leftIcon={<Search className="w-3.5 h-3.5" />}
-              >
-                Launch TMDB Search (⌘K)
-              </Button>
-            </div>
-          </div>
 
-          {/* Tradeoff Explanation Card: Next.js API Route vs Supabase Edge Function */}
-          <Card variant="book" className="bg-surface/80 border-border">
-            <CardHeader>
-              <div className="flex items-center justify-between text-xs text-text-muted mb-1">
-                <span className="uppercase tracking-wider font-mono text-[11px] text-accent">
-                  Architectural Evaluation
-                </span>
-                <span className="font-mono text-[11px]">Next.js API Route vs. Supabase Edge Function</span>
-              </div>
-              <CardTitle className="text-lg">Tradeoff Summary</CardTitle>
-              <CardDescription>
-                We implemented the Next.js API Route architecture (<code className="font-mono text-xs bg-bg px-1 py-0.5 rounded border border-border">/api/tmdb/sync</code> and <code className="font-mono text-xs bg-bg px-1 py-0.5 rounded border border-border">/api/tmdb/search</code>) while also providing the ready-to-deploy Supabase Edge Function in <code className="font-mono text-xs bg-bg px-1 py-0.5 rounded border border-border">supabase/functions/sync-media/index.ts</code>.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                <div className="p-3.5 rounded-lg border border-border bg-bg/50 space-y-2">
-                  <div className="flex items-center gap-2 text-text font-semibold">
-                    <Globe className="w-4 h-4 text-accent" />
-                    <span>Next.js API Route (Active)</span>
-                  </div>
-                  <ul className="space-y-1.5 text-text-muted list-disc list-inside">
-                    <li><strong className="text-text">Shared TypeScript Types:</strong> Shares exact types (<code className="font-mono text-[11px]">MediaItem</code>, <code className="font-mono text-[11px]">WatchProvidersCountry</code>, <code className="font-mono text-[11px]">CastMember</code>) with the app without duplicate declarations.</li>
-                    <li><strong className="text-text">Zero Additional CLI Setup:</strong> Runs immediately within the Next.js container, utilizing Next.js cookies and environment variables seamlessly.</li>
-                    <li><strong className="text-text">Same-Origin:</strong> No cross-origin CORS overhead or client JWT token forwarding hurdles.</li>
-                  </ul>
-                </div>
-
-                <div className="p-3.5 rounded-lg border border-border bg-bg/50 space-y-2">
-                  <div className="flex items-center gap-2 text-text font-semibold">
-                    <Cpu className="w-4 h-4 text-accent-secondary" />
-                    <span>Supabase Edge Function (Template Included)</span>
-                  </div>
-                  <ul className="space-y-1.5 text-text-muted list-disc list-inside">
-                    <li><strong className="text-text">Database Proximity:</strong> Deno edge workers positioned geographically close to the Supabase Postgres instance.</li>
-                    <li><strong className="text-text">Decoupled Workloads:</strong> Can be triggered asynchronously via Postgres Database Webhooks or pg_cron schedules without consuming web server compute.</li>
-                    <li><strong className="text-text">Tradeoff:</strong> Requires separate <code className="font-mono text-[11px]">supabase functions deploy</code> deployment and Deno secrets management.</li>
-                  </ul>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Interactive Live Sync Tester */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card variant="book" className="lg:col-span-1 space-y-4 flex flex-col justify-between">
-              <div>
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <RefreshCw className="w-4 h-4 text-accent" />
-                    <span>Live Upsert Tester</span>
-                  </CardTitle>
-                  <CardDescription>
-                    Trigger TMDB detail fetch + public.media table upsert with last_synced_at.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Preset quick buttons */}
-                  <div className="space-y-1.5">
-                    <span className="text-[11px] font-mono text-text-muted uppercase tracking-wider">
-                      Quick Sample Presets:
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSyncTestId("550");
-                          setSyncTestType("movie");
-                          handleTestSync("550", "movie");
-                        }}
-                        className="px-2 py-1 text-xs rounded bg-surface border border-border hover:border-accent text-text transition-colors cursor-pointer"
-                      >
-                        Fight Club (550)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSyncTestId("95557");
-                          setSyncTestType("tv");
-                          handleTestSync("95557", "tv");
-                        }}
-                        className="px-2 py-1 text-xs rounded bg-surface border border-border hover:border-accent text-text transition-colors cursor-pointer"
-                      >
-                        Severance (95557)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSyncTestId("94605");
-                          setSyncTestType("tv");
-                          handleTestSync("94605", "tv");
-                        }}
-                        className="px-2 py-1 text-xs rounded bg-surface border border-border hover:border-accent text-text transition-colors cursor-pointer"
-                      >
-                        Arcane (94605)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSyncTestId("3498");
-                          setSyncTestType("game");
-                          handleTestSync("3498", "game");
-                        }}
-                        className="px-2 py-1 text-xs rounded bg-accent/15 border border-accent/40 text-accent font-semibold transition-colors cursor-pointer flex items-center gap-1"
-                      >
-                        <Gamepad2 className="w-3 h-3" /> Elden Ring (3498)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSyncTestId("452634");
-                          setSyncTestType("game");
-                          handleTestSync("452634", "game");
-                        }}
-                        className="px-2 py-1 text-xs rounded bg-surface border border-border hover:border-accent text-text transition-colors cursor-pointer"
-                      >
-                        Baldur&apos;s Gate 3 (452634)
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Custom ID input */}
-                  <div className="space-y-2 pt-2 border-t border-border">
-                    <div className="flex gap-2">
-                      <div className="flex-1">
-                        <label className="text-[11px] font-mono text-text-muted mb-1 block">
-                          {syncTestType === "game" ? "RAWG ID" : "TMDB ID"}
-                        </label>
-                        <Input
-                          type="number"
-                          value={syncTestId}
-                          onChange={(e) => setSyncTestId(e.target.value)}
-                          placeholder={syncTestType === "game" ? "e.g. 3498" : "e.g. 550"}
-                        />
-                      </div>
-                      <div className="w-32">
-                        <label className="text-[11px] font-mono text-text-muted mb-1 block">
-                          Type
-                        </label>
-                        <select
-                          value={syncTestType}
-                          onChange={(e) => setSyncTestType(e.target.value as "movie" | "tv" | "game")}
-                          className="w-full h-10 px-2 rounded-md bg-surface text-text border border-border text-xs focus:ring-1 focus:ring-ring outline-none"
-                        >
-                          <option value="movie">Movie</option>
-                          <option value="tv">TV Show</option>
-                          <option value="game">Video Game</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      className="w-full justify-center"
-                      disabled={isSyncTesting || !syncTestId}
-                      onClick={() => handleTestSync()}
-                      leftIcon={
-                        isSyncTesting ? (
-                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Layers className="w-3.5 h-3.5" />
-                        )
-                      }
-                    >
-                      {isSyncTesting ? "Fetching & Upserting..." : "Sync to `media` Table"}
-                    </Button>
-                  </div>
-                </CardContent>
-              </div>
-
-              {syncTestError && (
-                <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs rounded-md mx-6 mb-6">
-                  {syncTestError}
-                </div>
-              )}
-            </Card>
-
-            {/* Results Preview Card */}
-            <Card variant="default" className="lg:col-span-2 flex flex-col justify-between overflow-hidden">
-              <CardHeader className="border-b border-border pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-mono flex items-center gap-2">
-                    <Database className="w-4 h-4 text-accent" />
-                    <span>Upserted Record / Response Payload</span>
-                  </CardTitle>
-                  <div className="flex items-center gap-2">
-                    {syncTestResult?.media?.id && (
-                      <Link
-                        href={`/media/${syncTestResult.media.id}`}
-                        className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-accent text-accent-contrast text-xs font-semibold rounded-lg hover:bg-accent-hover transition-colors shadow-xs"
-                      >
-                        <span>Open Title Page</span>
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </Link>
-                    )}
-                    {syncTestResult && (
-                      <Badge variant="forest" size="sm">
-                        {syncTestResult.persisted ? "Persisted in Supabase" : "Live Payload Ready"}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="p-0 flex-1 bg-surface font-mono text-[11px] overflow-auto max-h-[360px]">
-                {syncTestResult ? (
-                  <pre className="p-4 text-text-muted leading-relaxed">
-                    {JSON.stringify(syncTestResult, null, 2)}
-                  </pre>
-                ) : (
-                  <div className="p-8 text-center text-text-muted space-y-2">
-                    <p>Select a quick sample above or enter any TMDB or RAWG ID to test the sync endpoint.</p>
-                    <p className="text-[10px]">
-                      Endpoints: <code className="text-text">POST /api/tmdb/sync</code> and <code className="text-text">POST /api/games/sync</code>
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Quick Title Jump: Featured Media Titles (Movies, TV & Video Games) */}
-          <div className="pt-2 space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="font-serif text-lg font-semibold text-text flex items-center gap-2">
-                <Gamepad2 className="w-4 h-4 text-accent" />
-                <span>Featured Catalog Titles & Game Pages</span>
-              </h3>
-              <Link
-                href="/diary"
-                className="text-xs text-accent hover:text-accent-hover font-medium flex items-center gap-1"
-              >
-                <span>View My Diary</span>
-                <ExternalLink className="w-3 h-3" />
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-              {[
-                {
-                  id: "game-3498",
-                  title: "Elden Ring",
-                  year: "2022",
-                  type: "game",
-                  subtitle: "FromSoftware · RPG",
-                  badge: "Game",
-                },
-                {
-                  id: "game-452634",
-                  title: "Baldur's Gate 3",
-                  year: "2023",
-                  type: "game",
-                  subtitle: "Larian · CRPG",
-                  badge: "Game",
-                },
-                {
-                  id: "game-326243",
-                  title: "Zelda: Tears of Kingdom",
-                  year: "2023",
-                  type: "game",
-                  subtitle: "Nintendo · Adventure",
-                  badge: "Game",
-                },
-                {
-                  id: "game-654",
-                  title: "Stardew Valley",
-                  year: "2016",
-                  type: "game",
-                  subtitle: "ConcernedApe · Sim",
-                  badge: "Game",
-                },
-                {
-                  id: "movie-550",
-                  title: "Fight Club",
-                  year: "1999",
-                  type: "movie",
-                  subtitle: "David Fincher",
-                  badge: "Movie",
-                },
-                {
-                  id: "tv-95557",
-                  title: "Severance",
-                  year: "2022",
-                  type: "tv",
-                  subtitle: "Apple TV+ · S1 & S2",
-                  badge: "TV Series",
-                },
-              ].map((item) => (
-                <Link
-                  key={item.id}
-                  href={`/media/${item.id}`}
-                  className="group p-3 rounded-lg bg-surface border border-border hover:border-accent/60 transition-all flex flex-col justify-between space-y-2 hover:shadow-xs cursor-pointer"
-                >
-                  <div className="flex items-center justify-between gap-1">
-                    <Badge
-                      variant={item.type === "game" ? "subtle" : item.type === "movie" ? "amber" : "forest"}
-                      size="sm"
-                      className="text-[9px] uppercase tracking-wider"
-                    >
-                      {item.badge}
-                    </Badge>
-                    <span className="text-[10px] font-mono text-text-muted">{item.year}</span>
-                  </div>
-
-                  <div>
-                    <h4 className="font-serif text-sm font-bold text-text group-hover:text-accent transition-colors line-clamp-1">
-                      {item.title}
-                    </h4>
-                    <p className="text-[11px] text-text-muted line-clamp-1 mt-0.5">
-                      {item.subtitle}
-                    </p>
-                  </div>
-
-                  <span className="text-[10px] font-medium text-accent inline-flex items-center gap-1 pt-1">
-                    <span>Open Title Page</span>
-                    <ExternalLink className="w-2.5 h-2.5" />
-                  </span>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Phase 2: Live Supabase Auth & RLS Card */}
-        <section className="space-y-6">
-          <div className="border-b border-border pb-3 flex items-baseline justify-between">
-            <div>
-              <h2 className="font-serif text-2xl font-semibold text-text">
-                Supabase Auth & Profiles RLS
-              </h2>
-              <p className="text-xs text-text-muted mt-0.5">
-                Authentication session state, top nav profile integration, and
-                owner-only update security
-              </p>
-            </div>
-            <Badge
-              variant={isConfigured ? "forest" : "amber"}
-              size="sm"
-              dot
-              dotColor={isConfigured ? "forest" : "amber"}
-            >
-              {isConfigured ? "Supabase Connected" : "Preview Demo Mode"}
-            </Badge>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* User Session Status Card */}
-            <Card variant="book" className="lg:col-span-1 flex flex-col justify-between">
-              <CardHeader>
-                <div className="flex items-center justify-between text-xs text-text-muted mb-1">
-                  <span className="uppercase tracking-wider font-medium text-[11px] text-accent">
-                    Session Status
-                  </span>
-                  <span>{user ? "Authenticated" : "Visitor"}</span>
-                </div>
-                <CardTitle className="flex items-center gap-2">
-                  <UserCheck className="w-5 h-5 text-accent" />
-                  <span>{user ? "Signed In" : "Not Signed In"}</span>
-                </CardTitle>
-                <CardDescription>
-                  {user
-                    ? "Your session is synced between browser and Next.js server cookies."
-                    : "Sign in with Email or Google to access your private media journal."}
-                </CardDescription>
-              </CardHeader>
-
-              <CardContent className="space-y-4">
-                {user ? (
-                  <div className="space-y-3 p-3.5 rounded-md bg-bg/60 border border-border">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-accent text-accent-contrast font-serif font-bold text-sm flex items-center justify-center shadow-xs">
-                        {(profile?.display_name || user.email || "M")
-                          .charAt(0)
-                          .toUpperCase()}
-                      </div>
-                      <div className="overflow-hidden">
-                        <p className="text-sm font-semibold text-text truncate">
-                          {profile?.display_name || "Reader"}
-                        </p>
-                        <p className="text-xs text-text-muted truncate">
-                          {user.email}
-                        </p>
-                      </div>
-                    </div>
-
-                    <CardDivider />
-
-                    <div className="space-y-1.5 text-xs">
-                      <div className="flex justify-between">
-                        <span className="text-text-muted">User ID:</span>
-                        <span className="font-mono text-[11px] text-text truncate max-w-[130px]">
-                          {user.id}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-text-muted">Privacy:</span>
-                        <Badge variant="subtle" size="sm">
-                          {profile?.default_privacy || "public"}
-                        </Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-text-muted">Rating Scale:</span>
-                        <span className="font-mono text-text">0–100</span>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-4 rounded-md bg-bg/50 border border-border text-center space-y-3">
-                    <p className="text-xs text-text-muted">
-                      Open the modal to sign in with email, register a new
-                      account, or authenticate via Google OAuth.
-                    </p>
-                    <div className="flex flex-col gap-2">
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => {
-                          setAuthModalMode("login");
-                          setIsAuthModalOpen(true);
-                        }}
-                      >
-                        Sign In with Email or Google
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => {
-                          setAuthModalMode("signup");
-                          setIsAuthModalOpen(true);
-                        }}
-                      >
-                        Create Account
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-
-              <CardFooter className="border-t border-border pt-4 justify-between">
-                {user ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs text-red-600 dark:text-red-400"
-                    onClick={signOut}
-                  >
-                    Sign Out
-                  </Button>
-                ) : (
-                  <span className="text-[11px] text-text-muted">
-                    No active cookies
-                  </span>
-                )}
-                <span className="text-[11px] text-text-muted font-mono">
-                  @supabase/ssr
-                </span>
-              </CardFooter>
-            </Card>
-
-            {/* Test RLS Update Profile Section */}
-            <Card variant="editorial" className="lg:col-span-2 flex flex-col justify-between">
-              <CardHeader>
-                <div className="flex items-center justify-between text-xs text-text-muted mb-1">
-                  <span className="uppercase tracking-wider font-medium text-[11px] text-accent-secondary">
-                    Row Level Security (RLS)
-                  </span>
-                  <span className="flex items-center gap-1 text-accent-secondary font-medium">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    Enforced by Postgres
-                  </span>
-                </div>
-                <CardTitle className="text-xl">
-                  Profiles Table RLS: Users can only write their own row
-                </CardTitle>
-                <CardDescription>
-                  Under PostgreSQL RLS, an authenticated user’s ID (<code className="font-mono text-xs">auth.uid()</code>)
-                  is matched against the profile row’s primary key. Any attempt
-                  to update another user’s row is denied by the database engine.
-                </CardDescription>
-              </CardHeader>
-
-              <CardContent className="space-y-4">
-                {/* Interactive RLS update test */}
-                <div className="p-4 rounded-md bg-bg/50 border border-border space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold text-text uppercase tracking-wide flex items-center gap-1.5">
-                      <Edit3 className="w-3.5 h-3.5 text-accent" />
-                      <span>Test Profile Update (Exercises UPDATE RLS Policy)</span>
-                    </label>
-                    {bioUpdateSuccess && (
-                      <span className="text-xs text-accent-secondary flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        Saved to profile!
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <Input
-                      value={editBio}
-                      onChange={(e) => setEditBio(e.target.value)}
-                      placeholder="Write your bio..."
-                      className="text-xs"
-                      containerClassName="flex-1"
-                    />
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={handleUpdateBio}
-                      isLoading={isUpdatingBio}
-                      disabled={!user}
-                      className="shrink-0"
-                    >
-                      Update Profile
-                    </Button>
-                  </div>
-                  {!user && (
-                    <p className="text-[11px] text-text-muted italic">
-                      * Please sign in or use the demo login in the TopNav to test updating your profile.
-                    </p>
-                  )}
-                </div>
-
-                {/* SQL Policy Snippet View */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-text-muted flex items-center gap-1.5">
-                      <Database className="w-3.5 h-3.5 text-text-muted" />
-                      <span>Active RLS Policies (<code className="font-mono text-xs">supabase/migrations/</code>)</span>
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={copyToClipboard}
-                      leftIcon={<Copy className="w-3.5 h-3.5" />}
-                    >
-                      {copiedSql ? "Copied!" : "Copy SQL"}
-                    </Button>
-                  </div>
-
-                  <pre className="p-3.5 rounded-md bg-surface text-text border border-border text-[11px] font-mono leading-relaxed overflow-x-auto max-h-48">
-                    {sqlPolicySnippet}
-                  </pre>
-                </div>
-              </CardContent>
-
-              <CardFooter className="border-t border-border pt-3 justify-between text-xs text-text-muted">
-                <div className="flex items-center gap-2">
-                  <Lock className="w-3.5 h-3.5 text-accent" />
-                  <span>RLS Policy: <code className="font-mono text-[11px]">auth.uid() = id</code></span>
-                </div>
-                <span className="text-[11px]">Migration: 20260923000000_create_profiles.sql</span>
-              </CardFooter>
-            </Card>
-          </div>
-        </section>
-
-        {/* 1. Color Palette Tokens */}
-        <section className="space-y-6">
-          <div className="border-b border-border pb-3 flex items-baseline justify-between">
-            <h2 className="font-serif text-2xl font-semibold text-text">
-              Color Tokens & Contrast
-            </h2>
-            <span className="text-xs text-text-muted font-mono">
-              Defined in globals.css
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-            {/* Honey Wood */}
-            <div className="p-4 rounded-lg bg-surface border border-border flex flex-col justify-between space-y-3 shadow-2xs">
-              <div
-                className="w-full h-12 rounded border border-border"
-                style={{ backgroundColor: "var(--color-bg)" }}
-              />
-              <div>
-                <p className="text-xs font-semibold text-text">--color-bg</p>
-                <p className="text-[11px] text-text-muted">Honey Wood Background</p>
-                <p className="text-[11px] font-mono text-text-muted mt-1">
-                  #D9B98A / #1B1714
-                </p>
-              </div>
-            </div>
-
-            {/* Warm Wood Surface */}
-            <div className="p-4 rounded-lg bg-surface border border-border flex flex-col justify-between space-y-3 shadow-2xs">
-              <div
-                className="w-full h-12 rounded border border-border"
-                style={{ backgroundColor: "var(--color-surface)" }}
-              />
-              <div>
-                <p className="text-xs font-semibold text-text">
-                  --color-surface
-                </p>
-                <p className="text-[11px] text-text-muted">Polished Pine Surface</p>
-                <p className="text-[11px] font-mono text-text-muted mt-1">
-                  #E8D4AE / #26211C
-                </p>
-              </div>
-            </div>
-
-            {/* Matte Charcoal */}
-            <div className="p-4 rounded-lg bg-surface border border-border flex flex-col justify-between space-y-3 shadow-2xs">
-              <div
-                className="w-full h-12 rounded border border-border"
-                style={{ backgroundColor: "var(--color-text)" }}
-              />
-              <div>
-                <p className="text-xs font-semibold text-text">--color-text</p>
-                <p className="text-[11px] text-text-muted">Warm Charcoal Text</p>
-                <p className="text-[11px] font-mono text-text-muted mt-1">
-                  #241F1B / #F5EBD9
-                </p>
-              </div>
-            </div>
-
-            {/* Muted Charcoal / Woodsmoke */}
-            <div className="p-4 rounded-lg bg-surface border border-border flex flex-col justify-between space-y-3 shadow-2xs">
-              <div
-                className="w-full h-12 rounded border border-border"
-                style={{ backgroundColor: "var(--color-text-muted)" }}
-              />
-              <div>
-                <p className="text-xs font-semibold text-text">
-                  --color-text-muted
-                </p>
-                <p className="text-[11px] text-text-muted">Warm Brown-Grey</p>
-                <p className="text-[11px] font-mono text-text-muted mt-1">
-                  #544638 / #A99F90
-                </p>
-              </div>
-            </div>
-
-            {/* Amber Accent */}
-            <div className="p-4 rounded-lg bg-surface border border-border flex flex-col justify-between space-y-3 shadow-2xs">
-              <div
-                className="w-full h-12 rounded border border-border"
-                style={{ backgroundColor: "var(--color-accent)" }}
-              />
-              <div>
-                <p className="text-xs font-semibold text-text">
-                  --color-accent
-                </p>
-                <p className="text-[11px] text-text-muted">Glowing Amber</p>
-                <p className="text-[11px] font-mono text-text-muted mt-1">
-                  #D98F3C / #E28B2A
-                </p>
-              </div>
-            </div>
-
-            {/* Forest Green */}
-            <div className="p-4 rounded-lg bg-surface border border-border flex flex-col justify-between space-y-3 shadow-2xs">
-              <div
-                className="w-full h-12 rounded border border-border"
-                style={{ backgroundColor: "var(--color-accent-secondary)" }}
-              />
-              <div>
-                <p className="text-xs font-semibold text-text">
-                  --color-accent-secondary
-                </p>
-                <p className="text-[11px] text-text-muted">Forest Green</p>
-                <p className="text-[11px] font-mono text-text-muted mt-1">
-                  #4F6146 / #529369
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* 2. Component Library: Buttons */}
-        <section className="space-y-6">
-          <div className="border-b border-border pb-3 flex items-baseline justify-between">
-            <div>
-              <h2 className="font-serif text-2xl font-semibold text-text">
-                Button Component
-              </h2>
-              <p className="text-xs text-text-muted mt-0.5">
-                Variants, sizes, loading & reduced-motion states
-              </p>
-            </div>
-            <span className="text-xs font-mono text-text-muted">
-              src/components/ui/Button.tsx
-            </span>
-          </div>
-
-          <div className="p-6 rounded-lg bg-surface border border-border space-y-6">
-            <div>
-              <p className="text-xs uppercase tracking-wider text-text-muted font-medium mb-3">
-                Variants (Primary Amber, Secondary Wood, Forest Highlight, Outline, Ghost)
-              </p>
-              <div className="flex flex-wrap gap-3 items-center">
+              {/* Call-to-action buttons */}
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
                 <Button
                   variant="primary"
-                  leftIcon={<Bookmark className="w-4 h-4" />}
-                  onClick={() => setButtonClickCount((c) => c + 1)}
+                  size="lg"
+                  onClick={() => {
+                    setAuthModalMode("signup");
+                    setIsAuthModalOpen(true);
+                  }}
+                  leftIcon={<Sparkles className="w-4 h-4" />}
+                  className="shadow-md"
                 >
-                  Primary Amber
+                  Start Your Journal
                 </Button>
 
                 <Button
                   variant="secondary"
-                  leftIcon={<Coffee className="w-4 h-4" />}
-                  onClick={() => setButtonClickCount((c) => c + 1)}
+                  size="lg"
+                  onClick={() => {
+                    setAuthModalMode("login");
+                    setIsAuthModalOpen(true);
+                  }}
                 >
-                  Secondary Wood
-                </Button>
-
-                <Button
-                  variant="forest"
-                  leftIcon={<Heart className="w-4 h-4" />}
-                  onClick={() => setButtonClickCount((c) => c + 1)}
-                >
-                  Forest Green Highlight
-                </Button>
-
-                <Button
-                  variant="outline"
-                  leftIcon={<Compass className="w-4 h-4" />}
-                  onClick={() => setButtonClickCount((c) => c + 1)}
-                >
-                  Amber Outline
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  leftIcon={<Sliders className="w-4 h-4" />}
-                  onClick={() => setButtonClickCount((c) => c + 1)}
-                >
-                  Quiet Ghost
+                  Log In
                 </Button>
               </div>
-            </div>
+            </section>
 
-            <CardDivider />
+            {/* Prominent Search Entry */}
+            <section className="max-w-2xl mx-auto">
+              <div
+                onClick={() => openSearch()}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    openSearch();
+                  }
+                }}
+                className="group p-3.5 sm:p-4 rounded-2xl bg-surface border border-border shadow-md hover:border-accent/70 hover:shadow-lg transition-all cursor-pointer flex items-center justify-between gap-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-accent/15 text-accent flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <Search className="w-4.5 h-4.5" />
+                  </div>
+                  <div className="min-w-0 text-left">
+                    <span className="text-xs sm:text-sm font-medium text-text-muted group-hover:text-text transition-colors block truncate">
+                      Search across movies, TV series, video games & books...
+                    </span>
+                    <span className="text-[10px] sm:text-xs text-text-muted/70 block">
+                      Instant typo-tolerant search powered by Algolia
+                    </span>
+                  </div>
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Sizes */}
-              <div>
-                <p className="text-xs uppercase tracking-wider text-text-muted font-medium mb-3">
-                  Sizes (sm: 36px, md: 42px, lg: 50px)
-                </p>
-                <div className="flex flex-wrap items-center gap-3">
-                  <Button size="sm" variant="secondary">
-                    Small Log
-                  </Button>
-                  <Button size="md" variant="secondary">
-                    Medium Log
-                  </Button>
-                  <Button size="lg" variant="secondary">
-                    Large Log
-                  </Button>
+                <div className="hidden xs:inline-flex items-center px-2 py-1 text-xs font-mono text-text-muted bg-bg rounded-lg border border-border group-hover:border-accent group-hover:text-text transition-colors shrink-0">
+                  ⌘K
                 </div>
               </div>
 
-              {/* States */}
-              <div>
-                <p className="text-xs uppercase tracking-wider text-text-muted font-medium mb-3">
-                  States (Loading, Disabled, Interaction)
+              {/* Quick Discovery Pills */}
+              <div className="flex items-center justify-center gap-2 pt-3 flex-wrap">
+                <span className="text-[11px] font-mono text-text-muted">Explore:</span>
+                {[
+                  { label: "Movies", query: "movies" },
+                  { label: "TV Series", query: "series" },
+                  { label: "Video Games", query: "games" },
+                  { label: "Books", query: "books" },
+                ].map((item) => (
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={() => openSearch(item.query)}
+                    className="px-2.5 py-1 text-xs rounded-md bg-surface border border-border/80 text-text-muted hover:text-text hover:border-accent transition-colors cursor-pointer"
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            {/* Quiet Editorial Features */}
+            <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 pt-4">
+              <div className="p-5 sm:p-6 rounded-2xl bg-surface border border-border/80 card-depth space-y-2.5">
+                <div className="w-8 h-8 rounded-xl bg-accent/15 text-accent flex items-center justify-center">
+                  <Sliders className="w-4 h-4" />
+                </div>
+                <h3 className="font-serif text-base sm:text-lg font-bold text-text">
+                  Tactile Rating Scales
+                </h3>
+                <p className="text-xs sm:text-sm text-text-muted leading-relaxed">
+                  Choose 5-Star, 10-Point, 100-Point, or Thumbs Up/Down. Ratings normalize seamlessly across your journal.
                 </p>
-                <div className="flex flex-wrap items-center gap-3">
+              </div>
+
+              <div className="p-5 sm:p-6 rounded-2xl bg-surface border border-border/80 card-depth space-y-2.5">
+                <div className="w-8 h-8 rounded-xl bg-accent-secondary/15 text-accent-secondary flex items-center justify-center">
+                  <BookMarked className="w-4 h-4" />
+                </div>
+                <h3 className="font-serif text-base sm:text-lg font-bold text-text">
+                  Unified Slow Catalog
+                </h3>
+                <p className="text-xs sm:text-sm text-text-muted leading-relaxed">
+                  Log cinema, television, literature, and gaming in one coherent archive without switching apps.
+                </p>
+              </div>
+
+              <div className="p-5 sm:p-6 rounded-2xl bg-surface border border-border/80 card-depth space-y-2.5">
+                <div className="w-8 h-8 rounded-xl bg-accent/15 text-accent flex items-center justify-center">
+                  <Lock className="w-4 h-4" />
+                </div>
+                <h3 className="font-serif text-base sm:text-lg font-bold text-text">
+                  Private or Public
+                </h3>
+                <p className="text-xs sm:text-sm text-text-muted leading-relaxed">
+                  Keep entries private for your eyes only, or publish a public profile for friends to follow your taste.
+                </p>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {/* ============================================================== */}
+        {/* SIGNED-IN VIEW                                                 */}
+        {/* ============================================================== */}
+        {user && (
+          <div className="space-y-8 sm:space-y-12 animate-in fade-in duration-200">
+            {/* 1. Warm Greeting & Quick Search Bar */}
+            <section className="space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 border-b border-border/70 pb-4">
+                <div>
+                  <h1 className="font-serif text-2xl sm:text-4xl font-black text-text tracking-tight">
+                    {greeting}, {displayName}.
+                  </h1>
+                  <p className="text-xs sm:text-sm text-text-muted mt-1 font-sans">
+                    Welcome back to your reading and viewing sanctuary.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Link href="/diary">
+                    <Button variant="secondary" size="sm" leftIcon={<BookMarked className="w-3.5 h-3.5" />}>
+                      My Diary
+                    </Button>
+                  </Link>
                   <Button
                     variant="primary"
-                    isLoading={simulatedLoading}
-                    onClick={toggleLoading}
+                    size="sm"
+                    onClick={() => openSearch()}
+                    leftIcon={<Plus className="w-3.5 h-3.5" />}
                   >
-                    {simulatedLoading ? "Saving..." : "Click to Test Loading"}
-                  </Button>
-                  <Button variant="secondary" disabled>
-                    Disabled Button
+                    Log Title
                   </Button>
                 </div>
               </div>
-            </div>
 
-            {buttonClickCount > 0 && (
-              <p className="text-xs text-text-muted font-sans">
-                Interactive clicks recorded: {buttonClickCount}
-              </p>
-            )}
-          </div>
-        </section>
-
-        {/* 3. Component Library: Cards */}
-        <section className="space-y-6">
-          <div className="border-b border-border pb-3 flex items-baseline justify-between">
-            <div>
-              <h2 className="font-serif text-2xl font-semibold text-text">
-                Card Component & Coffee-Table Layout
-              </h2>
-              <p className="text-xs text-text-muted mt-0.5">
-                Soft asymmetric rhythm, hairline dividers, zero-pill metadata
-              </p>
-            </div>
-            <span className="text-xs font-mono text-text-muted">
-              src/components/ui/Card.tsx
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* 1. Book spine style */}
-            <Card variant="book" className="flex flex-col justify-between">
-              <CardHeader>
-                <div className="flex items-center justify-between text-xs text-text-muted mb-1">
-                  <span className="uppercase tracking-wider font-medium text-[11px] text-accent">
-                    Book Spine Motif
-                  </span>
-                  <span>Pages 240 / 312</span>
+              {/* Prominent Search Box */}
+              <div
+                onClick={() => openSearch()}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    openSearch();
+                  }
+                }}
+                className="group p-3.5 sm:p-4 rounded-2xl bg-surface border border-border shadow-xs hover:border-accent hover:shadow-md transition-all cursor-pointer flex items-center justify-between gap-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-accent text-accent-contrast flex items-center justify-center shrink-0 shadow-xs">
+                    <Search className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0 text-left">
+                    <span className="text-xs sm:text-sm font-semibold text-text group-hover:text-accent transition-colors block truncate">
+                      Search catalog or log a new title...
+                    </span>
+                    <span className="text-[11px] text-text-muted block">
+                      Type to instantly search movies, shows, games, and books
+                    </span>
+                  </div>
                 </div>
-                <CardTitle>Norwegian Wood</CardTitle>
-                <CardDescription>Haruki Murakami · Novel (1987)</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-text leading-relaxed line-clamp-3">
-                  A nostalgic story of loss and sexuality, told from the
-                  perspective of Toru Watanabe as he looks back on his student
-                  days in late 1960s Tokyo.
-                </p>
-                <CardDivider />
-                <EditorialMetadata
-                  items={["Fiction", "Japan", "In Progress (77%)"]}
-                />
-              </CardContent>
-              <CardFooter className="justify-between border-t border-border pt-4">
-                <span className="text-xs text-text-muted">Logged yesterday</span>
-                <Badge variant="forest" size="sm" dot dotColor="forest">
-                  Reading
-                </Badge>
-              </CardFooter>
-            </Card>
 
-            {/* 2. Editorial accent style */}
-            <Card variant="editorial" className="flex flex-col justify-between">
-              <CardHeader>
-                <div className="flex items-center justify-between text-xs text-text-muted mb-1">
-                  <span className="uppercase tracking-wider font-medium text-[11px] text-accent-secondary">
-                    Editorial Top Border
-                  </span>
-                  <span>96/100 Rating</span>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono text-text-muted bg-bg rounded-lg border border-border group-hover:border-accent group-hover:text-text transition-colors shrink-0">
+                  <span>⌘K</span>
                 </div>
-                <CardTitle>Chungking Express</CardTitle>
-                <CardDescription>
-                  Wong Kar-wai · Hong Kong Cinema (1994)
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-text leading-relaxed line-clamp-3">
-                  Two interconnected stories about heartbroken Hong Kong
-                  policemen falling in love: one with a mysterious underworld
-                  figure, and another with a quirky snack-bar worker.
-                </p>
-                <CardDivider />
-                <EditorialMetadata
-                  items={["Criterion Collection", "Rewatched 3x", "4K Remaster"]}
-                />
-              </CardContent>
-              <CardFooter className="justify-between border-t border-border pt-4">
-                <span className="text-xs text-text-muted">Favorite</span>
-                <Badge variant="amber" size="sm" dot dotColor="amber">
-                  Completed
-                </Badge>
-              </CardFooter>
-            </Card>
+              </div>
+            </section>
 
-            {/* 3. Interactive media log card */}
-            <Card
-              variant="interactive"
-              className="flex flex-col justify-between"
-            >
-              <CardHeader>
-                <div className="flex items-center justify-between text-xs text-text-muted mb-1">
-                  <span className="uppercase tracking-wider font-medium text-[11px]">
-                    Interactive Card
-                  </span>
-                  <span>Hover to test lift</span>
+            {/* 2. "Continue" Strip (In-Progress Entries) */}
+            <section className="space-y-3.5 sm:space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-md bg-accent-secondary/15 text-accent-secondary flex items-center justify-center">
+                    <Clock className="w-3.5 h-3.5" />
+                  </div>
+                  <h2 className="font-serif text-lg sm:text-xl font-bold text-text">
+                    Continue
+                  </h2>
+                  {!isLoadingDashboard && inProgressEntries.length > 0 && (
+                    <Badge variant="forest" size="sm">
+                      {inProgressEntries.length} in rotation
+                    </Badge>
+                  )}
                 </div>
-                <CardTitle>Shadow of the Colossus</CardTitle>
-                <CardDescription>
-                  Team Ico · Video Game (2005)
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-text leading-relaxed line-clamp-3">
-                  A solitary young man named Wander travels into an expansive
-                  forbidden realm on horseback to defeat sixteen colossal
-                  beings and restore a maiden&apos;s life.
-                </p>
-                <CardDivider />
-                <EditorialMetadata
-                  items={["PlayStation", "Completed", "Atmospheric"]}
-                />
-              </CardContent>
-              <CardFooter className="justify-between border-t border-border pt-4">
-                <span className="text-xs text-accent font-medium">
-                  View Entry →
-                </span>
-                <Badge variant="subtle" size="sm">
-                  Masterpiece
+
+                <Link
+                  href="/diary"
+                  className="text-xs text-accent hover:underline font-medium inline-flex items-center gap-1"
+                >
+                  <span>Manage in diary</span>
+                  <ChevronRight className="w-3 h-3" />
+                </Link>
+              </div>
+
+              {/* Strip Content */}
+              {isLoadingDashboard ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                  <div className="p-3.5 rounded-2xl bg-surface border border-border flex items-center gap-3 card-depth">
+                    <Skeleton className="w-14 h-20 rounded-xl shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-3/4 rounded" />
+                      <Skeleton className="h-3 w-1/2 rounded" />
+                      <Skeleton className="h-5 w-20 rounded-md" />
+                    </div>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-surface border border-border flex items-center gap-3 card-depth">
+                    <Skeleton className="w-14 h-20 rounded-xl shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-3/4 rounded" />
+                      <Skeleton className="h-3 w-1/2 rounded" />
+                      <Skeleton className="h-5 w-20 rounded-md" />
+                    </div>
+                  </div>
+                </div>
+              ) : inProgressEntries.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                  {inProgressEntries.map((entry) => {
+                    const media = entry.media;
+                    return (
+                      <Link
+                        key={entry.id}
+                        href={`/media/${encodeURIComponent(entry.media_id)}`}
+                        className="group p-3 sm:p-3.5 rounded-2xl bg-surface border border-border hover:border-accent card-depth transition-all flex items-center gap-3.5 cursor-pointer"
+                      >
+                        {/* Poster */}
+                        <div className="relative w-14 sm:w-16 h-20 sm:h-22 rounded-xl overflow-hidden bg-bg/80 shrink-0 poster-depth-sm">
+                          {media?.cover_url ? (
+                            <Image
+                              src={media.cover_url}
+                              alt={media.title || "Media cover"}
+                              fill
+                              sizes="(max-width: 640px) 56px, 64px"
+                              className="object-cover group-hover:scale-105 transition-transform duration-200"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-text-muted font-serif text-sm">
+                              {media?.title ? media.title.slice(0, 2).toUpperCase() : "??"}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Title & Progress details */}
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Badge
+                              variant={getMediaBadgeVariant(media?.type)}
+                              size="sm"
+                              className="text-[9px] uppercase tracking-wider"
+                            >
+                              {media?.type || "media"}
+                            </Badge>
+                            {entry.progress?.season && entry.progress?.episode && (
+                              <span className="text-[10px] font-mono text-accent font-semibold">
+                                S{entry.progress.season} E{entry.progress.episode}
+                              </span>
+                            )}
+                            {entry.progress?.percent && (
+                              <span className="text-[10px] font-mono text-accent font-semibold">
+                                {entry.progress.percent}% done
+                              </span>
+                            )}
+                          </div>
+
+                          <h3 className="font-serif text-sm sm:text-base font-bold text-text group-hover:text-accent transition-colors line-clamp-1">
+                            {media?.title || "Untitled Entry"}
+                          </h3>
+
+                          <p className="text-[11px] text-text-muted line-clamp-1">
+                            {media?.genres?.slice(0, 2).join(", ") || (media?.release_date ? new Date(media.release_date).getFullYear().toString() : "")}
+                          </p>
+
+                          <div className="pt-0.5 flex items-center gap-1 text-[11px] text-accent font-medium group-hover:translate-x-0.5 transition-transform">
+                            <span>Continue</span>
+                            <ChevronRight className="w-3 h-3" />
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : (
+                /* Empty In-Progress state */
+                <div className="p-6 rounded-2xl bg-surface/60 border border-border/80 text-center space-y-2 card-depth">
+                  <p className="text-xs sm:text-sm text-text-muted">
+                    Nothing in progress right now. Found a new series, book, or game?
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openSearch()}
+                    leftIcon={<Search className="w-3.5 h-3.5" />}
+                  >
+                    Search Catalog to Add
+                  </Button>
+                </div>
+              )}
+            </section>
+
+            {/* 3. Most Recently Logged Titles */}
+            <section className="space-y-3.5 sm:space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-md bg-accent/15 text-accent flex items-center justify-center">
+                    <BookMarked className="w-3.5 h-3.5" />
+                  </div>
+                  <h2 className="font-serif text-lg sm:text-xl font-bold text-text">
+                    Recently Logged
+                  </h2>
+                </div>
+
+                <Link
+                  href="/diary"
+                  className="text-xs text-accent hover:underline font-medium inline-flex items-center gap-1"
+                >
+                  <span>View all logs ({recentEntries.length})</span>
+                  <ChevronRight className="w-3 h-3" />
+                </Link>
+              </div>
+
+              {isLoadingDashboard ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="p-3 rounded-2xl bg-surface border border-border space-y-2.5 card-depth">
+                      <PosterSkeleton aspect="poster" />
+                      <Skeleton className="h-4 w-3/4 rounded" />
+                      <Skeleton className="h-3 w-1/2 rounded" />
+                    </div>
+                  ))}
+                </div>
+              ) : recentEntries.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4.5">
+                  {recentEntries.slice(0, 8).map((entry) => {
+                    const media = entry.media;
+                    return (
+                      <Link
+                        key={entry.id}
+                        href={`/media/${encodeURIComponent(entry.media_id)}`}
+                        className="group p-2.5 sm:p-3 rounded-2xl bg-surface border border-border hover:border-accent card-depth transition-all flex flex-col justify-between space-y-2.5 cursor-pointer"
+                      >
+                        {/* Poster */}
+                        <div className="relative aspect-2/3 w-full rounded-xl overflow-hidden bg-bg/80 poster-depth-sm">
+                          {media?.cover_url ? (
+                            <Image
+                              src={media.cover_url}
+                              alt={media.title || "Cover"}
+                              fill
+                              sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 22vw"
+                              className="object-cover group-hover:scale-105 transition-transform duration-200"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-text-muted font-serif text-lg font-bold">
+                              {media?.title ? media.title.slice(0, 2).toUpperCase() : "??"}
+                            </div>
+                          )}
+
+                          {/* Status Badge overlay */}
+                          <div className="absolute top-2 left-2">
+                            <Badge
+                              variant={entry.status === "completed" ? "amber" : "subtle"}
+                              size="sm"
+                              className="text-[9px] uppercase tracking-wider backdrop-blur-md shadow-xs"
+                            >
+                              {getStatusLabel(entry.status)}
+                            </Badge>
+                          </div>
+                        </div>
+
+                        {/* Title & Metadata */}
+                        <div className="space-y-1">
+                          <h3 className="font-serif text-xs sm:text-sm font-bold text-text group-hover:text-accent transition-colors line-clamp-1">
+                            {media?.title || "Untitled Entry"}
+                          </h3>
+
+                          <div className="flex items-center justify-between gap-1 text-[11px] text-text-muted">
+                            <span className="truncate">
+                              {media?.release_date ? new Date(media.release_date).getFullYear().toString() : media?.type || ""}
+                            </span>
+                            {entry.rating !== null && (
+                              <RatingBadge rating={entry.rating} size="sm" showDenominator={false} />
+                            )}
+                          </div>
+
+                          {entry.review && (
+                            <p className="text-[11px] text-text-muted/80 line-clamp-2 italic pt-0.5">
+                              &ldquo;{entry.review}&rdquo;
+                            </p>
+                          )}
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : (
+                /* Empty recent logs state */
+                <div className="p-8 rounded-2xl bg-surface/60 border border-border/80 text-center space-y-3 card-depth">
+                  <p className="text-xs sm:text-sm text-text-muted">
+                    No entries logged yet. Your journal is waiting for its first title!
+                  </p>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => openSearch()}
+                    leftIcon={<Plus className="w-3.5 h-3.5" />}
+                  >
+                    Log Your First Title
+                  </Button>
+                </div>
+              )}
+            </section>
+
+            {/* 4. Clearly Marked Empty Section: Activity Feed */}
+            <section className="space-y-3 pt-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-md bg-accent/15 text-accent flex items-center justify-center">
+                    <Users className="w-3.5 h-3.5" />
+                  </div>
+                  <h2 className="font-serif text-lg sm:text-xl font-bold text-text">
+                    Friends & Community Activity
+                  </h2>
+                </div>
+                <Badge variant="subtle" size="sm" className="font-mono text-[10px]">
+                  Coming Next
                 </Badge>
-              </CardFooter>
-            </Card>
-          </div>
-        </section>
-
-        {/* 4. Component Library: Badge & Editorial Metadata */}
-        <section className="space-y-6">
-          <div className="border-b border-border pb-3 flex items-baseline justify-between">
-            <div>
-              <h2 className="font-serif text-2xl font-semibold text-text">
-                Badge & Editorial Metadata
-              </h2>
-              <p className="text-xs text-text-muted mt-0.5">
-                Zero-pill discipline: quiet subtle tags, micro-dots, and
-                typographic mid-dot separators
-              </p>
-            </div>
-            <span className="text-xs font-mono text-text-muted">
-              src/components/ui/Badge.tsx
-            </span>
-          </div>
-
-          <div className="p-6 rounded-lg bg-surface border border-border space-y-6">
-            <div>
-              <p className="text-xs uppercase tracking-wider text-text-muted font-medium mb-3">
-                Discrete Editorial Badges (Restrained Honey Wood, Amber & Forest Green)
-              </p>
-              <div className="flex flex-wrap items-center gap-3">
-                <Badge variant="subtle">Subtle Wood</Badge>
-                <Badge variant="amber">Amber Accent</Badge>
-                <Badge variant="forest">Forest Green Highlight</Badge>
-                <Badge variant="outline">Hairline Outline</Badge>
-                <Badge variant="amber" dot dotColor="amber">
-                  Planned
-                </Badge>
-                <Badge variant="forest" dot dotColor="forest">
-                  In Progress
-                </Badge>
-                <Badge variant="subtle" dot dotColor="muted">
-                  Archived
-                </Badge>
               </div>
-            </div>
 
-            <CardDivider />
-
-            <div>
-              <p className="text-xs uppercase tracking-wider text-text-muted font-medium mb-3">
-                Zero-Pill Editorial Metadata (Inline Unboxed Text with Separators)
-              </p>
-              <div className="space-y-2 p-4 rounded bg-bg/50 border border-border/60">
-                <EditorialMetadata
-                  items={[
-                    "Movies",
-                    "The Holdovers (2023)",
-                    "Alexander Payne",
-                    "Winter Holiday",
-                    "Rated 88/100",
-                  ]}
-                />
-                <EditorialMetadata
-                  items={[
-                    "TV Shows",
-                    "Severance Season 2",
-                    "Apple TV+",
-                    "Episode 7 of 10",
-                    "Currently Watching",
-                  ]}
-                />
-                <EditorialMetadata
-                  items={[
-                    "Video Games",
-                    "Disco Elysium: The Final Cut",
-                    "ZA/UM",
-                    "42 Hours Played",
-                    "Completed",
-                  ]}
-                />
+              {/* Clearly Marked Placeholder Card */}
+              <div className="p-6 sm:p-8 rounded-2xl border-2 border-dashed border-border/90 bg-surface/40 text-center space-y-3">
+                <div className="w-10 h-10 rounded-full bg-surface border border-border flex items-center justify-center mx-auto text-accent shadow-2xs">
+                  <Compass className="w-5 h-5" />
+                </div>
+                <div className="max-w-md mx-auto space-y-1">
+                  <h3 className="font-serif text-sm sm:text-base font-bold text-text">
+                    Activity Feed Section
+                  </h3>
+                  <p className="text-xs text-text-muted leading-relaxed">
+                    This space will stream recent diary logs, ratings, and list additions from members you follow. Public profiles and follow relationships are active.
+                  </p>
+                </div>
+                <div className="pt-1 flex items-center justify-center gap-2">
+                  <Link href={`/u/${user.id}`}>
+                    <Button variant="secondary" size="sm" leftIcon={<Users className="w-3.5 h-3.5" />}>
+                      View My Public Profile
+                    </Button>
+                  </Link>
+                </div>
               </div>
-            </div>
+            </section>
           </div>
-        </section>
-
-        {/* 5. Four Media Types Quick Preview */}
-        <section className="space-y-6">
-          <div className="border-b border-border pb-3 flex items-baseline justify-between">
-            <div>
-              <h2 className="font-serif text-2xl font-semibold text-text">
-                Four Media Horizons
-              </h2>
-              <p className="text-xs text-text-muted mt-0.5">
-                How the design tokens adapt consistently across all four media types
-              </p>
-            </div>
-            <span className="text-xs text-text-muted">meDiary Scope</span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Movies */}
-            <div className="p-5 rounded-lg bg-surface border border-border space-y-3 shadow-2xs">
-              <div className="w-8 h-8 rounded bg-accent/15 text-accent flex items-center justify-center">
-                <Film className="w-4 h-4" />
-              </div>
-              <h3 className="font-serif text-lg font-semibold text-text">
-                Movies
-              </h3>
-              <p className="text-xs text-text-muted leading-relaxed">
-                TMDB integration with director retrospectives, watch providers,
-                and runtime logs.
-              </p>
-            </div>
-
-            {/* TV Shows */}
-            <div className="p-5 rounded-lg bg-surface border border-border space-y-3 shadow-2xs">
-              <div className="w-8 h-8 rounded bg-accent-secondary/15 text-accent-secondary flex items-center justify-center">
-                <Tv className="w-4 h-4" />
-              </div>
-              <h3 className="font-serif text-lg font-semibold text-text">
-                TV Shows
-              </h3>
-              <p className="text-xs text-text-muted leading-relaxed">
-                Episodic and seasonal progress tracking with air-date alerts and
-                rewatch counters.
-              </p>
-            </div>
-
-            {/* Video Games */}
-            <div className="p-5 rounded-lg bg-surface border border-border space-y-3 shadow-2xs">
-              <div className="w-8 h-8 rounded bg-accent/15 text-accent flex items-center justify-center">
-                <Gamepad2 className="w-4 h-4" />
-              </div>
-              <h3 className="font-serif text-lg font-semibold text-text">
-                Video Games
-              </h3>
-              <p className="text-xs text-text-muted leading-relaxed">
-                IGDB/RAWG metadata tracking hours played, platforms, completion
-                percentages, and backlogs.
-              </p>
-            </div>
-
-            {/* Books */}
-            <div className="p-5 rounded-lg bg-surface border border-border space-y-3 shadow-2xs">
-              <div className="w-8 h-8 rounded bg-accent-secondary/15 text-accent-secondary flex items-center justify-center">
-                <BookOpen className="w-4 h-4" />
-              </div>
-              <h3 className="font-serif text-lg font-semibold text-text">
-                Books
-              </h3>
-              <p className="text-xs text-text-muted leading-relaxed">
-                Google Books and Open Library sync with page progress, editions,
-                and favorite quotations.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* Footer: Quiet & Editorial */}
-        <footer className="pt-8 pb-16 border-t border-border flex flex-col sm:flex-row items-center justify-between text-xs text-text-muted gap-4">
-          <div className="flex items-center gap-2">
-            <span className="font-serif font-semibold text-text">meDiary</span>
-            <span>·</span>
-            <span>Slow coffee-shop morning aesthetic</span>
-            <span>·</span>
-            <span>Phase 2.0 Supabase Auth & RLS</span>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <span className="font-mono text-[11px]">
-              RLS: auth.uid() = id
-            </span>
-          </div>
-        </footer>
+        )}
       </main>
 
       {/* Global Auth Modal */}
@@ -1291,13 +867,11 @@ CREATE POLICY "Users can delete their own profile"
         defaultMode={authModalMode}
       />
 
-      {/* Global TMDB Search & Sync Modal */}
+      {/* Global Media Search Modal */}
       <MediaSearchModal
         isOpen={isSearchModalOpen}
         onClose={() => setIsSearchModalOpen(false)}
-        onMediaSynced={(media) => {
-          setSyncTestResult({ success: true, persisted: true, media });
-        }}
+        initialQuery={searchInitialQuery}
       />
     </div>
   );

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { verifyAdminUser } from "@/lib/auth/admin";
 import {
   bulkIndexMedia,
   configureAlgoliaIndex,
@@ -15,6 +16,18 @@ import type { MediaItem } from "@/types/database.types";
  * and bulk-indexes them into Algolia using the Algolia Admin API key.
  */
 async function handleBackfill() {
+  const adminCheck = await verifyAdminUser();
+  if (!adminCheck.isAdmin) {
+    return NextResponse.json(
+      {
+        error: "Unauthorized",
+        message: adminCheck.error || "Admin access required",
+        success: false,
+      },
+      { status: adminCheck.userId ? 403 : 401 }
+    );
+  }
+
   try {
     const { isAdminConfigured, indexName } = getAlgoliaServerConfig();
 

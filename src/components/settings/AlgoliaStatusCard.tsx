@@ -25,6 +25,7 @@ interface AlgoliaStatusData {
 }
 
 export function AlgoliaStatusCard({ className = "" }: { className?: string }) {
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [status, setStatus] = useState<AlgoliaStatusData | null>(null);
   const [isLoadingStatus, setIsLoadingStatus] = useState(false);
   const [isBackfilling, setIsBackfilling] = useState(false);
@@ -45,9 +46,13 @@ export function AlgoliaStatusCard({ className = "" }: { className?: string }) {
       if (res.ok) {
         const data = await res.json();
         setStatus(data);
+        setIsAdmin(true);
+      } else {
+        setIsAdmin(false);
       }
     } catch (err) {
       console.warn("Could not fetch Algolia status:", err);
+      setIsAdmin(false);
     } finally {
       setIsLoadingStatus(false);
     }
@@ -58,12 +63,17 @@ export function AlgoliaStatusCard({ className = "" }: { className?: string }) {
     async function loadInitialStatus() {
       try {
         const res = await fetch("/api/admin/algolia/status");
-        if (res.ok && !cancelled) {
+        if (cancelled) return;
+        if (res.ok) {
           const data = await res.json();
           setStatus(data);
+          setIsAdmin(true);
+        } else {
+          setIsAdmin(false);
         }
       } catch (err) {
         console.warn("Could not fetch Algolia status:", err);
+        if (!cancelled) setIsAdmin(false);
       }
     }
     loadInitialStatus();
@@ -71,6 +81,11 @@ export function AlgoliaStatusCard({ className = "" }: { className?: string }) {
       cancelled = true;
     };
   }, []);
+
+  // Hide completely for non-admin users
+  if (!isAdmin) {
+    return null;
+  }
 
   const handleRunBackfill = async () => {
     setIsBackfilling(true);
