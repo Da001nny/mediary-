@@ -5,6 +5,9 @@ import { searchGoogleBooks } from "@/lib/google-books";
  * GET /api/books/search?q=query
  *
  * Searches books via Google Books API (or fallback curated mock library).
+ *
+ * NOTE: This search route remains publicly accessible without authentication for now,
+ * but callers should be aware that requests spend upstream Google Books API quota.
  */
 export async function GET(req: NextRequest) {
   try {

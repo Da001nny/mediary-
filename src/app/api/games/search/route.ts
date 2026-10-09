@@ -5,6 +5,9 @@ import { searchRAWGGames } from "@/lib/rawg";
  * GET /api/games/search?q=query
  *
  * Searches video games via RAWG API (or fallback curated mock database).
+ *
+ * NOTE: This search route remains publicly accessible without authentication for now,
+ * but callers should be aware that requests spend upstream RAWG API quota.
  */
 export async function GET(req: NextRequest) {
   try {

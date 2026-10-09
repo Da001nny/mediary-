@@ -4,6 +4,9 @@ import { searchTMDB } from "@/lib/tmdb";
 /**
  * GET /api/tmdb/search?q=fight+club&type=all&page=1
  * Simple TMDB search endpoint returning normalized results with poster thumbnails.
+ *
+ * NOTE: This search route remains publicly accessible without authentication for now,
+ * but callers should be aware that requests spend upstream TMDB API quota.
  */
 export async function GET(req: NextRequest) {
   try {
