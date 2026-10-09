@@ -213,14 +213,16 @@ export default function PublicProfilePage({
                       )}
                     </div>
 
-                    {data.profile.bio ? (
-                      <p className="text-xs sm:text-sm text-text-muted max-w-xl leading-relaxed">
-                        {data.profile.bio}
-                      </p>
-                    ) : (
-                      <p className="text-xs text-text-muted/70 italic">
-                        No bio provided yet.
-                      </p>
+                    {!data.isPrivate && (
+                      data.profile.bio ? (
+                        <p className="text-xs sm:text-sm text-text-muted max-w-xl leading-relaxed">
+                          {data.profile.bio}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-text-muted/70 italic">
+                          No bio provided yet.
+                        </p>
+                      )
                     )}
 
                     <div className="flex items-center gap-3 text-xs text-text-muted font-mono pt-0.5 flex-wrap">
@@ -277,36 +279,38 @@ export default function PublicProfilePage({
                 </div>
               </div>
 
-              {/* Follower and Following Counts (Clickable to open Network list) */}
-              <div className="pt-3 border-t border-border/70 flex items-center gap-4 sm:gap-6 text-xs sm:text-sm">
-                <button
-                  type="button"
-                  onClick={openFollowersList}
-                  className="group flex items-center gap-1.5 cursor-pointer hover:text-accent transition-colors"
-                >
-                  <span className="font-bold font-mono text-text group-hover:text-accent text-sm sm:text-base">
-                    {data.followersCount}
-                  </span>
-                  <span className="text-text-muted group-hover:text-text font-medium">
-                    Followers
-                  </span>
-                </button>
+              {/* Follower and Following Counts (hidden for private profiles) */}
+              {!data.isPrivate && (
+                <div className="pt-3 border-t border-border/70 flex items-center gap-4 sm:gap-6 text-xs sm:text-sm">
+                  <button
+                    type="button"
+                    onClick={openFollowersList}
+                    className="group flex items-center gap-1.5 cursor-pointer hover:text-accent transition-colors"
+                  >
+                    <span className="font-bold font-mono text-text group-hover:text-accent text-sm sm:text-base">
+                      {data.followersCount}
+                    </span>
+                    <span className="text-text-muted group-hover:text-text font-medium">
+                      Followers
+                    </span>
+                  </button>
 
-                <div className="w-1 h-1 rounded-full bg-border" />
+                  <div className="w-1 h-1 rounded-full bg-border" />
 
-                <button
-                  type="button"
-                  onClick={openFollowingList}
-                  className="group flex items-center gap-1.5 cursor-pointer hover:text-accent transition-colors"
-                >
-                  <span className="font-bold font-mono text-text group-hover:text-accent text-sm sm:text-base">
-                    {data.followingCount}
-                  </span>
-                  <span className="text-text-muted group-hover:text-text font-medium">
-                    Following
-                  </span>
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    onClick={openFollowingList}
+                    className="group flex items-center gap-1.5 cursor-pointer hover:text-accent transition-colors"
+                  >
+                    <span className="font-bold font-mono text-text group-hover:text-accent text-sm sm:text-base">
+                      {data.followingCount}
+                    </span>
+                    <span className="text-text-muted group-hover:text-text font-medium">
+                      Following
+                    </span>
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Privacy Check: If profile is private and viewer is not owner, show minimal state */}

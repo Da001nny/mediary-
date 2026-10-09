@@ -26,7 +26,7 @@ import {
 } from "@/lib/rating";
 import { AlgoliaStatusCard } from "@/components/settings/AlgoliaStatusCard";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import type { PrivacyLevel } from "@/types/database.types";
+import type { PrivacyLevel, ProfileVisibility } from "@/types/database.types";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -56,10 +56,15 @@ function SettingsModalContent({ onClose }: { onClose: () => void }) {
   const [displayNameInput, setDisplayNameInput] = useState<string | null>(null);
   const [bioInput, setBioInput] = useState<string | null>(null);
   const [privacyInput, setPrivacyInput] = useState<PrivacyLevel | null>(null);
+  const [visibilityInput, setVisibilityInput] = useState<ProfileVisibility | null>(null);
 
   const displayName = displayNameInput ?? (profile?.display_name || user?.user_metadata?.full_name || "");
   const bio = bioInput ?? (profile?.bio || "");
   const defaultPrivacy = privacyInput ?? (profile?.default_privacy || "public");
+  const profileVisibility: ProfileVisibility =
+    visibilityInput ??
+    profile?.profile_visibility ??
+    (profile?.default_privacy === "private" ? "private" : "public");
 
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -109,6 +114,7 @@ function SettingsModalContent({ onClose }: { onClose: () => void }) {
         display_name: displayName.trim() || null,
         bio: bio.trim() || null,
         default_privacy: defaultPrivacy,
+        profile_visibility: profileVisibility,
       };
 
       const res = await updateProfile(updates);
@@ -322,6 +328,53 @@ function SettingsModalContent({ onClose }: { onClose: () => void }) {
                   <p className="text-[11px] text-text-muted">Switch between warm honey wood, cozy cabin dark, or match system.</p>
                 </div>
                 <ThemeToggle />
+              </div>
+            </div>
+
+            {/* Profile Visibility */}
+            <div className="space-y-2 pt-1 border-t border-border/70">
+              <label className="block text-xs font-semibold text-text-muted">
+                Profile Visibility
+              </label>
+              <p className="text-[11px] text-text-muted -mt-1">
+                Controls who can see your profile page (/u/[id]), bio, stats, and follow lists.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {[
+                  {
+                    id: "public",
+                    label: "Public Profile",
+                    desc: "Bio, stats, public logs, and follow network are visible to all.",
+                    icon: Globe,
+                  },
+                  {
+                    id: "private",
+                    label: "Private Profile",
+                    desc: "Only name and avatar appear. Bio, stats, logs, and follow lists stay hidden.",
+                    icon: Lock,
+                  },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  const isSelected = profileVisibility === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setVisibilityInput(item.id as ProfileVisibility)}
+                      className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer flex flex-col gap-1 ${
+                        isSelected
+                          ? "border-accent bg-accent/10 text-text ring-1 ring-accent"
+                          : "border-border bg-bg/50 hover:bg-surface-hover text-text-muted"
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <Icon className={`w-3.5 h-3.5 ${isSelected ? "text-accent" : ""}`} />
+                        <span className="text-xs font-semibold text-text">{item.label}</span>
+                      </div>
+                      <span className="text-[10px] text-text-muted leading-tight">{item.desc}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

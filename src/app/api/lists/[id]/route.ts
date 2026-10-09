@@ -69,6 +69,28 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    if (list.privacy === "friends" && (!user || user.id !== list.user_id)) {
+      let isMutualFriend = false;
+      if (user) {
+        const { data: mutuals } = await supabase
+          .from("follows")
+          .select("follower_id, following_id")
+          .or(
+            `and(follower_id.eq.${user.id},following_id.eq.${list.user_id}),and(follower_id.eq.${list.user_id},following_id.eq.${user.id})`
+          );
+        if (Array.isArray(mutuals) && mutuals.length === 2) {
+          isMutualFriend = true;
+        }
+      }
+
+      if (!isMutualFriend) {
+        return NextResponse.json(
+          { error: "This list is visible only to friends (mutual follows)" },
+          { status: 403 }
+        );
+      }
+    }
+
     // Sort items by position
     interface RawListItem {
       id: string;

@@ -43,7 +43,7 @@ export async function GET(
     // 1. Fetch profile
     const { data: profile, error: pErr } = await db
       .from("profiles")
-      .select("id, display_name, bio, avatar_url, region, locale, rating_scale, theme, default_privacy, joined_at")
+      .select("id, display_name, bio, avatar_url, region, locale, rating_scale, theme, default_privacy, profile_visibility, joined_at")
       .eq("id", targetUserId)
       .single();
 
@@ -51,16 +51,21 @@ export async function GET(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // 2. Fetch follower & following counts
-    const [followersRes, followingRes, isFollowingRes] = await Promise.all([
-      db
-        .from("follows")
-        .select("*", { count: "exact", head: true })
-        .eq("following_id", targetUserId),
-      db
-        .from("follows")
-        .select("*", { count: "exact", head: true })
-        .eq("follower_id", targetUserId),
+    const isOwner = Boolean(currentUserId && currentUserId === targetUserId);
+    const profileVisibility = profile.profile_visibility || (profile.default_privacy === "private" ? "private" : "public");
+    const isPrivate = profileVisibility === "private" && !isOwner;
+
+    // 2. Fetch follower & following status
+    // Owners must always see their full lists and true counts (using admin client if available)
+    const countDb = isOwner && admin ? admin : db;
+    const [followersRes, followingRes, isFollowingRes, targetFollowsViewerRes] = await Promise.all([
+      // Only fetch counts if owner or profile is public
+      !isPrivate
+        ? countDb.from("follows").select("*", { count: "exact", head: true }).eq("following_id", targetUserId)
+        : Promise.resolve({ count: 0 }),
+      !isPrivate
+        ? countDb.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", targetUserId)
+        : Promise.resolve({ count: 0 }),
       currentUserId && currentUserId !== targetUserId
         ? db
             .from("follows")
@@ -69,37 +74,51 @@ export async function GET(
             .eq("following_id", targetUserId)
             .maybeSingle()
         : Promise.resolve({ data: null }),
+      currentUserId && currentUserId !== targetUserId
+        ? db
+            .from("follows")
+            .select("follower_id")
+            .eq("follower_id", targetUserId)
+            .eq("following_id", currentUserId)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
     ]);
 
-    const followersCount = followersRes.count || 0;
-    const followingCount = followingRes.count || 0;
     const isFollowing = Boolean(isFollowingRes?.data);
+    const targetFollowsViewer = Boolean(targetFollowsViewerRes?.data);
+    const isMutualFriend = isFollowing && targetFollowsViewer;
 
-    const isOwner = currentUserId === targetUserId;
-    const isPrivate = profile.default_privacy === "private" && !isOwner;
-
-    // If profile is private and viewer is not owner, return minimal profile only
+    // If profile is private and viewer is not owner:
+    // Display name and avatar are shown, but bio, stats, logs, followers/following are hidden
     if (isPrivate) {
       return NextResponse.json({
         profile: {
           id: profile.id,
           display_name: profile.display_name,
           avatar_url: profile.avatar_url,
-          bio: profile.bio,
-          default_privacy: "private",
+          bio: null, // Hidden for private profiles
+          default_privacy: profile.default_privacy,
+          profile_visibility: "private",
           joined_at: profile.joined_at,
         },
-        followersCount,
-        followingCount,
+        followersCount: 0,
+        followingCount: 0,
         isFollowing,
+        isMutualFriend: false,
         isPrivate: true,
         stats: null,
         recentLogs: [],
       });
     }
 
-    // 3. Query public entries for this user (with joined media)
-    const { data: entries, error: eErr } = await db
+    const followersCount = followersRes.count || 0;
+    const followingCount = followingRes.count || 0;
+
+    // 3. Query entries for this user:
+    // - Public logs are visible to everyone and used for public stats
+    // - If viewer is a mutual friend, they can also see 'friends' logs
+    // - If viewer is owner, they can see all logs
+    let entriesQuery = db
       .from("entries")
       .select(`
         id,
@@ -123,9 +142,19 @@ export async function GET(
           community_rating_avg
         )
       `)
-      .eq("user_id", targetUserId)
-      .eq("privacy", "public")
-      .order("created_at", { ascending: false });
+      .eq("user_id", targetUserId);
+
+    if (isOwner) {
+      // Owner sees all their logs
+    } else if (isMutualFriend) {
+      // Mutual friends see public + friends logs
+      entriesQuery = entriesQuery.in("privacy", ["public", "friends"]);
+    } else {
+      // General public sees only public logs
+      entriesQuery = entriesQuery.eq("privacy", "public");
+    }
+
+    const { data: entries, error: eErr } = await entriesQuery.order("created_at", { ascending: false });
 
     if (eErr) {
       console.error("Error fetching public entries:", eErr);
@@ -178,10 +207,14 @@ export async function GET(
     };
 
     return NextResponse.json({
-      profile,
+      profile: {
+        ...profile,
+        profile_visibility: profileVisibility,
+      },
       followersCount,
       followingCount,
       isFollowing,
+      isMutualFriend,
       isPrivate: false,
       stats,
       recentLogs: publicEntries.slice(0, 24),

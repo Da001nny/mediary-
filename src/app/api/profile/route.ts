@@ -86,6 +86,9 @@ export async function PATCH(request: NextRequest) {
     if (body.default_privacy !== undefined) {
       updates.default_privacy = body.default_privacy;
     }
+    if (body.profile_visibility !== undefined) {
+      updates.profile_visibility = body.profile_visibility === "private" ? "private" : "public";
+    }
     if (body.theme !== undefined) {
       updates.theme = body.theme;
     }

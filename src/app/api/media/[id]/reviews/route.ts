@@ -94,6 +94,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const supabase = await createClient();
     const adminSupabase = createAdminClient() || supabase;
 
+    let currentUserId: string | null = null;
+    if (supabase) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      currentUserId = user?.id || null;
+    }
+
     // Resolve UUID in public.media
     let resolvedMediaId: string | null = null;
     let mediaTitle: string | null = null;
@@ -160,8 +168,36 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           created_at,
           updated_at
         `)
-        .eq("media_id", resolvedMediaId)
-        .eq("privacy", "public");
+        .eq("media_id", resolvedMediaId);
+
+      // Privacy enforcement: public reviews, viewer's own reviews, or mutual friends reviews
+      if (currentUserId && adminSupabase) {
+        let mutualFriendIds: string[] = [];
+        const { data: myFollowing } = await adminSupabase
+          .from("follows")
+          .select("following_id")
+          .eq("follower_id", currentUserId);
+        const myFollowingIds = (myFollowing || []).map((f) => f.following_id);
+
+        if (myFollowingIds.length > 0) {
+          const { data: theyFollowMe } = await adminSupabase
+            .from("follows")
+            .select("follower_id")
+            .eq("following_id", currentUserId)
+            .in("follower_id", myFollowingIds);
+          mutualFriendIds = (theyFollowMe || []).map((f) => f.follower_id);
+        }
+
+        if (mutualFriendIds.length > 0) {
+          query = query.or(
+            `user_id.eq.${currentUserId},privacy.eq.public,and(privacy.eq.friends,user_id.in.(${mutualFriendIds.join(",")}))`
+          );
+        } else {
+          query = query.or(`user_id.eq.${currentUserId},privacy.eq.public`);
+        }
+      } else {
+        query = query.eq("privacy", "public");
+      }
 
       if (filter === "with_text") {
         query = query.not("review", "is", null);

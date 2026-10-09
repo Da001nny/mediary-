@@ -7,6 +7,7 @@ export type Json =
   | Json[];
 
 export type PrivacyLevel = "private" | "friends" | "public";
+export type ProfileVisibility = "public" | "private";
 export type MediaType = "movie" | "tv" | "game" | "book";
 
 export interface CastMember {
@@ -53,6 +54,7 @@ export type Database = {
           rating_scale: string;
           theme: string;
           default_privacy: PrivacyLevel;
+          profile_visibility: ProfileVisibility;
           dashboard_widgets: Json;
           joined_at: string;
           updated_at: string;
@@ -67,6 +69,7 @@ export type Database = {
           rating_scale?: string;
           theme?: string;
           default_privacy?: PrivacyLevel;
+          profile_visibility?: ProfileVisibility;
           dashboard_widgets?: Json;
           joined_at?: string;
           updated_at?: string;
@@ -81,6 +84,7 @@ export type Database = {
           rating_scale?: string;
           theme?: string;
           default_privacy?: PrivacyLevel;
+          profile_visibility?: ProfileVisibility;
           dashboard_widgets?: Json;
           joined_at?: string;
           updated_at?: string;
@@ -351,7 +355,14 @@ export type Database = {
       };
     };
     Views: {
-      [_ in never]: never;
+      safe_profiles: {
+        Row: {
+          id: string;
+          display_name: string | null;
+          avatar_url: string | null;
+        };
+        Relationships: [];
+      };
     };
     Functions: {
       [_ in never]: never;

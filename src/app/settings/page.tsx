@@ -27,7 +27,7 @@ import {
   normalizeRatingScale,
 } from "@/lib/rating";
 import { AlgoliaStatusCard } from "@/components/settings/AlgoliaStatusCard";
-import type { PrivacyLevel } from "@/types/database.types";
+import type { PrivacyLevel, ProfileVisibility } from "@/types/database.types";
 
 export default function SettingsPage() {
   const { profile, updateProfile, user } = useAuth();
@@ -46,10 +46,15 @@ export default function SettingsPage() {
   const [displayNameInput, setDisplayNameInput] = useState<string | null>(null);
   const [bioInput, setBioInput] = useState<string | null>(null);
   const [privacyInput, setPrivacyInput] = useState<PrivacyLevel | null>(null);
+  const [visibilityInput, setVisibilityInput] = useState<ProfileVisibility | null>(null);
 
   const displayName = displayNameInput ?? (profile?.display_name || user?.user_metadata?.full_name || "");
   const bio = bioInput ?? (profile?.bio || "");
   const defaultPrivacy = privacyInput ?? (profile?.default_privacy || "public");
+  const profileVisibility: ProfileVisibility =
+    visibilityInput ??
+    profile?.profile_visibility ??
+    (profile?.default_privacy === "private" ? "private" : "public");
 
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -97,6 +102,7 @@ export default function SettingsPage() {
         display_name: displayName.trim() || null,
         bio: bio.trim() || null,
         default_privacy: defaultPrivacy,
+        profile_visibility: profileVisibility,
       };
 
       const res = await updateProfile(updates);
@@ -286,6 +292,55 @@ export default function SettingsPage() {
                   placeholder="Short tagline about your media taste"
                   className="w-full h-10 sm:h-11 px-3.5 sm:px-4 text-xs sm:text-sm rounded-xl bg-bg border border-border text-text placeholder:text-text-muted/60 focus:border-accent focus:ring-1 focus:ring-accent outline-hidden transition-all shadow-2xs"
                 />
+              </div>
+            </div>
+
+            {/* Profile Visibility */}
+            <div className="space-y-2.5 sm:space-y-3 pt-1 sm:pt-2 border-t border-border/70">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-text">
+                  Profile Visibility
+                </label>
+                <p className="text-[11px] sm:text-xs text-text-muted mt-0.5">
+                  Controls who can see your profile page (/u/[id]), bio, stats, and follow network.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3.5">
+                {[
+                  {
+                    id: "public",
+                    label: "Public Profile",
+                    desc: "Bio, stats, public logs, and follow lists are visible to all visitors.",
+                    icon: Globe,
+                  },
+                  {
+                    id: "private",
+                    label: "Private Profile",
+                    desc: "Only name and avatar appear in feeds. Bio, stats, logs, and follow lists are hidden.",
+                    icon: Lock,
+                  },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  const isSelected = profileVisibility === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setVisibilityInput(item.id as ProfileVisibility)}
+                      className={`p-3.5 sm:p-4 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-1.5 ${
+                        isSelected
+                          ? "border-accent bg-accent/10 text-text ring-1 ring-accent"
+                          : "border-border/80 bg-bg/50 hover:bg-surface-hover text-text-muted"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Icon className={`w-4 h-4 ${isSelected ? "text-accent" : ""}`} />
+                        <span className="text-xs sm:text-sm font-bold text-text">{item.label}</span>
+                      </div>
+                      <span className="text-[11px] sm:text-xs text-text-muted leading-relaxed">{item.desc}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

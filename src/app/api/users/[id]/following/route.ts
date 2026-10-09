@@ -24,8 +24,31 @@ export async function GET(
       currentUserId = user?.id || null;
     }
 
+    // Check target user's visibility: private profiles hide following unless viewer is owner
+    const { data: targetProfile, error: tpErr } = await db
+      .from("profiles")
+      .select("id, profile_visibility, default_privacy")
+      .eq("id", targetUserId)
+      .maybeSingle();
+
+    if (tpErr || !targetProfile) {
+      return NextResponse.json({ following: [] });
+    }
+
+    const isOwner = Boolean(currentUserId && currentUserId === targetUserId);
+    const targetVisibility =
+      targetProfile.profile_visibility ||
+      (targetProfile.default_privacy === "private" ? "private" : "public");
+
+    if (targetVisibility === "private" && !isOwner) {
+      return NextResponse.json({ following: [] });
+    }
+
     // Query follows where follower_id = targetUserId
-    const { data: followRows, error } = await db
+    // If viewer is owner, admin or supabase will retrieve all rows because owner is follower_id
+    // If viewer is not owner, use user-scoped client so RLS filters out rows viewer cannot see
+    const followDb = isOwner && admin ? admin : (supabase || db);
+    const { data: followRows, error } = await followDb
       .from("follows")
       .select("following_id, created_at")
       .eq("follower_id", targetUserId)
@@ -41,20 +64,46 @@ export async function GET(
 
     const followingIds = followRows.map((r) => r.following_id);
 
-    // Fetch profile details for these users
-    const { data: profiles, error: pErr } = await db
+    // Fetch profile details for these users (use admin if available to get details for owner)
+    const profileDb = isOwner && admin ? admin : db;
+    const { data: profiles, error: pErr } = await profileDb
       .from("profiles")
-      .select("id, display_name, avatar_url, bio")
+      .select("id, display_name, avatar_url, bio, profile_visibility, default_privacy")
       .in("id", followingIds);
 
     if (pErr) {
-      return NextResponse.json({ error: pErr.message }, { status: 500 });
+      console.warn("Could not query full profiles table, falling back to safe_profiles:", pErr.message);
+    }
+
+    const profileMap = new Map((profiles || []).map((p) => [p.id, p]));
+
+    // For any followed user whose profile row was inaccessible under RLS (e.g. private user),
+    // retrieve non-sensitive card details from the safe_profiles view
+    const missingIds = followingIds.filter((id) => !profileMap.has(id));
+    if (missingIds.length > 0) {
+      const { data: safeProfiles } = await db
+        .from("safe_profiles")
+        .select("id, display_name, avatar_url")
+        .in("id", missingIds);
+
+      if (safeProfiles) {
+        for (const sp of safeProfiles) {
+          profileMap.set(sp.id, {
+            id: sp.id,
+            display_name: sp.display_name,
+            avatar_url: sp.avatar_url,
+            bio: null,
+            profile_visibility: "private" as const,
+            default_privacy: "private" as const,
+          });
+        }
+      }
     }
 
     // Check which ones the current viewer follows
     let viewerFollowingSet = new Set<string>();
     if (currentUserId) {
-      const { data: viewerFollows } = await db
+      const { data: viewerFollows } = await (supabase || db)
         .from("follows")
         .select("following_id")
         .eq("follower_id", currentUserId)
@@ -65,22 +114,22 @@ export async function GET(
       }
     }
 
-    const profileMap = new Map((profiles || []).map((p) => [p.id, p]));
-
-    const result = followRows
-      .map((r) => {
-        const p = profileMap.get(r.following_id);
-        if (!p) return null;
-        return {
-          id: p.id,
-          display_name: p.display_name,
-          avatar_url: p.avatar_url,
-          bio: p.bio,
-          isFollowing: viewerFollowingSet.has(p.id),
-          isSelf: currentUserId === p.id,
-        };
-      })
-      .filter(Boolean);
+    // Build the final following list: never drop a valid follow row for the owner!
+    const result = followRows.map((r) => {
+      const p = profileMap.get(r.following_id);
+      const pVis =
+        p?.profile_visibility ||
+        (p?.default_privacy === "private" ? "private" : "public");
+      const hideBio = pVis === "private" && r.following_id !== currentUserId;
+      return {
+        id: r.following_id,
+        display_name: p?.display_name || "Community Member",
+        avatar_url: p?.avatar_url || null,
+        bio: hideBio ? null : (p?.bio || null),
+        isFollowing: viewerFollowingSet.has(r.following_id),
+        isSelf: currentUserId === r.following_id,
+      };
+    });
 
     return NextResponse.json({ following: result });
   } catch (err) {

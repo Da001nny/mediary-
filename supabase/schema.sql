@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   rating_scale TEXT NOT NULL DEFAULT '100',
   theme TEXT NOT NULL DEFAULT 'system',
   default_privacy TEXT NOT NULL DEFAULT 'public' CHECK (default_privacy IN ('private', 'friends', 'public')),
+  profile_visibility TEXT NOT NULL DEFAULT 'public' CHECK (profile_visibility IN ('public', 'private')),
   dashboard_widgets JSONB NOT NULL DEFAULT '[]'::jsonb,
   joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -25,19 +26,28 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 -- Drop existing policies if re-running
 DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
+DROP POLICY IF EXISTS "Profiles are viewable based on visibility or owner" ON public.profiles;
 DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
 DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
 DROP POLICY IF EXISTS "Users can delete their own profile" ON public.profiles;
 
 -- RLS Policies
--- SELECT: Users can view their own profile, or any profile whose default_privacy is 'public'
-CREATE POLICY "Public profiles are viewable by everyone"
+-- SELECT: Users can view their own profile, or any profile whose profile_visibility is 'public'
+CREATE POLICY "Profiles are viewable based on visibility or owner"
   ON public.profiles
   FOR SELECT
   USING (
-    default_privacy = 'public' 
+    profile_visibility = 'public'
     OR auth.uid() = id
   );
+
+-- Safe view exposing only public identity columns for reviews and follow lists
+CREATE OR REPLACE VIEW public.safe_profiles AS
+  SELECT
+    id,
+    display_name,
+    avatar_url
+  FROM public.profiles;
 
 -- INSERT: A user can only insert their own profile record
 CREATE POLICY "Users can insert their own profile"
@@ -198,13 +208,25 @@ DROP POLICY IF EXISTS "Users can only delete their own entries" ON public.entrie
 
 -- 1. SELECT: Reads respect the privacy column
 -- Users can view their own entries regardless of privacy,
--- OR anyone can view if privacy is 'public'
+-- OR anyone can view if privacy is 'public',
+-- OR mutual followers (friends) can view if privacy is 'friends'
 CREATE POLICY "Entries are viewable based on privacy and ownership"
   ON public.entries
   FOR SELECT
   USING (
     privacy = 'public'
     OR auth.uid() = user_id
+    OR (
+      privacy = 'friends'
+      AND EXISTS (
+        SELECT 1 FROM public.follows
+        WHERE follower_id = auth.uid() AND following_id = entries.user_id
+      )
+      AND EXISTS (
+        SELECT 1 FROM public.follows
+        WHERE follower_id = entries.user_id AND following_id = auth.uid()
+      )
+    )
   );
 
 -- 2. INSERT: Users can only insert their own entries
@@ -270,6 +292,17 @@ CREATE POLICY "Lists are viewable based on privacy and ownership"
   USING (
     privacy = 'public'
     OR auth.uid() = user_id
+    OR (
+      privacy = 'friends'
+      AND EXISTS (
+        SELECT 1 FROM public.follows
+        WHERE follower_id = auth.uid() AND following_id = lists.user_id
+      )
+      AND EXISTS (
+        SELECT 1 FROM public.follows
+        WHERE follower_id = lists.user_id AND following_id = auth.uid()
+      )
+    )
   );
 
 CREATE POLICY "Users can only insert their own lists"
@@ -332,7 +365,21 @@ CREATE POLICY "List items viewable if parent list is accessible"
     EXISTS (
       SELECT 1 FROM public.lists
       WHERE lists.id = list_items.list_id
-      AND (lists.privacy = 'public' OR lists.user_id = auth.uid())
+      AND (
+        lists.privacy = 'public'
+        OR lists.user_id = auth.uid()
+        OR (
+          lists.privacy = 'friends'
+          AND EXISTS (
+            SELECT 1 FROM public.follows
+            WHERE follower_id = auth.uid() AND following_id = lists.user_id
+          )
+          AND EXISTS (
+            SELECT 1 FROM public.follows
+            WHERE follower_id = lists.user_id AND following_id = auth.uid()
+          )
+        )
+      )
     )
   );
 
@@ -428,6 +475,78 @@ CREATE TRIGGER tr_media_algolia_sync
   AFTER INSERT OR UPDATE ON public.media
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_media_algolia_sync();
+
+-- =========================================================
+-- 6. FOLLOWS & ACTIVITY
+-- =========================================================
+CREATE TABLE IF NOT EXISTS public.follows (
+  follower_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  following_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (follower_id, following_id)
+);
+
+ALTER TABLE public.follows ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'check_not_self_follow'
+    AND conrelid = 'public.follows'::regclass
+  ) THEN
+    ALTER TABLE public.follows ADD CONSTRAINT check_not_self_follow CHECK (follower_id != following_id);
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_follows_follower_id ON public.follows(follower_id);
+CREATE INDEX IF NOT EXISTS idx_follows_following_id ON public.follows(following_id);
+CREATE INDEX IF NOT EXISTS idx_follows_created_at ON public.follows(created_at);
+
+ALTER TABLE public.follows ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Follows are viewable by everyone" ON public.follows;
+DROP POLICY IF EXISTS "Follows are viewable based on ownership or public profiles" ON public.follows;
+DROP POLICY IF EXISTS "Users can insert their own follows" ON public.follows;
+DROP POLICY IF EXISTS "Users can delete their own follows" ON public.follows;
+
+CREATE POLICY "Follows are viewable based on ownership or public profiles"
+  ON public.follows
+  FOR SELECT
+  USING (
+    auth.uid() = follower_id
+    OR auth.uid() = following_id
+    OR (
+      EXISTS (
+        SELECT 1 FROM public.profiles p1
+        WHERE p1.id = follows.follower_id
+          AND p1.profile_visibility = 'public'
+      )
+      AND
+      EXISTS (
+        SELECT 1 FROM public.profiles p2
+        WHERE p2.id = follows.following_id
+          AND p2.profile_visibility = 'public'
+      )
+    )
+  );
+
+CREATE POLICY "Users can insert their own follows"
+  ON public.follows
+  FOR INSERT
+  WITH CHECK (
+    auth.uid() = follower_id
+  );
+
+CREATE POLICY "Users can delete their own follows"
+  ON public.follows
+  FOR DELETE
+  USING (
+    auth.uid() = follower_id
+  );
+
+GRANT SELECT ON public.safe_profiles TO anon, authenticated;
+
 
 
 

@@ -57,14 +57,44 @@ export async function GET(request: NextRequest) {
       userEntry = entryData;
     }
 
-    // If requested or if user is unauthenticated, fetch public entries/reviews
+    // If requested or if user is unauthenticated, fetch public (and mutual friends) entries/reviews
     let publicEntries = null;
     if (includeReviews || !user) {
-      const { data: pubData, error: pubError } = await supabase
+      let query = supabase
         .from("entries")
         .select("*, profiles:user_id(display_name, avatar_url)")
-        .eq("media_id", mediaId)
-        .eq("privacy", "public")
+        .eq("media_id", mediaId);
+
+      if (user) {
+        // Fetch mutual friends to include their 'friends' entries
+        const { data: myFollowing } = await supabase
+          .from("follows")
+          .select("following_id")
+          .eq("follower_id", user.id);
+        const myFollowingIds = (myFollowing || []).map((f) => f.following_id);
+
+        let mutualFriendIds: string[] = [];
+        if (myFollowingIds.length > 0) {
+          const { data: theyFollowMe } = await supabase
+            .from("follows")
+            .select("follower_id")
+            .eq("following_id", user.id)
+            .in("follower_id", myFollowingIds);
+          mutualFriendIds = (theyFollowMe || []).map((f) => f.follower_id);
+        }
+
+        if (mutualFriendIds.length > 0) {
+          query = query.or(
+            `privacy.eq.public,and(privacy.eq.friends,user_id.in.(${mutualFriendIds.join(",")}))`
+          );
+        } else {
+          query = query.eq("privacy", "public");
+        }
+      } else {
+        query = query.eq("privacy", "public");
+      }
+
+      const { data: pubData, error: pubError } = await query
         .order("created_at", { ascending: false })
         .limit(20);
 

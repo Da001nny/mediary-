@@ -48,7 +48,24 @@ export async function GET(request: NextRequest) {
     if (userIdFilter) {
       query = query.eq("user_id", userIdFilter);
       if (!user || user.id !== userIdFilter) {
-        query = query.eq("privacy", "public");
+        let isMutualFriend = false;
+        if (user) {
+          const { data: mutuals } = await supabase
+            .from("follows")
+            .select("follower_id, following_id")
+            .or(
+              `and(follower_id.eq.${user.id},following_id.eq.${userIdFilter}),and(follower_id.eq.${userIdFilter},following_id.eq.${user.id})`
+            );
+          if (Array.isArray(mutuals) && mutuals.length === 2) {
+            isMutualFriend = true;
+          }
+        }
+
+        if (isMutualFriend) {
+          query = query.in("privacy", ["public", "friends"]);
+        } else {
+          query = query.eq("privacy", "public");
+        }
       }
     } else if (privacyFilter && ["public", "friends", "private"].includes(privacyFilter)) {
       query = query.eq("privacy", privacyFilter as PrivacyLevel);

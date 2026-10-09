@@ -232,6 +232,7 @@ export async function getFollowers(
     }
 
     const items: UserFollowItem[] = [];
+    const missingIds: string[] = [];
     for (const row of data || []) {
       const p = (row as unknown as { profiles: Profile | null }).profiles;
       if (p) {
@@ -242,6 +243,39 @@ export async function getFollowers(
           bio: p.bio,
           isFollowing: currentUserFollowingSet.has(p.id),
         });
+      } else if (row.follower_id) {
+        missingIds.push(row.follower_id);
+      }
+    }
+
+    if (missingIds.length > 0) {
+      try {
+        const { data: safeList } = await supabase
+          .from("safe_profiles")
+          .select("id, display_name, avatar_url")
+          .in("id", missingIds);
+        const safeMap = new Map((safeList || []).map((s) => [s.id, s]));
+        for (const mId of missingIds) {
+          const s = safeMap.get(mId);
+          items.push({
+            id: mId,
+            display_name: s?.display_name || "Community Member",
+            avatar_url: s?.avatar_url || null,
+            bio: null,
+            isFollowing: currentUserFollowingSet.has(mId),
+          });
+        }
+      } catch (safeErr) {
+        console.warn("Could not fetch safe_profiles for followers:", safeErr);
+        for (const mId of missingIds) {
+          items.push({
+            id: mId,
+            display_name: "Community Member",
+            avatar_url: null,
+            bio: null,
+            isFollowing: currentUserFollowingSet.has(mId),
+          });
+        }
       }
     }
 
@@ -296,6 +330,7 @@ export async function getFollowing(
     }
 
     const items: UserFollowItem[] = [];
+    const missingIds: string[] = [];
     for (const row of data || []) {
       const p = (row as unknown as { profiles: Profile | null }).profiles;
       if (p) {
@@ -306,6 +341,39 @@ export async function getFollowing(
           bio: p.bio,
           isFollowing: currentUserFollowingSet.has(p.id),
         });
+      } else if (row.following_id) {
+        missingIds.push(row.following_id);
+      }
+    }
+
+    if (missingIds.length > 0) {
+      try {
+        const { data: safeList } = await supabase
+          .from("safe_profiles")
+          .select("id, display_name, avatar_url")
+          .in("id", missingIds);
+        const safeMap = new Map((safeList || []).map((s) => [s.id, s]));
+        for (const mId of missingIds) {
+          const s = safeMap.get(mId);
+          items.push({
+            id: mId,
+            display_name: s?.display_name || "Community Member",
+            avatar_url: s?.avatar_url || null,
+            bio: null,
+            isFollowing: currentUserFollowingSet.has(mId),
+          });
+        }
+      } catch (safeErr) {
+        console.warn("Could not fetch safe_profiles for following:", safeErr);
+        for (const mId of missingIds) {
+          items.push({
+            id: mId,
+            display_name: "Community Member",
+            avatar_url: null,
+            bio: null,
+            isFollowing: currentUserFollowingSet.has(mId),
+          });
+        }
       }
     }
 
