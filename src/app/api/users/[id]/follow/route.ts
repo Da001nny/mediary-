@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { recordFollowActivity, removeActivity } from "@/lib/activity";
 
 export async function POST(
   req: NextRequest,
@@ -43,19 +43,12 @@ export async function POST(
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    // Optionally record activity
-    const admin = createAdminClient();
-    if (admin) {
-      await admin
-        .from("activity")
-        .insert({
-          user_id: user.id,
-          type: "follow",
-          ref_id: targetUserId,
-        })
-        .select()
-        .maybeSingle();
-    }
+    // Record 'followed' activity if follower's profile_visibility is public
+    await recordFollowActivity({
+      followerId: user.id,
+      followingId: targetUserId,
+      client: supabase,
+    });
 
     return NextResponse.json({ success: true, isFollowing: true });
   } catch (err) {
@@ -98,6 +91,14 @@ export async function DELETE(
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
+
+    // Remove 'followed' activity row
+    await removeActivity({
+      userId: user.id,
+      refId: targetUserId,
+      type: "followed",
+      client: supabase,
+    });
 
     return NextResponse.json({ success: true, isFollowing: false });
   } catch (err) {

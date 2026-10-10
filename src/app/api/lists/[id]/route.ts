@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { recordListActivity, removeActivity } from "@/lib/activity";
 import type { TablesUpdate } from "@/types/database.types";
 
 interface RouteParams {
@@ -117,9 +118,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       .filter((c): c is string => Boolean(c))
       .slice(0, 4);
 
+    const listTitle = ((rawList as Record<string, unknown>).title || (rawList as Record<string, unknown>).name || "Untitled List") as string;
+
     return NextResponse.json({
       list: {
         ...rawList,
+        title: listTitle,
+        name: listTitle,
         items: sortedItems,
         item_count: sortedItems.length,
         preview_covers: previewCovers,
@@ -134,7 +139,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 /**
  * PATCH /api/lists/[id]
- * Updates list details (name, description, is_ranked, privacy).
+ * Updates list details (title/name, description, is_ranked, privacy).
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
@@ -158,12 +163,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const body = await request.json();
     const updatePayload: TablesUpdate<"lists"> = {};
 
-    if (body.name !== undefined) updatePayload.name = String(body.name).trim();
+    const listTitle = body.title !== undefined ? body.title : body.name;
+    if (listTitle !== undefined) {
+      updatePayload.title = String(listTitle).trim();
+      updatePayload.name = String(listTitle).trim();
+    }
     if (body.description !== undefined) updatePayload.description = body.description;
     if (body.is_ranked !== undefined) updatePayload.is_ranked = Boolean(body.is_ranked);
     if (body.privacy !== undefined) updatePayload.privacy = body.privacy;
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("lists")
       .update(updatePayload)
       .eq("id", id)
@@ -171,12 +180,48 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       .select()
       .single();
 
+    // Fallback if schema has name instead of title
+    if (error && (error.message.includes("title") || error.code === "42703") && listTitle !== undefined) {
+      const fallbackPayload: TablesUpdate<"lists"> = { ...updatePayload };
+      delete fallbackPayload.title;
+      const retryResult = await supabase
+        .from("lists")
+        .update(fallbackPayload)
+        .eq("id", id)
+        .eq("user_id", user.id)
+        .select()
+        .single();
+      data = retryResult.data;
+      error = retryResult.error;
+    }
+
     if (error) {
       console.error("Error updating list:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ list: data });
+    if (data) {
+      const savedTitle = ((data as Record<string, unknown>).title || (data as Record<string, unknown>).name || (listTitle ? String(listTitle).trim() : "")) as string;
+      await recordListActivity({
+        userId: user.id,
+        listId: data.id,
+        privacy: data.privacy,
+        title: savedTitle,
+        description: data.description,
+        createdAt: data.created_at,
+        client: supabase,
+      });
+    }
+
+    const resList = data
+      ? {
+          ...data,
+          title: (data as Record<string, unknown>).title || (data as Record<string, unknown>).name,
+          name: (data as Record<string, unknown>).title || (data as Record<string, unknown>).name,
+        }
+      : data;
+
+    return NextResponse.json({ list: resList });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Internal Server Error";
     console.error("Unexpected error in PATCH /api/lists/[id]:", err);
@@ -217,6 +262,12 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       console.error("Error deleting list:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    await removeActivity({
+      userId: user.id,
+      refId: id,
+      client: supabase,
+    });
 
     return NextResponse.json({ success: true });
   } catch (err: unknown) {

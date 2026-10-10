@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { recordEntryActivity, removeActivity } from "@/lib/activity";
 import type { EntryStatus, PrivacyLevel, TablesInsert } from "@/types/database.types";
 
 const VALID_STATUSES: EntryStatus[] = [
@@ -310,6 +311,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Record / synchronize activity feed entry
+    if (upsertedEntry) {
+      await recordEntryActivity({
+        userId: user.id,
+        entryId: upsertedEntry.id,
+        privacy,
+        mediaId: resolvedMediaId,
+        mediaType: media_type || "movie",
+        rating: normalizedRating,
+        review: review ? String(review).trim() : null,
+        containsSpoilers: hasSpoilers,
+        status,
+        createdAt: upsertedEntry.created_at,
+        client: supabase,
+      });
+    }
+
     return NextResponse.json({
       entry: upsertedEntry,
       message: "Diary entry saved successfully.",
@@ -356,6 +374,14 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    // Look up existing entry id before deletion to clean up its activity rows
+    const { data: existingEntry } = await supabase
+      .from("entries")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("media_id", mediaId)
+      .maybeSingle();
+
     const { error: deleteError } = await supabase
       .from("entries")
       .delete()
@@ -367,6 +393,14 @@ export async function DELETE(request: NextRequest) {
         { error: deleteError.message },
         { status: 500 }
       );
+    }
+
+    if (existingEntry?.id) {
+      await removeActivity({
+        userId: user.id,
+        refId: existingEntry.id,
+        client: supabase,
+      });
     }
 
     return NextResponse.json({ success: true });

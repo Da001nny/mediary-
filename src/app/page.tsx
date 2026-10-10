@@ -8,8 +8,6 @@ import {
   Sparkles,
   BookMarked,
   Clock,
-  Users,
-  Compass,
   Plus,
   Lock,
   ChevronRight,
@@ -22,6 +20,7 @@ import { RatingBadge } from "@/components/ui/RatingBadge";
 import { Skeleton, PosterSkeleton } from "@/components/ui/Skeleton";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { MediaSearchModal } from "@/components/media/MediaSearchModal";
+import { ActivityFeed } from "@/components/home/ActivityFeed";
 import { useAuth } from "@/context/AuthContext";
 import type { MediaItem, EntryStatus } from "@/types/database.types";
 
@@ -818,43 +817,9 @@ export default function HomePage() {
               )}
             </section>
 
-            {/* 4. Clearly Marked Empty Section: Activity Feed */}
-            <section className="space-y-3 pt-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-md bg-accent/15 text-accent flex items-center justify-center">
-                    <Users className="w-3.5 h-3.5" />
-                  </div>
-                  <h2 className="font-serif text-lg sm:text-xl font-bold text-text">
-                    Friends & Community Activity
-                  </h2>
-                </div>
-                <Badge variant="subtle" size="sm" className="font-mono text-[10px]">
-                  Coming Next
-                </Badge>
-              </div>
-
-              {/* Clearly Marked Placeholder Card */}
-              <div className="p-6 sm:p-8 rounded-2xl border-2 border-dashed border-border/90 bg-surface/40 text-center space-y-3">
-                <div className="w-10 h-10 rounded-full bg-surface border border-border flex items-center justify-center mx-auto text-accent shadow-2xs">
-                  <Compass className="w-5 h-5" />
-                </div>
-                <div className="max-w-md mx-auto space-y-1">
-                  <h3 className="font-serif text-sm sm:text-base font-bold text-text">
-                    Activity Feed Section
-                  </h3>
-                  <p className="text-xs text-text-muted leading-relaxed">
-                    This space will stream recent diary logs, ratings, and list additions from members you follow. Public profiles and follow relationships are active.
-                  </p>
-                </div>
-                <div className="pt-1 flex items-center justify-center gap-2">
-                  <Link href={`/u/${user.id}`}>
-                    <Button variant="secondary" size="sm" leftIcon={<Users className="w-3.5 h-3.5" />}>
-                      View My Public Profile
-                    </Button>
-                  </Link>
-                </div>
-              </div>
+            {/* 4. Friends & Community Activity Section */}
+            <section className="pt-2">
+              <ActivityFeed onOpenSearch={openSearch} />
             </section>
           </div>
         )}

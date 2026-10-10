@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import type { PrivacyLevel } from "@/types/database.types";
+import { recordListActivity } from "@/lib/activity";
+import type { PrivacyLevel, TablesInsert } from "@/types/database.types";
 
 /**
  * GET /api/lists
@@ -109,8 +110,12 @@ export async function GET(request: NextRequest) {
         .filter((c): c is string => Boolean(c))
         .slice(0, 4);
 
+      const listTitle = ((list as Record<string, unknown>).title || (list as Record<string, unknown>).name || "Untitled List") as string;
+
       return {
         ...list,
+        title: listTitle,
+        name: listTitle,
         items,
         item_count: items.length,
         preview_covers: previewCovers,
@@ -151,11 +156,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, description = null, is_ranked = false, privacy = "public" } = body;
+    const { name, title, description = null, is_ranked = false, privacy = "public" } = body;
+    const listTitle = String(title || name || "").trim();
 
-    if (!name || typeof name !== "string" || !name.trim()) {
+    if (!listTitle) {
       return NextResponse.json(
-        { error: "List name is required" },
+        { error: "List title is required" },
         { status: 400 }
       );
     }
@@ -163,24 +169,62 @@ export async function POST(request: NextRequest) {
     const validPrivacies: PrivacyLevel[] = ["public", "friends", "private"];
     const resolvedPrivacy = validPrivacies.includes(privacy) ? privacy : "public";
 
-    const { data, error } = await supabase
+    // Use `title` column of lists table
+    const insertPayload: TablesInsert<"lists"> = {
+      user_id: user.id,
+      title: listTitle,
+      name: listTitle,
+      description: description ? description.trim() : null,
+      is_ranked: Boolean(is_ranked),
+      privacy: resolvedPrivacy,
+    };
+
+    let { data, error } = await supabase
       .from("lists")
-      .insert({
-        user_id: user.id,
-        name: name.trim(),
-        description: description ? description.trim() : null,
-        is_ranked: Boolean(is_ranked),
-        privacy: resolvedPrivacy,
-      })
+      .insert(insertPayload)
       .select()
       .single();
+
+    // Fallback if schema has name instead of title
+    if (error && (error.message.includes("title") || error.code === "42703")) {
+      const fallbackPayload: TablesInsert<"lists"> = { ...insertPayload };
+      delete fallbackPayload.title;
+      const retryResult = await supabase
+        .from("lists")
+        .insert(fallbackPayload)
+        .select()
+        .single();
+      data = retryResult.data;
+      error = retryResult.error;
+    }
 
     if (error) {
       console.error("Error creating list:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ list: data }, { status: 201 });
+    if (data) {
+      const savedTitle = ((data as Record<string, unknown>).title || (data as Record<string, unknown>).name || listTitle) as string;
+      await recordListActivity({
+        userId: user.id,
+        listId: data.id,
+        privacy: resolvedPrivacy,
+        title: savedTitle,
+        description: data.description,
+        createdAt: data.created_at,
+        client: supabase,
+      });
+    }
+
+    const resList = data
+      ? {
+          ...data,
+          title: (data as Record<string, unknown>).title || (data as Record<string, unknown>).name || listTitle,
+          name: (data as Record<string, unknown>).title || (data as Record<string, unknown>).name || listTitle,
+        }
+      : data;
+
+    return NextResponse.json({ list: resList }, { status: 201 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Internal Server Error";
     console.error("Unexpected error in POST /api/lists:", err);

@@ -263,7 +263,7 @@ CREATE TRIGGER set_entries_updated_at
 CREATE TABLE IF NOT EXISTS public.lists (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
+  title TEXT NOT NULL,
   description TEXT,
   is_ranked BOOLEAN NOT NULL DEFAULT FALSE,
   privacy TEXT NOT NULL DEFAULT 'public' CHECK (privacy IN ('private', 'friends', 'public')),
@@ -546,6 +546,75 @@ CREATE POLICY "Users can delete their own follows"
   );
 
 GRANT SELECT ON public.safe_profiles TO anon, authenticated;
+
+-- =========================================================
+-- 7. ACTIVITY FEED TABLE & POLICIES
+-- =========================================================
+CREATE TABLE IF NOT EXISTS public.activity (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  type TEXT NOT NULL,
+  ref_id UUID,
+  privacy TEXT NOT NULL DEFAULT 'public' CHECK (privacy IN ('public', 'friends', 'private')),
+  media_id UUID REFERENCES public.media(id) ON DELETE CASCADE,
+  media_type TEXT,
+  data JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_activity_user_type_ref ON public.activity(user_id, type, ref_id);
+CREATE INDEX IF NOT EXISTS idx_activity_created_at ON public.activity(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_activity_user_id ON public.activity(user_id);
+CREATE INDEX IF NOT EXISTS idx_activity_media_type ON public.activity(media_type);
+
+ALTER TABLE public.activity ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Activity is viewable based on privacy and visibility"
+  ON public.activity
+  FOR SELECT
+  USING (
+    auth.uid() = user_id
+    OR (
+      privacy = 'public'
+      AND EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE profiles.id = activity.user_id
+          AND profiles.profile_visibility = 'public'
+      )
+    )
+    OR (
+      privacy = 'friends'
+      AND EXISTS (
+        SELECT 1 FROM public.follows
+        WHERE follower_id = auth.uid() AND following_id = activity.user_id
+      )
+      AND EXISTS (
+        SELECT 1 FROM public.follows
+        WHERE follower_id = activity.user_id AND following_id = auth.uid()
+      )
+    )
+  );
+
+CREATE POLICY "Users can update their own activity"
+  ON public.activity
+  FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own activity"
+  ON public.activity
+  FOR INSERT
+  WITH CHECK (
+    auth.uid() = user_id
+  );
+
+CREATE POLICY "Users can delete their own activity"
+  ON public.activity
+  FOR DELETE
+  USING (
+    auth.uid() = user_id
+  );
+
 
 
 

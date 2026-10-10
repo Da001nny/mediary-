@@ -210,6 +210,7 @@ export type Database = {
           id: string;
           user_id: string;
           name: string;
+          title?: string;
           description: string | null;
           is_ranked: boolean;
           privacy: PrivacyLevel;
@@ -219,7 +220,8 @@ export type Database = {
         Insert: {
           id?: string;
           user_id: string;
-          name: string;
+          title?: string;
+          name?: string;
           description?: string | null;
           is_ranked?: boolean;
           privacy?: PrivacyLevel;
@@ -229,6 +231,7 @@ export type Database = {
         Update: {
           id?: string;
           user_id?: string;
+          title?: string;
           name?: string;
           description?: string | null;
           is_ranked?: boolean;
@@ -327,6 +330,10 @@ export type Database = {
           user_id: string;
           type: string;
           ref_id: string | null;
+          privacy: PrivacyLevel;
+          media_id: string | null;
+          media_type: string | null;
+          data: Json;
           created_at: string;
         };
         Insert: {
@@ -334,6 +341,10 @@ export type Database = {
           user_id: string;
           type: string;
           ref_id?: string | null;
+          privacy?: PrivacyLevel;
+          media_id?: string | null;
+          media_type?: string | null;
+          data?: Json;
           created_at?: string;
         };
         Update: {
@@ -341,6 +352,10 @@ export type Database = {
           user_id?: string;
           type?: string;
           ref_id?: string | null;
+          privacy?: PrivacyLevel;
+          media_id?: string | null;
+          media_type?: string | null;
+          data?: Json;
           created_at?: string;
         };
         Relationships: [
