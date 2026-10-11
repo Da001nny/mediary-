@@ -14,6 +14,8 @@ import {
   Info,
   ArrowLeft,
   Sparkles,
+  Upload,
+  ArrowRight,
 } from "lucide-react";
 import { TopNav } from "@/components/navigation/TopNav";
 import { Button } from "@/components/ui/Button";
@@ -376,6 +378,32 @@ export default function SettingsPage() {
                   );
                 })}
               </div>
+            </div>
+          </div>
+
+          {/* Card: Import from Letterboxd & Goodreads */}
+          <div className="p-4 sm:p-7 lg:p-9 rounded-2xl bg-surface border border-border/80 card-depth space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="font-serif text-lg sm:text-2xl font-bold text-text">
+                  Data Import
+                </h2>
+                <p className="text-xs sm:text-sm text-text-muted mt-1 leading-relaxed">
+                  Import your films, reviews, ratings, and watchlists from Letterboxd, or your bookshelves and reading history from Goodreads.
+                </p>
+              </div>
+
+              <Link href="/import" className="shrink-0">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  leftIcon={<Upload className="w-4 h-4 text-accent" />}
+                  rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
+                >
+                  Import Library
+                </Button>
+              </Link>
             </div>
           </div>
 

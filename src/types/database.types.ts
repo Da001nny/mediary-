@@ -473,6 +473,87 @@ export type Database = {
           },
         ];
       };
+      import_jobs: {
+        Row: {
+          id: string;
+          user_id: string;
+          source: string;
+          status: string;
+          options: Json;
+          total: number;
+          matched: number;
+          already_logged: number;
+          needs_review: number;
+          failed: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          source: string;
+          status?: string;
+          options?: Json;
+          total?: number;
+          matched?: number;
+          already_logged?: number;
+          needs_review?: number;
+          failed?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          source?: string;
+          status?: string;
+          options?: Json;
+          total?: number;
+          matched?: number;
+          already_logged?: number;
+          needs_review?: number;
+          failed?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      import_items: {
+        Row: {
+          id: string;
+          job_id: string;
+          row: Json;
+          status: string;
+          media_id: string | null;
+          candidates: Json | null;
+          error: string | null;
+          claimed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          job_id: string;
+          row: Json;
+          status?: string;
+          media_id?: string | null;
+          candidates?: Json | null;
+          error?: string | null;
+          claimed_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          job_id?: string;
+          row?: Json;
+          status?: string;
+          media_id?: string | null;
+          candidates?: Json | null;
+          error?: string | null;
+          claimed_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       safe_profiles: {
@@ -485,7 +566,13 @@ export type Database = {
       };
     };
     Functions: {
-      [_ in never]: never;
+      claim_import_items: {
+        Args: {
+          p_job_id: string;
+          p_limit: number;
+        };
+        Returns: Database["public"]["Tables"]["import_items"]["Row"][];
+      };
     };
     Enums: {
       [_ in never]: never;
