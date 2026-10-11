@@ -267,6 +267,41 @@ export async function POST(request: NextRequest) {
 
     if (insertErr) {
       console.error("Error creating comment:", insertErr);
+      const errMsg = (insertErr.message || "").toLowerCase();
+      const errDetails = (insertErr.details || "").toLowerCase();
+      const isRateLimit =
+        errMsg.includes("rate limit") ||
+        errMsg.includes("too fast") ||
+        errMsg.includes("60 seconds") ||
+        errMsg.includes("p0001") ||
+        errDetails.includes("rate limit");
+
+      if (isRateLimit) {
+        return NextResponse.json(
+          {
+            error: "You are commenting too fast. Please wait a moment before commenting again.",
+            retryAfter: 60,
+          },
+          {
+            status: 429,
+            headers: { "Retry-After": "60" },
+          }
+        );
+      }
+
+      const isHierarchyError =
+        errMsg.includes("one level only") ||
+        errMsg.includes("top-level") ||
+        errMsg.includes("target must match") ||
+        errMsg.includes("parent");
+
+      if (isHierarchyError) {
+        return NextResponse.json(
+          { error: insertErr.message },
+          { status: 400 }
+        );
+      }
+
       return NextResponse.json({ error: insertErr.message }, { status: 500 });
     }
 
@@ -296,6 +331,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, comment: formatted }, { status: 201 });
   } catch (err) {
     console.error("POST /api/comments error:", err);
+    const errMessage = (err instanceof Error ? err.message : String(err)).toLowerCase();
+    if (
+      errMessage.includes("rate limit") ||
+      errMessage.includes("too fast") ||
+      errMessage.includes("60 seconds") ||
+      errMessage.includes("p0001")
+    ) {
+      return NextResponse.json(
+        {
+          error: "You are commenting too fast. Please wait a moment before commenting again.",
+          retryAfter: 60,
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": "60" },
+        }
+      );
+    }
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Internal error" },
       { status: 500 }
