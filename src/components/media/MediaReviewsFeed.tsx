@@ -8,7 +8,6 @@ import {
   Filter,
   ArrowUpDown,
   PenLine,
-  CheckCircle2,
   Calendar,
   Tv,
   Gamepad2,
@@ -23,6 +22,8 @@ import { AuthModal } from "@/components/auth/AuthModal";
 import { LogEntryModal } from "@/components/media/LogEntryModal";
 import { SpoilerReviewText } from "@/components/media/SpoilerReviewText";
 import { CardSkeleton } from "@/components/ui/Skeleton";
+import { LikeButton } from "@/components/social/LikeButton";
+import { CommentSection } from "@/components/social/CommentSection";
 import type { MediaItem, ReviewItem, MediaEntry } from "@/types/database.types";
 
 interface MediaReviewsFeedProps {
@@ -463,23 +464,31 @@ export function MediaReviewsFeed({ media }: MediaReviewsFeedProps) {
                     </p>
                   )}
 
-                  {/* Author Quick Actions */}
-                  {isCurrentUser && (
-                    <div className="pt-1 flex items-center justify-between text-[11px] text-text-muted">
-                      <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                        <CheckCircle2 className="w-3 h-3" />
-                        <span>Logged from your diary</span>
-                      </span>
+                  {/* Social Actions: Like & Comment */}
+                  <div className="pt-2 border-t border-border/60 flex items-center justify-between gap-3">
+                    <LikeButton
+                      entryId={item.id}
+                      mediaType={media.type}
+                      size="sm"
+                    />
 
+                    {isCurrentUser && (
                       <button
                         type="button"
                         onClick={handleOpenReviewModal}
-                        className="text-accent hover:underline cursor-pointer font-medium"
+                        className="text-xs text-accent hover:underline cursor-pointer font-medium"
                       >
                         Edit review &rarr;
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
+
+                  {/* Comment Thread for Review */}
+                  <CommentSection
+                    entryId={item.id}
+                    mediaType={media.type}
+                    initialIsOpen={false}
+                  />
                 </article>
               );
             })}

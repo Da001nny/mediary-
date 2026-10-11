@@ -166,7 +166,6 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const listTitle = body.title !== undefined ? body.title : body.name;
     if (listTitle !== undefined) {
       updatePayload.title = String(listTitle).trim();
-      updatePayload.name = String(listTitle).trim();
     }
     if (body.description !== undefined) updatePayload.description = body.description;
     if (body.is_ranked !== undefined) updatePayload.is_ranked = Boolean(body.is_ranked);

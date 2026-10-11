@@ -209,8 +209,8 @@ export type Database = {
         Row: {
           id: string;
           user_id: string;
-          name: string;
-          title?: string;
+          title: string;
+          name?: string;
           description: string | null;
           is_ranked: boolean;
           privacy: PrivacyLevel;
@@ -220,7 +220,7 @@ export type Database = {
         Insert: {
           id?: string;
           user_id: string;
-          title?: string;
+          title: string;
           name?: string;
           description?: string | null;
           is_ranked?: boolean;
@@ -368,6 +368,111 @@ export type Database = {
           },
         ];
       };
+      likes: {
+        Row: {
+          id: string;
+          user_id: string;
+          entry_id: string | null;
+          list_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          entry_id?: string | null;
+          list_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          entry_id?: string | null;
+          list_id?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "likes_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "likes_entry_id_fkey";
+            columns: ["entry_id"];
+            isOneToOne: false;
+            referencedRelation: "entries";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "likes_list_id_fkey";
+            columns: ["list_id"];
+            isOneToOne: false;
+            referencedRelation: "lists";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      comments: {
+        Row: {
+          id: string;
+          user_id: string;
+          entry_id: string | null;
+          list_id: string | null;
+          parent_id: string | null;
+          body: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          entry_id?: string | null;
+          list_id?: string | null;
+          parent_id?: string | null;
+          body: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          entry_id?: string | null;
+          list_id?: string | null;
+          parent_id?: string | null;
+          body?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "comments_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "comments_entry_id_fkey";
+            columns: ["entry_id"];
+            isOneToOne: false;
+            referencedRelation: "entries";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "comments_list_id_fkey";
+            columns: ["list_id"];
+            isOneToOne: false;
+            referencedRelation: "lists";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "comments_parent_id_fkey";
+            columns: ["parent_id"];
+            isOneToOne: false;
+            referencedRelation: "comments";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       safe_profiles: {
@@ -439,6 +544,8 @@ export interface ReviewItem {
 
 export type CustomList = Tables<"lists">;
 export type CustomListItem = Tables<"list_items">;
+export type Like = Tables<"likes">;
+export type Comment = Tables<"comments">;
 
 export interface ListWithItems extends CustomList {
   item_count?: number;

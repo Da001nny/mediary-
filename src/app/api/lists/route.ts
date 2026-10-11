@@ -169,11 +169,10 @@ export async function POST(request: NextRequest) {
     const validPrivacies: PrivacyLevel[] = ["public", "friends", "private"];
     const resolvedPrivacy = validPrivacies.includes(privacy) ? privacy : "public";
 
-    // Use `title` column of lists table
+    // Use `title` column of lists table (there is no name column in public.lists)
     const insertPayload: TablesInsert<"lists"> = {
       user_id: user.id,
       title: listTitle,
-      name: listTitle,
       description: description ? description.trim() : null,
       is_ranked: Boolean(is_ranked),
       privacy: resolvedPrivacy,
@@ -187,11 +186,16 @@ export async function POST(request: NextRequest) {
 
     // Fallback if schema has name instead of title
     if (error && (error.message.includes("title") || error.code === "42703")) {
-      const fallbackPayload: TablesInsert<"lists"> = { ...insertPayload };
-      delete fallbackPayload.title;
+      const fallbackPayload: Record<string, unknown> = {
+        user_id: user.id,
+        name: listTitle,
+        description: description ? description.trim() : null,
+        is_ranked: Boolean(is_ranked),
+        privacy: resolvedPrivacy,
+      };
       const retryResult = await supabase
         .from("lists")
-        .insert(fallbackPayload)
+        .insert(fallbackPayload as unknown as TablesInsert<"lists">)
         .select()
         .single();
       data = retryResult.data;

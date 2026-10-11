@@ -19,6 +19,7 @@ import { TopNav } from "@/components/navigation/TopNav";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { CreateListModal } from "@/components/lists/CreateListModal";
+import { LikeButton } from "@/components/social/LikeButton";
 import { getLists } from "@/lib/lists";
 import { useAuth } from "@/context/AuthContext";
 import type { ListWithItems } from "@/types/database.types";
@@ -58,7 +59,8 @@ export default function ListsPage() {
     // Search query filter
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      const matchName = list.name.toLowerCase().includes(q);
+      const listTitle = (list.title || list.name || "").toLowerCase();
+      const matchName = listTitle.includes(q);
       const matchDesc = list.description?.toLowerCase().includes(q);
       const matchItem = list.items?.some((it) =>
         it.media?.title.toLowerCase().includes(q)
@@ -255,7 +257,7 @@ export default function ListsPage() {
                   <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
                     <div className="space-y-2">
                       <h3 className="font-serif text-lg font-bold text-text group-hover:text-accent transition-colors line-clamp-1 leading-snug">
-                        {list.name}
+                        {list.title || list.name || "Untitled List"}
                       </h3>
                       {list.description && (
                         <p className="text-xs text-text-muted line-clamp-2 leading-relaxed">
@@ -275,9 +277,12 @@ export default function ListsPage() {
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-1.5 font-medium text-[11px]">
-                        <span>{itemCount} {itemCount === 1 ? "item" : "items"}</span>
-                        <ArrowRight className="w-3 h-3 text-text-muted group-hover:text-accent group-hover:translate-x-0.5 transition-all" />
+                      <div className="flex items-center gap-3">
+                        <LikeButton listId={list.id} size="sm" />
+                        <div className="flex items-center gap-1 font-medium text-[11px]">
+                          <span>{itemCount} {itemCount === 1 ? "item" : "items"}</span>
+                          <ArrowRight className="w-3 h-3 text-text-muted group-hover:text-accent group-hover:translate-x-0.5 transition-all" />
+                        </div>
                       </div>
                     </div>
                   </div>

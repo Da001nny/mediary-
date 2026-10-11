@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/Button";
 import { MediaSearchModal } from "@/components/media/MediaSearchModal";
 import { SpoilerReviewText } from "@/components/media/SpoilerReviewText";
 import { RatingBadge } from "@/components/ui/RatingBadge";
+import { LikeButton } from "@/components/social/LikeButton";
 import type { CastMember, CrewMember } from "@/types/database.types";
 
 export interface DiaryEntry {
@@ -744,7 +745,7 @@ export function DiaryView() {
 
                     {/* Review Notes in padded card */}
                     {(entry.notes || entry.review) && (
-                      <div className="p-3.5 sm:p-4 rounded-xl bg-bg/50 border border-border/70 text-xs sm:text-sm leading-relaxed">
+                      <div className="p-3.5 sm:p-4 rounded-xl bg-bg/50 border border-border/70 text-xs sm:text-sm leading-relaxed space-y-2.5">
                         <SpoilerReviewText
                           text={entry.notes || entry.review || ""}
                           containsSpoilers={Boolean(
@@ -753,6 +754,14 @@ export function DiaryView() {
                           )}
                           isAuthor={true}
                         />
+
+                        <div className="pt-2 border-t border-border/50 flex items-center justify-between">
+                          <LikeButton
+                            entryId={entry.id}
+                            mediaType={entry.type}
+                            size="sm"
+                          />
+                        </div>
                       </div>
                     )}
 

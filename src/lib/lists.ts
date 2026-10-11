@@ -12,6 +12,7 @@ export const SAMPLE_LISTS: ListWithItems[] = [
   {
     id: "sample-list-1",
     user_id: "demo-user-1",
+    title: "Top 10 Essential Sci-Fi & Mind-Benders",
     name: "Top 10 Essential Sci-Fi & Mind-Benders",
     description:
       "A personal definitive ranking of the most thought-provoking films and series that explore consciousness, time, and human destiny.",
@@ -133,6 +134,7 @@ export const SAMPLE_LISTS: ListWithItems[] = [
   {
     id: "sample-list-2",
     user_id: "demo-user-1",
+    title: "Cozy Autumn Nights: Games & Books",
     name: "Cozy Autumn Nights: Games & Books",
     description:
       "Comforting escapes for rainy evenings — narrative games with warm art styles alongside immersive novels.",
@@ -322,6 +324,7 @@ export async function createCustomList(params: {
   const newList: ListWithItems = {
     id: `list-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
     user_id: params.userId || "demo-user-1",
+    title: params.name.trim(),
     name: params.name.trim(),
     description: params.description?.trim() || null,
     is_ranked: Boolean(params.is_ranked),

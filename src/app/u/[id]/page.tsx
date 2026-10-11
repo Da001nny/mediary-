@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/Button";
 import { FollowButton } from "@/components/profile/FollowButton";
 import { FollowListModal } from "@/components/profile/FollowListModal";
 import { AuthModal } from "@/components/auth/AuthModal";
+import { LikeButton } from "@/components/social/LikeButton";
 import { useAuth } from "@/context/AuthContext";
 import type { MediaItem } from "@/types/database.types";
 
@@ -576,8 +577,8 @@ export default function PublicProfilePage({
                               </div>
                             )}
 
-                            {/* Card Footer: Log date and view title link */}
-                            <div className="pt-1.5 border-t border-border/50 flex items-center justify-between text-[11px] font-mono text-text-muted">
+                            {/* Card Footer: Log date, like button and view title link */}
+                            <div className="pt-2 border-t border-border/50 flex items-center justify-between gap-2 text-[11px] font-mono text-text-muted">
                               <span>
                                 {new Date(log.created_at).toLocaleDateString(undefined, {
                                   month: "short",
@@ -586,13 +587,20 @@ export default function PublicProfilePage({
                                 })}
                               </span>
 
-                              <Link
-                                href={`/media/${media.id}`}
-                                className="inline-flex items-center gap-1 text-accent hover:underline font-semibold"
-                              >
-                                <span>Details</span>
-                                <ChevronRight className="w-3 h-3" />
-                              </Link>
+                              <div className="flex items-center gap-2">
+                                <LikeButton
+                                  entryId={log.id}
+                                  mediaType={media.type}
+                                  size="sm"
+                                />
+                                <Link
+                                  href={`/media/${media.id}`}
+                                  className="inline-flex items-center gap-1 text-accent hover:underline font-semibold"
+                                >
+                                  <span>Details</span>
+                                  <ChevronRight className="w-3 h-3" />
+                                </Link>
+                              </div>
                             </div>
                           </div>
                         );

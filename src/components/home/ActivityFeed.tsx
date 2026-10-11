@@ -17,6 +17,8 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { RatingBadge } from "@/components/ui/RatingBadge";
 import { SpoilerReviewText } from "@/components/media/SpoilerReviewText";
+import { LikeButton } from "@/components/social/LikeButton";
+import { CommentSection } from "@/components/social/CommentSection";
 import type { FeedItem } from "@/app/api/activity/route";
 
 interface ActivityFeedProps {
@@ -405,6 +407,39 @@ export function ActivityFeed({ onOpenSearch }: ActivityFeedProps) {
                         </p>
                       )}
                     </div>
+                  </div>
+                )}
+
+                {/* Social Interactions (Likes and Comments) */}
+                {Boolean((item.type === "logged" || item.type === "reviewed") && item.ref_id) && (
+                  <div className="pt-2 border-t border-border/50 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <LikeButton
+                        entryId={item.ref_id!}
+                        mediaType={item.media_type || item.media?.type}
+                        size="sm"
+                      />
+                    </div>
+                    <CommentSection
+                      entryId={item.ref_id!}
+                      mediaType={item.media_type || item.media?.type}
+                      initialIsOpen={false}
+                    />
+                  </div>
+                )}
+
+                {Boolean(item.type === "listed" && item.ref_id) && (
+                  <div className="pt-2 border-t border-border/50 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <LikeButton
+                        listId={item.ref_id!}
+                        size="sm"
+                      />
+                    </div>
+                    <CommentSection
+                      listId={item.ref_id!}
+                      initialIsOpen={false}
+                    />
                   </div>
                 )}
               </article>

@@ -26,6 +26,8 @@ import { Badge } from "@/components/ui/Badge";
 import { ReorderableItemList } from "./ReorderableItemList";
 import { CreateListModal } from "./CreateListModal";
 import { MediaSearchModal } from "@/components/media/MediaSearchModal";
+import { LikeButton } from "@/components/social/LikeButton";
+import { CommentSection } from "@/components/social/CommentSection";
 import {
   getListById,
   deleteCustomList,
@@ -230,6 +232,10 @@ export function ListDetailView({ initialList }: ListDetailViewProps) {
 
           {/* Action Buttons */}
           <div className="flex flex-wrap md:flex-col items-stretch gap-2 shrink-0">
+            <div className="flex items-center gap-2">
+              <LikeButton listId={list.id} size="md" />
+            </div>
+
             {isOwner && (
               <Button
                 variant="primary"
@@ -362,6 +368,14 @@ export function ListDetailView({ initialList }: ListDetailViewProps) {
         onRemoveItem={handleRemoveItem}
         onUpdateNotes={handleUpdateNotes}
       />
+
+      {/* Social Discussion / Comments for List */}
+      <div className="p-6 sm:p-8 rounded-2xl bg-surface border border-border shadow-xs space-y-4">
+        <h2 className="font-serif text-lg sm:text-xl font-bold text-text">
+          List Discussion & Comments
+        </h2>
+        <CommentSection listId={list.id} initialIsOpen={true} />
+      </div>
 
       {/* Edit List Modal */}
       <CreateListModal
