@@ -144,23 +144,16 @@ ALTER TABLE public.media ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Media items are viewable by everyone" ON public.media;
 DROP POLICY IF EXISTS "Authenticated users can insert media" ON public.media;
 DROP POLICY IF EXISTS "Authenticated users can update media" ON public.media;
+DROP POLICY IF EXISTS "Authenticated users can delete media" ON public.media;
+DROP POLICY IF EXISTS "Users can insert media" ON public.media;
+DROP POLICY IF EXISTS "Users can update media" ON public.media;
+DROP POLICY IF EXISTS "Users can delete media" ON public.media;
 
 -- RLS Policies
 CREATE POLICY "Media items are viewable by everyone"
   ON public.media
   FOR SELECT
   USING (true);
-
-CREATE POLICY "Authenticated users can insert media"
-  ON public.media
-  FOR INSERT
-  WITH CHECK (auth.role() = 'authenticated' OR auth.role() = 'service_role');
-
-CREATE POLICY "Authenticated users can update media"
-  ON public.media
-  FOR UPDATE
-  USING (auth.role() = 'authenticated' OR auth.role() = 'service_role')
-  WITH CHECK (auth.role() = 'authenticated' OR auth.role() = 'service_role');
 
 -- Trigger to update updated_at
 DROP TRIGGER IF EXISTS set_media_updated_at ON public.media;

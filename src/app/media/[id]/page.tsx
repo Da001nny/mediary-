@@ -10,6 +10,7 @@ import { BookDetailsSection } from "@/components/media/BookDetailsSection";
 import { MediaReviewsFeed } from "@/components/media/MediaReviewsFeed";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { indexMediaItem } from "@/lib/algolia";
 import { fetchTMDBDetails } from "@/lib/tmdb";
 import { fetchRAWGGameDetails, rawgGameToMediaPayload } from "@/lib/rawg";
 import { fetchGoogleBookDetails, bookToMediaPayload } from "@/lib/google-books";
@@ -20,7 +21,7 @@ import type {
   WatchProvidersCountry,
   Json,
 } from "@/types/database.types";
-import { Coffee, Film, ArrowLeft } from "lucide-react";
+import { Coffee, Film, ArrowLeft, Lock, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 interface PageProps {
@@ -29,15 +30,17 @@ interface PageProps {
 }
 
 /**
- * Loads a media record by UUID, TMDB ID, RAWG ID, or auto-syncs on-demand.
+ * Checks the existing catalog for a media record by UUID or external provider IDs.
+ * Does NOT perform external API network calls or database writes.
  */
-async function getMedia(id: string): Promise<MediaItem | null> {
+async function getCatalogMedia(id: string): Promise<MediaItem | null> {
   const supabase = createAdminClient();
+  if (!supabase) return null;
 
   const isUuid =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
-  if (isUuid && supabase) {
+  if (isUuid) {
     const { data } = await supabase
       .from("media")
       .select("*")
@@ -47,115 +50,31 @@ async function getMedia(id: string): Promise<MediaItem | null> {
     if (data) return data as MediaItem;
   }
 
-  // 1. Check for Book prefixes: "book-" or "gb-"
+  // 1. Books: "book-" or "gb-"
   if (id.startsWith("book-") || id.startsWith("gb-")) {
     const bookId = id.replace(/^(book-|gb-)/i, "");
-    if (supabase) {
-      const { data: byBook } = await supabase
-        .from("media")
-        .select("*")
-        .filter("external_ids->>google_books_id", "eq", bookId)
-        .maybeSingle();
+    const { data: byBook } = await supabase
+      .from("media")
+      .select("*")
+      .filter("external_ids->>google_books_id", "eq", bookId)
+      .maybeSingle();
 
-      if (byBook) return byBook as MediaItem;
-    }
-
-    // Not in database: Fetch from Google Books and upsert
-    const { data: bookDetails } = await fetchGoogleBookDetails(bookId);
-    if (bookDetails) {
-      const payload = bookToMediaPayload(bookDetails);
-      if (supabase) {
-        const { data: existingRows } = await supabase
-          .from("media")
-          .select("id")
-          .filter("external_ids->>google_books_id", "eq", bookDetails.google_books_id)
-          .limit(1);
-
-        const existingId = existingRows?.[0]?.id;
-        let upsertResult;
-        if (existingId) {
-          upsertResult = await supabase
-            .from("media")
-            .update(payload)
-            .eq("id", existingId)
-            .select()
-            .single();
-        } else {
-          upsertResult = await supabase
-            .from("media")
-            .insert(payload)
-            .select()
-            .single();
-        }
-
-        if (upsertResult?.data) {
-          return upsertResult.data as MediaItem;
-        }
-      }
-
-      return {
-        id: `book-${bookDetails.google_books_id}`,
-        ...payload,
-      } as MediaItem;
-    }
+    if (byBook) return byBook as MediaItem;
   }
 
-  // 2. Check for Game prefixes: "game-3498" or "rawg-3498"
+  // 2. Games: "game-" or "rawg-"
   if (id.startsWith("game-") || id.startsWith("rawg-")) {
     const rawgId = id.replace(/^(game-|rawg-)/, "");
-    if (supabase) {
-      const { data: byRawg } = await supabase
-        .from("media")
-        .select("*")
-        .filter("external_ids->>rawg_id", "eq", String(rawgId))
-        .maybeSingle();
+    const { data: byRawg } = await supabase
+      .from("media")
+      .select("*")
+      .filter("external_ids->>rawg_id", "eq", String(rawgId))
+      .maybeSingle();
 
-      if (byRawg) return byRawg as MediaItem;
-    }
-
-    // Not in database: Fetch from RAWG and upsert
-    const { data: gameDetails } = await fetchRAWGGameDetails(rawgId);
-    if (gameDetails) {
-      const payload = rawgGameToMediaPayload(gameDetails);
-
-      if (supabase) {
-        const { data: existingRows } = await supabase
-          .from("media")
-          .select("id")
-          .filter("external_ids->>rawg_id", "eq", String(gameDetails.rawg_id))
-          .limit(1);
-
-        const existingId = existingRows?.[0]?.id;
-        let upsertResult;
-        if (existingId) {
-          upsertResult = await supabase
-            .from("media")
-            .update(payload)
-            .eq("id", existingId)
-            .select()
-            .single();
-        } else {
-          upsertResult = await supabase
-            .from("media")
-            .insert(payload)
-            .select()
-            .single();
-        }
-
-        if (upsertResult?.data) {
-          return upsertResult.data as MediaItem;
-        }
-      }
-
-      // Memory fallback for game
-      return {
-        id: `rawg-game-${gameDetails.rawg_id}`,
-        ...payload,
-      } as MediaItem;
-    }
+    if (byRawg) return byRawg as MediaItem;
   }
 
-  // 2. Parse if it's numeric or prefixed like "movie-550" or "tv-95557"
+  // 3. Movies / TV / numeric TMDB
   let numericId: number | null = null;
   let type: "movie" | "tv" | "game" = "movie";
 
@@ -170,143 +89,247 @@ async function getMedia(id: string): Promise<MediaItem | null> {
   }
 
   if (numericId && !isNaN(numericId)) {
-    if (supabase) {
-      // 1. Try to find in database by external_ids->>tmdb_id
-      const { data: byTmdb } = await supabase
-        .from("media")
-        .select("*")
-        .filter("external_ids->>tmdb_id", "eq", String(numericId))
-        .maybeSingle();
+    const { data: byTmdb } = await supabase
+      .from("media")
+      .select("*")
+      .filter("external_ids->>tmdb_id", "eq", String(numericId))
+      .eq("type", type)
+      .maybeSingle();
 
-      if (byTmdb) return byTmdb as MediaItem;
+    if (byTmdb) return byTmdb as MediaItem;
 
-      // 2. Try to find by RAWG ID
-      const { data: byRawg } = await supabase
-        .from("media")
-        .select("*")
-        .filter("external_ids->>rawg_id", "eq", String(numericId))
-        .maybeSingle();
+    const { data: byRawg } = await supabase
+      .from("media")
+      .select("*")
+      .filter("external_ids->>rawg_id", "eq", String(numericId))
+      .maybeSingle();
 
-      if (byRawg) return byRawg as MediaItem;
+    if (byRawg) return byRawg as MediaItem;
+  }
+
+  return null;
+}
+
+/**
+ * Fetches and saves an uncached title using service-role client.
+ * Strictly applies the same input validation guards as the sync routes.
+ */
+async function fetchAndSaveUncachedMedia(id: string): Promise<MediaItem | null> {
+  const supabase = createAdminClient();
+  if (!supabase) return null;
+
+  // 1. Books: "book-" or "gb-"
+  if (id.startsWith("book-") || id.startsWith("gb-")) {
+    const rawId = id.replace(/^(book-|gb-)/i, "").trim();
+
+    // Input validation: volume ID must be 4-64 alphanumeric/dash/underscore chars or positive integer in sane range
+    const isNumeric = /^\d+$/.test(rawId);
+    let isValidId = false;
+
+    if (isNumeric) {
+      const numId = Number(rawId);
+      isValidId = Number.isInteger(numId) && numId >= 1 && numId <= 10_000_000;
+    } else {
+      isValidId =
+        rawId.length >= 4 &&
+        rawId.length <= 64 &&
+        /^[a-zA-Z0-9_\-]+$/.test(rawId);
     }
 
-    // 3. Not in database yet: Fetch from TMDB
-    const { data: details } = await fetchTMDBDetails(numericId, type);
-    if (details) {
-      const genreNames = Array.isArray(details.genres)
-        ? details.genres
-            .map((g) => (typeof g === "string" ? g : g.name))
-            .filter(Boolean)
-        : [];
+    if (!isValidId) return null;
 
-      const payload = {
-        type: details.type,
-        title: details.title,
-        cover_url: details.poster_url,
-        release_date: details.release_date,
-        genres: genreNames,
-        synopsis: details.overview,
-        type_specific: {
-          runtime: details.runtime,
-          tagline: details.tagline,
-          original_title: details.original_title,
-          status: details.status,
-          backdrop_url: details.backdrop_url,
-          number_of_seasons: details.number_of_seasons,
-          number_of_episodes: details.number_of_episodes,
-          cast: details.cast,
-          crew: details.crew,
-          credits: details.credits,
-        } as unknown as Json,
-        external_ids: {
-          tmdb_id: details.tmdb_id,
-          imdb_id: details.imdb_id,
-        } as unknown as Json,
-        watch_providers: details.watch_providers as unknown as Json,
-        localized_fields: {
-          original_language: details.original_language,
-          spoken_languages: details.spoken_languages,
-          production_companies: details.production_companies,
-        } as unknown as Json,
-        community_rating_avg: details.vote_average,
-        community_rating_count: details.vote_count,
-        last_synced_at: new Date().toISOString(),
-      };
+    const { data: bookDetails, error: bookErr } = await fetchGoogleBookDetails(rawId);
+    if (bookErr || !bookDetails) return null;
 
-      if (supabase) {
-        const { data: existingRows } = await supabase
-          .from("media")
-          .select("id")
-          .filter("external_ids->>tmdb_id", "eq", String(details.tmdb_id))
-          .limit(1);
+    const payload = bookToMediaPayload(bookDetails);
+    const { data: existingRows } = await supabase
+      .from("media")
+      .select("id")
+      .filter("external_ids->>google_books_id", "eq", bookDetails.google_books_id)
+      .limit(1);
 
-        const existingId = existingRows?.[0]?.id;
+    const existingId = existingRows?.[0]?.id;
+    let savedMedia: MediaItem | null = null;
 
-        let upsertResult;
-        if (existingId) {
-          upsertResult = await supabase
-            .from("media")
-            .update(payload)
-            .eq("id", existingId)
-            .select()
-            .single();
-        } else {
-          upsertResult = await supabase
-            .from("media")
-            .insert(payload)
-            .select()
-            .single();
-        }
-
-        if (upsertResult?.data) {
-          return upsertResult.data as MediaItem;
-        }
-      }
-
-      // Memory fallback: ensures page renders with complete metadata
-      return {
-        id: `tmdb-${details.type}-${details.tmdb_id}`,
-        ...payload,
-      } as MediaItem;
+    if (existingId) {
+      const { data: updated } = await supabase
+        .from("media")
+        .update(payload)
+        .eq("id", existingId)
+        .select()
+        .single();
+      savedMedia = updated as MediaItem | null;
+    } else {
+      const { data: inserted } = await supabase
+        .from("media")
+        .insert(payload)
+        .select()
+        .single();
+      savedMedia = inserted as MediaItem | null;
     }
 
-    // 4. Try RAWG for numeric ID
-    const { data: gameDetails } = await fetchRAWGGameDetails(numericId);
-    if (gameDetails) {
-      const payload = rawgGameToMediaPayload(gameDetails);
-      if (supabase) {
-        const { data: existingRows } = await supabase
-          .from("media")
-          .select("id")
-          .filter("external_ids->>rawg_id", "eq", String(gameDetails.rawg_id))
-          .limit(1);
-
-        const existingId = existingRows?.[0]?.id;
-        let upsertResult;
-        if (existingId) {
-          upsertResult = await supabase
-            .from("media")
-            .update(payload)
-            .eq("id", existingId)
-            .select()
-            .single();
-        } else {
-          upsertResult = await supabase
-            .from("media")
-            .insert(payload)
-            .select()
-            .single();
-        }
-
-        if (upsertResult?.data) {
-          return upsertResult.data as MediaItem;
-        }
+    if (savedMedia) {
+      try {
+        await indexMediaItem(savedMedia);
+      } catch (algoliaErr) {
+        console.warn("Algolia indexing skipped for uncached book:", algoliaErr);
       }
+      return savedMedia;
+    }
 
-      return {
-        id: `rawg-game-${gameDetails.rawg_id}`,
-        ...payload,
-      } as MediaItem;
+    return null;
+  }
+
+  // 2. Games: "game-" or "rawg-"
+  if (id.startsWith("game-") || id.startsWith("rawg-")) {
+    const rawId = id.replace(/^(game-|rawg-)/, "").trim();
+    const idNum = Number(rawId);
+
+    // Input validation: must be a positive integer between 1 and 10,000,000
+    if (!Number.isInteger(idNum) || idNum < 1 || idNum > 10_000_000) {
+      return null;
+    }
+
+    const { data: gameDetails, error: rawgErr } = await fetchRAWGGameDetails(idNum);
+    if (rawgErr || !gameDetails) return null;
+
+    const payload = rawgGameToMediaPayload(gameDetails);
+    const { data: existingRows } = await supabase
+      .from("media")
+      .select("id")
+      .filter("external_ids->>rawg_id", "eq", String(gameDetails.rawg_id))
+      .limit(1);
+
+    const existingId = existingRows?.[0]?.id;
+    let savedMedia: MediaItem | null = null;
+
+    if (existingId) {
+      const { data: updated } = await supabase
+        .from("media")
+        .update(payload)
+        .eq("id", existingId)
+        .select()
+        .single();
+      savedMedia = updated as MediaItem | null;
+    } else {
+      const { data: inserted } = await supabase
+        .from("media")
+        .insert(payload)
+        .select()
+        .single();
+      savedMedia = inserted as MediaItem | null;
+    }
+
+    if (savedMedia) {
+      try {
+        await indexMediaItem(savedMedia);
+      } catch (algoliaErr) {
+        console.warn("Algolia indexing skipped for uncached game:", algoliaErr);
+      }
+      return savedMedia;
+    }
+
+    return null;
+  }
+
+  // 3. Movies / TV / Numeric TMDB
+  let numericId: number | null = null;
+  let type: "movie" | "tv" = "movie";
+
+  if (id.startsWith("movie-")) {
+    numericId = parseInt(id.replace("movie-", ""), 10);
+    type = "movie";
+  } else if (id.startsWith("tv-")) {
+    numericId = parseInt(id.replace("tv-", ""), 10);
+    type = "tv";
+  } else if (/^\d+$/.test(id)) {
+    numericId = parseInt(id, 10);
+  }
+
+  // Input validation: must be a positive integer between 1 and 10,000,000
+  if (
+    numericId &&
+    Number.isInteger(numericId) &&
+    numericId >= 1 &&
+    numericId <= 10_000_000
+  ) {
+    const { data: details, error: tmdbErr } = await fetchTMDBDetails(numericId, type);
+    if (tmdbErr || !details) return null;
+
+    const genreNames = Array.isArray(details.genres)
+      ? details.genres
+          .map((g) => (typeof g === "string" ? g : g.name))
+          .filter(Boolean)
+      : [];
+
+    const payload = {
+      type: details.type,
+      title: details.title,
+      cover_url: details.poster_url,
+      release_date: details.release_date,
+      genres: genreNames,
+      synopsis: details.overview,
+      type_specific: {
+        runtime: details.runtime,
+        tagline: details.tagline,
+        original_title: details.original_title,
+        status: details.status,
+        backdrop_url: details.backdrop_url,
+        number_of_seasons: details.number_of_seasons,
+        number_of_episodes: details.number_of_episodes,
+        cast: details.cast,
+        crew: details.crew,
+        credits: details.credits,
+      } as unknown as Json,
+      external_ids: {
+        tmdb_id: details.tmdb_id,
+        imdb_id: details.imdb_id,
+      } as unknown as Json,
+      watch_providers: details.watch_providers as unknown as Json,
+      localized_fields: {
+        original_language: details.original_language,
+        spoken_languages: details.spoken_languages,
+        production_companies: details.production_companies,
+      } as unknown as Json,
+      community_rating_avg: details.vote_average,
+      community_rating_count: details.vote_count,
+      last_synced_at: new Date().toISOString(),
+    };
+
+    const { data: existingRows } = await supabase
+      .from("media")
+      .select("id")
+      .filter("external_ids->>tmdb_id", "eq", String(details.tmdb_id))
+      .eq("type", type)
+      .limit(1);
+
+    const existingId = existingRows?.[0]?.id;
+    let savedMedia: MediaItem | null = null;
+
+    if (existingId) {
+      const { data: updated } = await supabase
+        .from("media")
+        .update(payload)
+        .eq("id", existingId)
+        .select()
+        .single();
+      savedMedia = updated as MediaItem | null;
+    } else {
+      const { data: inserted } = await supabase
+        .from("media")
+        .insert(payload)
+        .select()
+        .single();
+      savedMedia = inserted as MediaItem | null;
+    }
+
+    if (savedMedia) {
+      try {
+        await indexMediaItem(savedMedia);
+      } catch (algoliaErr) {
+        console.warn("Algolia indexing skipped for uncached tmdb item:", algoliaErr);
+      }
+      return savedMedia;
     }
   }
 
@@ -344,12 +367,12 @@ async function getUserRegion(): Promise<string> {
  */
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const media = await getMedia(id);
+  const media = await getCatalogMedia(id);
 
   if (!media) {
     return {
-      title: "Title Not Found — meDiary",
-      description: "The requested media title could not be found in the catalog.",
+      title: "Title Page — meDiary",
+      description: "Explore details, cast, reviews, and watch providers on meDiary.",
     };
   }
 
@@ -373,7 +396,74 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function MediaDetailPage({ params }: PageProps) {
   const { id } = await params;
-  const [media, userRegion] = await Promise.all([getMedia(id), getUserRegion()]);
+
+  // 1. Check if title is already in catalog
+  const cachedMedia = await getCatalogMedia(id);
+
+  let media: MediaItem | null = cachedMedia;
+  let requiresAuth = false;
+
+  if (!media) {
+    // 2. Title is uncached: verify visitor is verified signed in
+    const serverSupabase = await createClient();
+    const {
+      data: { user },
+    } = serverSupabase
+      ? await serverSupabase.auth.getUser()
+      : { data: { user: null } };
+
+    if (!user) {
+      // Unauthenticated visitor trying to view an uncached title: show "sign in to add this title" state
+      requiresAuth = true;
+    } else {
+      // Authenticated visitor: apply strict sync route validation, fetch from external provider and save
+      media = await fetchAndSaveUncachedMedia(id);
+    }
+  }
+
+  const userRegion = await getUserRegion();
+
+  // Visitor not signed in attempting to access an uncached title
+  if (requiresAuth) {
+    return (
+      <div className="min-h-screen bg-bg text-text flex flex-col font-sans">
+        <TopNav />
+        <main className="flex-1 max-w-xl mx-auto px-4 py-20 flex flex-col items-center justify-center text-center">
+          <div className="w-16 h-16 rounded-2xl bg-surface border border-border/80 flex items-center justify-center text-accent mb-5 shadow-xs">
+            <Lock className="w-8 h-8" />
+          </div>
+          <h1 className="font-serif text-2xl sm:text-3xl font-bold text-text mb-2.5">
+            Sign in to add this title
+          </h1>
+          <p className="text-xs sm:text-sm text-text-muted leading-relaxed max-w-md mb-8">
+            This title hasn&apos;t been added to the catalog yet. Sign in or create an account to discover and archive it in your meDiary journal.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+            <Link href="/login" className="w-full sm:w-auto">
+              <Button
+                variant="primary"
+                size="md"
+                leftIcon={<LogIn className="w-4 h-4" />}
+                className="w-full sm:w-auto justify-center"
+              >
+                Sign In to Add Title
+              </Button>
+            </Link>
+            <Link href="/" className="w-full sm:w-auto">
+              <Button
+                variant="secondary"
+                size="md"
+                leftIcon={<ArrowLeft className="w-4 h-4" />}
+                className="w-full sm:w-auto justify-center"
+              >
+                Return to Catalog
+              </Button>
+            </Link>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   if (!media) {
     return (
@@ -387,7 +477,7 @@ export default async function MediaDetailPage({ params }: PageProps) {
             Title Not Found
           </h1>
           <p className="text-sm text-text-muted max-w-md mb-6">
-            We couldn&apos;t find this media item in your catalog or on TMDB. Check the URL or search for another title using the top search bar.
+            We couldn&apos;t find this media item in your catalog or on external providers. Check the URL or search for another title using the top search bar.
           </p>
           <div className="flex items-center gap-3">
             <Link href="/">
@@ -473,3 +563,4 @@ export default async function MediaDetailPage({ params }: PageProps) {
     </div>
   );
 }
+

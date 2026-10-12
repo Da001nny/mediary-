@@ -225,8 +225,14 @@ export async function POST(request: NextRequest) {
       );
 
     if (!isUuid) {
-      // Look up existing media row by external_ids->>tmdb_id or create it via admin client
-      const adminSupabase = createAdminClient() || supabase;
+      // Look up existing media row by external_ids->>tmdb_id or create it via service-role admin client
+      const adminSupabase = createAdminClient();
+      if (!adminSupabase) {
+        return NextResponse.json(
+          { error: "Service role client not configured for media catalog operations." },
+          { status: 500 }
+        );
+      }
       const lookupId = tmdb_id || media_id.replace(/^[a-z]+-/, "");
 
       const { data: existingMedia } = await adminSupabase
