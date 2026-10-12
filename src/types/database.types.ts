@@ -95,6 +95,8 @@ export type Database = {
         Row: {
           id: string;
           type: MediaType;
+          tmdb_id?: number | null;
+          imdb_id?: string | null;
           title: string;
           cover_url: string | null;
           release_date: string | null;
@@ -111,6 +113,8 @@ export type Database = {
         Insert: {
           id?: string;
           type: MediaType;
+          tmdb_id?: number | null;
+          imdb_id?: string | null;
           title: string;
           cover_url?: string | null;
           release_date?: string | null;
@@ -127,6 +131,8 @@ export type Database = {
         Update: {
           id?: string;
           type?: MediaType;
+          tmdb_id?: number | null;
+          imdb_id?: string | null;
           title?: string;
           cover_url?: string | null;
           release_date?: string | null;

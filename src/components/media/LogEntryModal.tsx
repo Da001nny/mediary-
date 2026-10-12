@@ -265,9 +265,7 @@ function LogEntryModalContent({
 
       const payload = {
         media_id: media.id,
-        title: media.title,
         media_type: media.type,
-        cover_url: media.cover_url,
         status,
         rating: normalizedRating,
         progress: progressPayload,
