@@ -1,750 +1,32 @@
--- =========================================================
--- meDiary Core Database Schema & Policies (Supabase Postgres)
--- Run this script in the Supabase SQL Editor:
--- https://supabase.com/dashboard/project/_/sql
--- =========================================================
 
--- 1. PROFILES (Extends auth.users)
-CREATE TABLE IF NOT EXISTS public.profiles (
-  id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
-  display_name TEXT,
-  bio TEXT,
-  avatar_url TEXT,
-  region TEXT,
-  locale TEXT NOT NULL DEFAULT 'en',
-  rating_scale TEXT NOT NULL DEFAULT '100',
-  theme TEXT NOT NULL DEFAULT 'system',
-  default_privacy TEXT NOT NULL DEFAULT 'public' CHECK (default_privacy IN ('private', 'friends', 'public')),
-  profile_visibility TEXT NOT NULL DEFAULT 'public' CHECK (profile_visibility IN ('public', 'private')),
-  dashboard_widgets JSONB NOT NULL DEFAULT '[]'::jsonb,
-  joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
 
--- Enable Row Level Security (RLS)
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
--- Drop existing policies if re-running
-DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
-DROP POLICY IF EXISTS "Profiles are viewable based on visibility or owner" ON public.profiles;
-DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
-DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
-DROP POLICY IF EXISTS "Users can delete their own profile" ON public.profiles;
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
 
--- RLS Policies
--- SELECT: Users can view their own profile, or any profile whose profile_visibility is 'public'
-CREATE POLICY "Profiles are viewable based on visibility or owner"
-  ON public.profiles
-  FOR SELECT
-  USING (
-    profile_visibility = 'public'
-    OR auth.uid() = id
-  );
 
--- Safe view exposing only public identity columns for reviews and follow lists
-CREATE OR REPLACE VIEW public.safe_profiles AS
-  SELECT
-    id,
-    display_name,
-    avatar_url
-  FROM public.profiles;
+CREATE SCHEMA IF NOT EXISTS "public";
 
--- INSERT: A user can only insert their own profile record
-CREATE POLICY "Users can insert their own profile"
-  ON public.profiles
-  FOR INSERT
-  WITH CHECK (
-    auth.uid() = id
-  );
 
--- UPDATE: Users can only update their own profile row
-CREATE POLICY "Users can update their own profile"
-  ON public.profiles
-  FOR UPDATE
-  USING (auth.uid() = id)
-  WITH CHECK (auth.uid() = id);
+ALTER SCHEMA "public" OWNER TO "pg_database_owner";
 
--- DELETE: Users can only delete their own profile row
-CREATE POLICY "Users can delete their own profile"
-  ON public.profiles
-  FOR DELETE
-  USING (auth.uid() = id);
 
--- Trigger: auto-update updated_at timestamp
-CREATE OR REPLACE FUNCTION public.handle_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+COMMENT ON SCHEMA "public" IS 'standard public schema';
 
-DROP TRIGGER IF EXISTS set_profiles_updated_at ON public.profiles;
-CREATE TRIGGER set_profiles_updated_at
-  BEFORE UPDATE ON public.profiles
-  FOR EACH ROW
-  EXECUTE FUNCTION public.handle_updated_at();
 
--- Trigger: auto-create profile on auth.users signup (email or Google OAuth)
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO public.profiles (id, display_name, avatar_url)
-  VALUES (
-    NEW.id,
-    COALESCE(
-      NEW.raw_user_meta_data->>'full_name',
-      NEW.raw_user_meta_data->>'name',
-      NEW.raw_user_meta_data->>'display_name',
-      SPLIT_PART(NEW.email, '@', 1)
-    ),
-    NEW.raw_user_meta_data->>'avatar_url'
-  )
-  ON CONFLICT (id) DO NOTHING;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
 
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW
-  EXECUTE FUNCTION public.handle_new_user();
-
--- =========================================================
--- 2. MEDIA (Catalog for Movies, TV, Games, Books)
--- =========================================================
-CREATE TABLE IF NOT EXISTS public.media (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  type TEXT NOT NULL CHECK (type IN ('movie', 'tv', 'game', 'book')),
-  title TEXT NOT NULL,
-  cover_url TEXT,
-  release_date DATE,
-  genres TEXT[] DEFAULT '{}',
-  synopsis TEXT,
-  type_specific JSONB DEFAULT '{}'::jsonb,
-  external_ids JSONB DEFAULT '{}'::jsonb,
-  watch_providers JSONB DEFAULT '{}'::jsonb,
-  localized_fields JSONB DEFAULT '{}'::jsonb,
-  community_rating_avg NUMERIC,
-  community_rating_count INTEGER DEFAULT 0,
-  last_synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- Indexes for performance
-CREATE INDEX IF NOT EXISTS idx_media_type ON public.media(type);
-CREATE INDEX IF NOT EXISTS idx_media_external_ids ON public.media USING gin (external_ids);
-CREATE INDEX IF NOT EXISTS idx_media_title ON public.media USING gin(to_tsvector('english', title));
-CREATE INDEX IF NOT EXISTS idx_media_release_date ON public.media(release_date);
-
--- Enable RLS
-ALTER TABLE public.media ENABLE ROW LEVEL SECURITY;
-
--- Drop existing policies if re-running
-DROP POLICY IF EXISTS "Media items are viewable by everyone" ON public.media;
-DROP POLICY IF EXISTS "Authenticated users can insert media" ON public.media;
-DROP POLICY IF EXISTS "Authenticated users can update media" ON public.media;
-DROP POLICY IF EXISTS "Authenticated users can delete media" ON public.media;
-DROP POLICY IF EXISTS "Users can insert media" ON public.media;
-DROP POLICY IF EXISTS "Users can update media" ON public.media;
-DROP POLICY IF EXISTS "Users can delete media" ON public.media;
-
--- RLS Policies
-CREATE POLICY "Media items are viewable by everyone"
-  ON public.media
-  FOR SELECT
-  USING (true);
-
--- Trigger to update updated_at
-DROP TRIGGER IF EXISTS set_media_updated_at ON public.media;
-CREATE TRIGGER set_media_updated_at
-  BEFORE UPDATE ON public.media
-  FOR EACH ROW
-  EXECUTE FUNCTION public.handle_updated_at();
-
--- =========================================================
--- 3. ENTRIES (User Logs, Statuses, Ratings & Reviews)
--- =========================================================
-CREATE TABLE IF NOT EXISTS public.entries (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  media_id UUID NOT NULL REFERENCES public.media(id) ON DELETE CASCADE,
-  status TEXT NOT NULL CHECK (status IN ('planned', 'in_progress', 'completed', 'dropped', 'on_hold')),
-  rating NUMERIC CHECK (rating >= 0 AND rating <= 100),
-  progress JSONB DEFAULT '{}'::jsonb,
-  review TEXT,
-  contains_spoilers BOOLEAN NOT NULL DEFAULT FALSE,
-  privacy TEXT NOT NULL DEFAULT 'public' CHECK (privacy IN ('private', 'friends', 'public')),
-  started_at TIMESTAMPTZ,
-  completed_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT unique_user_media UNIQUE (user_id, media_id)
-);
-
--- Performance Indexes
-CREATE INDEX IF NOT EXISTS idx_entries_user_id ON public.entries(user_id);
-CREATE INDEX IF NOT EXISTS idx_entries_media_id ON public.entries(media_id);
-CREATE INDEX IF NOT EXISTS idx_entries_status ON public.entries(status);
-CREATE INDEX IF NOT EXISTS idx_entries_privacy ON public.entries(privacy);
-CREATE INDEX IF NOT EXISTS idx_entries_contains_spoilers ON public.entries(contains_spoilers);
-CREATE INDEX IF NOT EXISTS idx_entries_created_at ON public.entries(created_at);
-
--- Enable Row Level Security (RLS)
-ALTER TABLE public.entries ENABLE ROW LEVEL SECURITY;
-
--- Drop existing policies if re-running
-DROP POLICY IF EXISTS "Entries are viewable based on privacy and ownership" ON public.entries;
-DROP POLICY IF EXISTS "Users can only insert their own entries" ON public.entries;
-DROP POLICY IF EXISTS "Users can only update their own entries" ON public.entries;
-DROP POLICY IF EXISTS "Users can only delete their own entries" ON public.entries;
-
--- 1. SELECT: Reads respect the privacy column
--- Users can view their own entries regardless of privacy,
--- OR anyone can view if privacy is 'public',
--- OR mutual followers (friends) can view if privacy is 'friends'
-CREATE POLICY "Entries are viewable based on privacy and ownership"
-  ON public.entries
-  FOR SELECT
-  USING (
-    privacy = 'public'
-    OR auth.uid() = user_id
-    OR (
-      privacy = 'friends'
-      AND EXISTS (
-        SELECT 1 FROM public.follows
-        WHERE follower_id = auth.uid() AND following_id = entries.user_id
-      )
-      AND EXISTS (
-        SELECT 1 FROM public.follows
-        WHERE follower_id = entries.user_id AND following_id = auth.uid()
-      )
-    )
-  );
-
--- 2. INSERT: Users can only insert their own entries
-CREATE POLICY "Users can only insert their own entries"
-  ON public.entries
-  FOR INSERT
-  WITH CHECK (
-    auth.uid() = user_id
-  );
-
--- 3. UPDATE: Users can only update their own entries
-CREATE POLICY "Users can only update their own entries"
-  ON public.entries
-  FOR UPDATE
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
-
--- 4. DELETE: Users can only delete their own entries
-CREATE POLICY "Users can only delete their own entries"
-  ON public.entries
-  FOR DELETE
-  USING (auth.uid() = user_id);
-
--- Trigger: auto-update updated_at timestamp on entries
-DROP TRIGGER IF EXISTS set_entries_updated_at ON public.entries;
-CREATE TRIGGER set_entries_updated_at
-  BEFORE UPDATE ON public.entries
-  FOR EACH ROW
-  EXECUTE FUNCTION public.handle_updated_at();
-
--- =========================================================
--- 4. LISTS (Custom Ranked & Unranked Curations)
--- =========================================================
-CREATE TABLE IF NOT EXISTS public.lists (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  description TEXT,
-  is_ranked BOOLEAN NOT NULL DEFAULT FALSE,
-  privacy TEXT NOT NULL DEFAULT 'public' CHECK (privacy IN ('private', 'friends', 'public')),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- Performance Indexes on Lists
-CREATE INDEX IF NOT EXISTS idx_lists_user_id ON public.lists(user_id);
-CREATE INDEX IF NOT EXISTS idx_lists_privacy ON public.lists(privacy);
-CREATE INDEX IF NOT EXISTS idx_lists_created_at ON public.lists(created_at);
-
--- Enable RLS on Lists
-ALTER TABLE public.lists ENABLE ROW LEVEL SECURITY;
-
--- Drop existing policies if re-running
-DROP POLICY IF EXISTS "Lists are viewable based on privacy and ownership" ON public.lists;
-DROP POLICY IF EXISTS "Users can only insert their own lists" ON public.lists;
-DROP POLICY IF EXISTS "Users can only update their own lists" ON public.lists;
-DROP POLICY IF EXISTS "Users can only delete their own lists" ON public.lists;
-
--- RLS Policies on Lists
-CREATE POLICY "Lists are viewable based on privacy and ownership"
-  ON public.lists
-  FOR SELECT
-  USING (
-    privacy = 'public'
-    OR auth.uid() = user_id
-    OR (
-      privacy = 'friends'
-      AND EXISTS (
-        SELECT 1 FROM public.follows
-        WHERE follower_id = auth.uid() AND following_id = lists.user_id
-      )
-      AND EXISTS (
-        SELECT 1 FROM public.follows
-        WHERE follower_id = lists.user_id AND following_id = auth.uid()
-      )
-    )
-  );
-
-CREATE POLICY "Users can only insert their own lists"
-  ON public.lists
-  FOR INSERT
-  WITH CHECK (
-    auth.uid() = user_id
-  );
-
-CREATE POLICY "Users can only update their own lists"
-  ON public.lists
-  FOR UPDATE
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can only delete their own lists"
-  ON public.lists
-  FOR DELETE
-  USING (auth.uid() = user_id);
-
--- Trigger: auto-update updated_at timestamp on lists
-DROP TRIGGER IF EXISTS set_lists_updated_at ON public.lists;
-CREATE TRIGGER set_lists_updated_at
-  BEFORE UPDATE ON public.lists
-  FOR EACH ROW
-  EXECUTE FUNCTION public.handle_updated_at();
-
--- =========================================================
--- 5. LIST_ITEMS (Items In Ranked or Unranked Lists)
--- =========================================================
-CREATE TABLE IF NOT EXISTS public.list_items (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  list_id UUID NOT NULL REFERENCES public.lists(id) ON DELETE CASCADE,
-  media_id UUID NOT NULL REFERENCES public.media(id) ON DELETE CASCADE,
-  position INTEGER NOT NULL DEFAULT 0,
-  notes TEXT,
-  added_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT unique_list_media UNIQUE (list_id, media_id)
-);
-
--- Performance Indexes on List Items
-CREATE INDEX IF NOT EXISTS idx_list_items_list_id ON public.list_items(list_id);
-CREATE INDEX IF NOT EXISTS idx_list_items_media_id ON public.list_items(media_id);
-CREATE INDEX IF NOT EXISTS idx_list_items_position ON public.list_items(list_id, position);
-
--- Enable RLS on List Items
-ALTER TABLE public.list_items ENABLE ROW LEVEL SECURITY;
-
--- Drop existing policies if re-running
-DROP POLICY IF EXISTS "List items viewable if parent list is accessible" ON public.list_items;
-DROP POLICY IF EXISTS "List items insertable by list owner" ON public.list_items;
-DROP POLICY IF EXISTS "List items updatable by list owner" ON public.list_items;
-DROP POLICY IF EXISTS "List items deletable by list owner" ON public.list_items;
-
--- RLS Policies on List Items
-CREATE POLICY "List items viewable if parent list is accessible"
-  ON public.list_items
-  FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.lists
-      WHERE lists.id = list_items.list_id
-      AND (
-        lists.privacy = 'public'
-        OR lists.user_id = auth.uid()
-        OR (
-          lists.privacy = 'friends'
-          AND EXISTS (
-            SELECT 1 FROM public.follows
-            WHERE follower_id = auth.uid() AND following_id = lists.user_id
-          )
-          AND EXISTS (
-            SELECT 1 FROM public.follows
-            WHERE follower_id = lists.user_id AND following_id = auth.uid()
-          )
-        )
-      )
-    )
-  );
-
-CREATE POLICY "List items insertable by list owner"
-  ON public.list_items
-  FOR INSERT
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.lists
-      WHERE lists.id = list_items.list_id
-      AND lists.user_id = auth.uid()
-    )
-  );
-
-CREATE POLICY "List items updatable by list owner"
-  ON public.list_items
-  FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.lists
-      WHERE lists.id = list_items.list_id
-      AND lists.user_id = auth.uid()
-    )
-  )
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.lists
-      WHERE lists.id = list_items.list_id
-      AND lists.user_id = auth.uid()
-    )
-  );
-
-CREATE POLICY "List items deletable by list owner"
-  ON public.list_items
-  FOR DELETE
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.lists
-      WHERE lists.id = list_items.list_id
-      AND lists.user_id = auth.uid()
-    )
-  );
-
--- =========================================================
--- 5. ALGOLIA REAL-TIME SYNC TRIGGER (Edge Function Invocation)
--- =========================================================
-CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
-
-CREATE OR REPLACE FUNCTION public.handle_media_algolia_sync()
-RETURNS TRIGGER AS $$
-DECLARE
-  project_url TEXT;
-  edge_function_url TEXT;
-  service_role_key TEXT;
-  payload JSONB;
-BEGIN
-  payload := jsonb_build_object(
-    'type', TG_OP,
-    'table', TG_TABLE_NAME,
-    'schema', TG_TABLE_SCHEMA,
-    'record', row_to_json(NEW),
-    'old_record', CASE WHEN TG_OP = 'UPDATE' THEN row_to_json(OLD) ELSE NULL END
-  );
-
-  project_url := NULLIF(current_setting('app.settings.supabase_url', true), '');
-  service_role_key := NULLIF(current_setting('app.settings.supabase_service_role_key', true), '');
-
-  IF project_url IS NOT NULL THEN
-    edge_function_url := rtrim(project_url, '/') || '/functions/v1/algolia-sync';
-  ELSE
-    edge_function_url := 'https://your-project.supabase.co/functions/v1/algolia-sync';
-  END IF;
-
-  PERFORM extensions.http_post(
-    url := edge_function_url,
-    headers := jsonb_build_object(
-      'Content-Type', 'application/json',
-      'Authorization', 'Bearer ' || COALESCE(service_role_key, '')
-    ),
-    body := payload
-  );
-
-  RETURN NEW;
-EXCEPTION
-  WHEN OTHERS THEN
-    RAISE WARNING 'handle_media_algolia_sync encountered an error: %', SQLERRM;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-DROP TRIGGER IF EXISTS tr_media_algolia_sync ON public.media;
-CREATE TRIGGER tr_media_algolia_sync
-  AFTER INSERT OR UPDATE ON public.media
-  FOR EACH ROW
-  EXECUTE FUNCTION public.handle_media_algolia_sync();
-
--- =========================================================
--- 6. FOLLOWS & ACTIVITY
--- =========================================================
-CREATE TABLE IF NOT EXISTS public.follows (
-  follower_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  following_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (follower_id, following_id)
-);
-
-ALTER TABLE public.follows ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conname = 'check_not_self_follow'
-    AND conrelid = 'public.follows'::regclass
-  ) THEN
-    ALTER TABLE public.follows ADD CONSTRAINT check_not_self_follow CHECK (follower_id != following_id);
-  END IF;
-END $$;
-
-CREATE INDEX IF NOT EXISTS idx_follows_follower_id ON public.follows(follower_id);
-CREATE INDEX IF NOT EXISTS idx_follows_following_id ON public.follows(following_id);
-CREATE INDEX IF NOT EXISTS idx_follows_created_at ON public.follows(created_at);
-
-ALTER TABLE public.follows ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Follows are viewable by everyone" ON public.follows;
-DROP POLICY IF EXISTS "Follows are viewable based on ownership or public profiles" ON public.follows;
-DROP POLICY IF EXISTS "Users can insert their own follows" ON public.follows;
-DROP POLICY IF EXISTS "Users can delete their own follows" ON public.follows;
-
-CREATE POLICY "Follows are viewable based on ownership or public profiles"
-  ON public.follows
-  FOR SELECT
-  USING (
-    auth.uid() = follower_id
-    OR auth.uid() = following_id
-    OR (
-      EXISTS (
-        SELECT 1 FROM public.profiles p1
-        WHERE p1.id = follows.follower_id
-          AND p1.profile_visibility = 'public'
-      )
-      AND
-      EXISTS (
-        SELECT 1 FROM public.profiles p2
-        WHERE p2.id = follows.following_id
-          AND p2.profile_visibility = 'public'
-      )
-    )
-  );
-
-CREATE POLICY "Users can insert their own follows"
-  ON public.follows
-  FOR INSERT
-  WITH CHECK (
-    auth.uid() = follower_id
-  );
-
-CREATE POLICY "Users can delete their own follows"
-  ON public.follows
-  FOR DELETE
-  USING (
-    auth.uid() = follower_id
-  );
-
-GRANT SELECT ON public.safe_profiles TO anon, authenticated;
-
--- =========================================================
--- 7. ACTIVITY FEED TABLE & POLICIES
--- =========================================================
-CREATE TABLE IF NOT EXISTS public.activity (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  type TEXT NOT NULL,
-  ref_id UUID,
-  privacy TEXT NOT NULL DEFAULT 'public' CHECK (privacy IN ('public', 'friends', 'private')),
-  media_id UUID REFERENCES public.media(id) ON DELETE CASCADE,
-  media_type TEXT,
-  data JSONB DEFAULT '{}'::jsonb,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_activity_user_type_ref ON public.activity(user_id, type, ref_id);
-CREATE INDEX IF NOT EXISTS idx_activity_created_at ON public.activity(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_activity_user_id ON public.activity(user_id);
-CREATE INDEX IF NOT EXISTS idx_activity_media_type ON public.activity(media_type);
-
-ALTER TABLE public.activity ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Activity is viewable based on privacy and visibility"
-  ON public.activity
-  FOR SELECT
-  USING (
-    auth.uid() = user_id
-    OR (
-      privacy = 'public'
-      AND EXISTS (
-        SELECT 1 FROM public.profiles
-        WHERE profiles.id = activity.user_id
-          AND profiles.profile_visibility = 'public'
-      )
-    )
-    OR (
-      privacy = 'friends'
-      AND EXISTS (
-        SELECT 1 FROM public.follows
-        WHERE follower_id = auth.uid() AND following_id = activity.user_id
-      )
-      AND EXISTS (
-        SELECT 1 FROM public.follows
-        WHERE follower_id = activity.user_id AND following_id = auth.uid()
-      )
-    )
-  );
-
-CREATE POLICY "Users can update their own activity"
-  ON public.activity
-  FOR UPDATE
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert their own activity"
-  ON public.activity
-  FOR INSERT
-  WITH CHECK (
-    auth.uid() = user_id
-  );
-
-CREATE POLICY "Users can delete their own activity"
-  ON public.activity
-  FOR DELETE
-  USING (
-    auth.uid() = user_id
-  );
-
--- =========================================================
--- 8. LIKES AND COMMENTS (Entries and Lists)
--- =========================================================
-CREATE TABLE IF NOT EXISTS public.likes (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  entry_id UUID REFERENCES public.entries(id) ON DELETE CASCADE,
-  list_id UUID REFERENCES public.lists(id) ON DELETE CASCADE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT check_likes_single_target CHECK (
-    (entry_id IS NOT NULL AND list_id IS NULL) OR
-    (entry_id IS NULL AND list_id IS NOT NULL)
-  )
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_likes_user_entry ON public.likes (user_id, entry_id) WHERE entry_id IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS idx_likes_user_list ON public.likes (user_id, list_id) WHERE list_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_likes_entry_id ON public.likes(entry_id);
-CREATE INDEX IF NOT EXISTS idx_likes_list_id ON public.likes(list_id);
-CREATE INDEX IF NOT EXISTS idx_likes_user_id ON public.likes(user_id);
-CREATE INDEX IF NOT EXISTS idx_likes_created_at ON public.likes(created_at DESC);
-
-ALTER TABLE public.likes ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Likes are readable if target is readable"
-  ON public.likes
-  FOR SELECT
-  USING (
-    (entry_id IS NOT NULL AND EXISTS (
-      SELECT 1 FROM public.entries WHERE entries.id = likes.entry_id
-    ))
-    OR
-    (list_id IS NOT NULL AND EXISTS (
-      SELECT 1 FROM public.lists WHERE lists.id = likes.list_id
-    ))
-  );
-
-CREATE POLICY "Users can insert their own likes on readable targets"
-  ON public.likes
-  FOR INSERT
-  WITH CHECK (
-    auth.uid() = user_id
-    AND (
-      (entry_id IS NOT NULL AND EXISTS (
-        SELECT 1 FROM public.entries WHERE entries.id = likes.entry_id
-      ))
-      OR
-      (list_id IS NOT NULL AND EXISTS (
-        SELECT 1 FROM public.lists WHERE lists.id = likes.list_id
-      ))
-    )
-  );
-
-CREATE POLICY "Users can delete their own likes"
-  ON public.likes
-  FOR DELETE
-  USING (
-    auth.uid() = user_id
-  );
-
-CREATE TABLE IF NOT EXISTS public.comments (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  entry_id UUID REFERENCES public.entries(id) ON DELETE CASCADE,
-  list_id UUID REFERENCES public.lists(id) ON DELETE CASCADE,
-  parent_id UUID REFERENCES public.comments(id) ON DELETE CASCADE,
-  body TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT check_comments_single_target CHECK (
-    (entry_id IS NOT NULL AND list_id IS NULL) OR
-    (entry_id IS NULL AND list_id IS NOT NULL)
-  ),
-  CONSTRAINT check_comments_body_length CHECK (
-    length(trim(body)) >= 1 AND length(trim(body)) <= 1000
-  )
-);
-
-CREATE INDEX IF NOT EXISTS idx_comments_entry_id ON public.comments(entry_id);
-CREATE INDEX IF NOT EXISTS idx_comments_list_id ON public.comments(list_id);
-CREATE INDEX IF NOT EXISTS idx_comments_parent_id ON public.comments(parent_id);
-CREATE INDEX IF NOT EXISTS idx_comments_user_id ON public.comments(user_id);
-CREATE INDEX IF NOT EXISTS idx_comments_created_at ON public.comments(created_at ASC);
-
-ALTER TABLE public.comments ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Comments are readable if target is readable"
-  ON public.comments
-  FOR SELECT
-  USING (
-    (entry_id IS NOT NULL AND EXISTS (
-      SELECT 1 FROM public.entries WHERE entries.id = comments.entry_id
-    ))
-    OR
-    (list_id IS NOT NULL AND EXISTS (
-      SELECT 1 FROM public.lists WHERE lists.id = comments.list_id
-    ))
-  );
-
-CREATE POLICY "Users can insert comments on readable targets"
-  ON public.comments
-  FOR INSERT
-  WITH CHECK (
-    auth.uid() = user_id
-    AND (
-      (entry_id IS NOT NULL AND EXISTS (
-        SELECT 1 FROM public.entries WHERE entries.id = comments.entry_id
-      ))
-      OR
-      (list_id IS NOT NULL AND EXISTS (
-        SELECT 1 FROM public.lists WHERE lists.id = comments.list_id
-      ))
-    )
-  );
-
-CREATE POLICY "Users can delete their own comments or target owners can delete"
-  ON public.comments
-  FOR DELETE
-  USING (
-    auth.uid() = user_id
-    OR (
-      entry_id IS NOT NULL AND EXISTS (
-        SELECT 1 FROM public.entries WHERE entries.id = comments.entry_id AND entries.user_id = auth.uid()
-      )
-    )
-    OR (
-      list_id IS NOT NULL AND EXISTS (
-        SELECT 1 FROM public.lists WHERE lists.id = comments.list_id AND lists.user_id = auth.uid()
-      )
-    )
-  );
-
--- Comments database-level guards (rate limit & reply hierarchy)
-CREATE OR REPLACE FUNCTION public.check_comment_guards()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
+CREATE OR REPLACE FUNCTION "public"."check_comment_guards"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO ''
+    AS $$
 DECLARE
   v_recent_count INT;
   v_parent_parent_id UUID;
@@ -793,108 +75,34 @@ BEGIN
 END;
 $$;
 
-DROP TRIGGER IF EXISTS trigger_comment_guards ON public.comments;
 
-CREATE TRIGGER trigger_comment_guards
-  BEFORE INSERT ON public.comments
-  FOR EACH ROW
-  EXECUTE FUNCTION public.check_comment_guards();
+ALTER FUNCTION "public"."check_comment_guards"() OWNER TO "postgres";
 
--- =========================================================
--- IMPORT JOBS & IMPORT ITEMS (Letterboxd & Goodreads)
--- =========================================================
-CREATE TABLE IF NOT EXISTS public.import_jobs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  source TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'pending',
-  options JSONB NOT NULL DEFAULT '{}'::jsonb,
-  total INT NOT NULL DEFAULT 0,
-  matched INT NOT NULL DEFAULT 0,
-  already_logged INT NOT NULL DEFAULT 0,
-  needs_review INT NOT NULL DEFAULT 0,
-  failed INT NOT NULL DEFAULT 0,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+SET default_tablespace = '';
+
+SET default_table_access_method = "heap";
+
+
+CREATE TABLE IF NOT EXISTS "public"."import_items" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "job_id" "uuid" NOT NULL,
+    "row" "jsonb" NOT NULL,
+    "status" "text" DEFAULT 'pending'::"text" NOT NULL,
+    "media_id" "uuid",
+    "candidates" "jsonb",
+    "error" "text",
+    "claimed_at" timestamp with time zone,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS public.import_items (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  job_id UUID NOT NULL REFERENCES public.import_jobs(id) ON DELETE CASCADE,
-  row JSONB NOT NULL,
-  status TEXT NOT NULL DEFAULT 'pending',
-  media_id UUID REFERENCES public.media(id) ON DELETE SET NULL,
-  candidates JSONB,
-  error TEXT,
-  claimed_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
 
-CREATE INDEX IF NOT EXISTS idx_import_jobs_user_id ON public.import_jobs(user_id);
-CREATE INDEX IF NOT EXISTS idx_import_jobs_status ON public.import_jobs(status);
+ALTER TABLE "public"."import_items" OWNER TO "postgres";
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_import_jobs_user_active
-  ON public.import_jobs (user_id)
-  WHERE status IN ('pending', 'processing', 'paused');
 
-CREATE INDEX IF NOT EXISTS idx_import_items_job_id ON public.import_items(job_id);
-CREATE INDEX IF NOT EXISTS idx_import_items_status ON public.import_items(status);
-CREATE INDEX IF NOT EXISTS idx_import_items_job_status ON public.import_items(job_id, status);
-CREATE INDEX IF NOT EXISTS idx_import_items_claim ON public.import_items(job_id, status, claimed_at);
-
-ALTER TABLE public.import_jobs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.import_items ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Users can view their own import jobs" ON public.import_jobs;
-DROP POLICY IF EXISTS "Users can insert their own import jobs" ON public.import_jobs;
-DROP POLICY IF EXISTS "Users can update their own import jobs" ON public.import_jobs;
-DROP POLICY IF EXISTS "Users can delete their own import jobs" ON public.import_jobs;
-
-DROP POLICY IF EXISTS "Users can view their own import items" ON public.import_items;
-DROP POLICY IF EXISTS "Users can insert their own import items" ON public.import_items;
-DROP POLICY IF EXISTS "Users can update their own import items" ON public.import_items;
-DROP POLICY IF EXISTS "Users can delete their own import items" ON public.import_items;
-
-CREATE POLICY "Users can view their own import jobs"
-  ON public.import_jobs FOR SELECT USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert their own import jobs"
-  ON public.import_jobs FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update their own import jobs"
-  ON public.import_jobs FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can delete their own import jobs"
-  ON public.import_jobs FOR DELETE USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can view their own import items"
-  ON public.import_items FOR SELECT USING (
-    EXISTS (SELECT 1 FROM public.import_jobs WHERE import_jobs.id = import_items.job_id AND import_jobs.user_id = auth.uid())
-  );
-
-CREATE POLICY "Users can insert their own import items"
-  ON public.import_items FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM public.import_jobs WHERE import_jobs.id = import_items.job_id AND import_jobs.user_id = auth.uid())
-  );
-
-CREATE POLICY "Users can update their own import items"
-  ON public.import_items FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM public.import_jobs WHERE import_jobs.id = import_items.job_id AND import_jobs.user_id = auth.uid())
-  ) WITH CHECK (
-    EXISTS (SELECT 1 FROM public.import_jobs WHERE import_jobs.id = import_items.job_id AND import_jobs.user_id = auth.uid())
-  );
-
-CREATE POLICY "Users can delete their own import items"
-  ON public.import_items FOR DELETE USING (
-    EXISTS (SELECT 1 FROM public.import_jobs WHERE import_jobs.id = import_items.job_id AND import_jobs.user_id = auth.uid())
-  );
-
-CREATE OR REPLACE FUNCTION public.claim_import_items(p_job_id UUID, p_limit INT)
-RETURNS SETOF public.import_items
-LANGUAGE plpgsql
-SECURITY INVOKER
-SET search_path = ''
-AS $$
+CREATE OR REPLACE FUNCTION "public"."claim_import_items"("p_job_id" "uuid", "p_limit" integer) RETURNS SETOF "public"."import_items"
+    LANGUAGE "plpgsql"
+    SET "search_path" TO ''
+    AS $$
 BEGIN
   RETURN QUERY
   WITH claimable AS (
@@ -921,13 +129,1163 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.claim_import_items(UUID, INT) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.claim_import_items(UUID, INT) FROM anon;
-GRANT EXECUTE ON FUNCTION public.claim_import_items(UUID, INT) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.claim_import_items(UUID, INT) TO service_role;
+
+ALTER FUNCTION "public"."claim_import_items"("p_job_id" "uuid", "p_limit" integer) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."handle_new_user"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO ''
+    AS $$
+BEGIN
+  INSERT INTO public.profiles (id, display_name, avatar_url)
+  VALUES (
+    NEW.id,
+    COALESCE(
+      NEW.raw_user_meta_data->>'full_name',
+      NEW.raw_user_meta_data->>'name',
+      NEW.raw_user_meta_data->>'display_name',
+      SPLIT_PART(NEW.email, '@', 1)
+    ),
+    NEW.raw_user_meta_data->>'avatar_url'
+  )
+  ON CONFLICT (id) DO NOTHING;
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."handle_new_user"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."handle_updated_at"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    SET "search_path" TO ''
+    AS $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."handle_updated_at"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."sync_activity_on_entry_change"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO ''
+    AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    DELETE FROM public.activity
+    WHERE ref_id = OLD.id AND type IN ('logged','reviewed');
+    RETURN OLD;
+  END IF;
+
+  IF NEW.privacy = 'private' THEN
+    DELETE FROM public.activity
+    WHERE ref_id = NEW.id AND type IN ('logged','reviewed');
+    RETURN NEW;
+  END IF;
+
+  IF NEW.review IS NULL OR length(trim(NEW.review)) = 0 THEN
+    DELETE FROM public.activity WHERE ref_id = NEW.id AND type = 'reviewed';
+  END IF;
+
+  UPDATE public.activity
+  SET privacy = NEW.privacy,
+      data = data || jsonb_build_object(
+        'rating', NEW.rating,
+        'review', NEW.review,
+        'contains_spoilers', NEW.contains_spoilers,
+        'status', NEW.status)
+  WHERE ref_id = NEW.id AND type IN ('logged','reviewed');
+
+  RETURN NEW;
+END $$;
+
+
+ALTER FUNCTION "public"."sync_activity_on_entry_change"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."sync_activity_on_list_change"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO ''
+    AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    DELETE FROM public.activity WHERE ref_id = OLD.id AND type = 'listed';
+    RETURN OLD;
+  END IF;
+
+  IF NEW.privacy = 'private' THEN
+    DELETE FROM public.activity WHERE ref_id = NEW.id AND type = 'listed';
+    RETURN NEW;
+  END IF;
+
+  UPDATE public.activity
+  SET privacy = NEW.privacy,
+      data = data || jsonb_build_object('name', NEW.title, 'description', NEW.description)
+  WHERE ref_id = NEW.id AND type = 'listed';
+
+  RETURN NEW;
+END $$;
+
+
+ALTER FUNCTION "public"."sync_activity_on_list_change"() OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."activity" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "type" "text",
+    "ref_id" "uuid",
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "privacy" "text" DEFAULT 'public'::"text" NOT NULL,
+    "media_id" "uuid",
+    "media_type" "text",
+    "data" "jsonb" DEFAULT '{}'::"jsonb",
+    CONSTRAINT "activity_privacy_check" CHECK (("privacy" = ANY (ARRAY['public'::"text", 'friends'::"text", 'private'::"text"])))
+);
+
+
+ALTER TABLE "public"."activity" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."comments" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "entry_id" "uuid",
+    "list_id" "uuid",
+    "parent_id" "uuid",
+    "body" "text" NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    CONSTRAINT "check_comments_body_length" CHECK ((("length"(TRIM(BOTH FROM "body")) >= 1) AND ("length"(TRIM(BOTH FROM "body")) <= 1000))),
+    CONSTRAINT "check_comments_single_target" CHECK (((("entry_id" IS NOT NULL) AND ("list_id" IS NULL)) OR (("entry_id" IS NULL) AND ("list_id" IS NOT NULL))))
+);
+
+
+ALTER TABLE "public"."comments" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."entries" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "media_id" "uuid" NOT NULL,
+    "status" "text",
+    "rating" numeric,
+    "review" "text",
+    "contains_spoilers" boolean DEFAULT false,
+    "started_at" timestamp with time zone,
+    "completed_at" timestamp with time zone,
+    "rewatch_count" integer DEFAULT 0,
+    "progress" "jsonb",
+    "custom_fields" "jsonb" DEFAULT '{}'::"jsonb",
+    "privacy" "text" DEFAULT 'private'::"text",
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    CONSTRAINT "entries_rating_check" CHECK ((("rating" >= (0)::numeric) AND ("rating" <= (100)::numeric))),
+    CONSTRAINT "entries_status_check" CHECK (("status" = ANY (ARRAY['planned'::"text", 'in_progress'::"text", 'completed'::"text", 'dropped'::"text", 'on_hold'::"text"])))
+);
+
+
+ALTER TABLE "public"."entries" OWNER TO "postgres";
+
+
+COMMENT ON TABLE "public"."entries" IS 'Individual user diary logs with status, rating, reviews, and privacy constraints.';
 
 
 
+COMMENT ON COLUMN "public"."entries"."rating" IS 'Internal normalized rating between 0 and 100 (supports 5-star, 10-point, 100-point, and future rating systems).';
+
+
+
+COMMENT ON COLUMN "public"."entries"."contains_spoilers" IS 'Flag indicating whether the user review contains plot spoilers that should be blurred behind a "Show spoilers" toggle.';
+
+
+
+COMMENT ON COLUMN "public"."entries"."progress" IS 'Media-specific progress tracking: {season, episode} for TV, {hoursPlayed, completionPct} for games, {pagesRead} for books; null or empty for movies.';
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."follows" (
+    "follower_id" "uuid" NOT NULL,
+    "following_id" "uuid" NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    CONSTRAINT "check_not_self_follow" CHECK (("follower_id" <> "following_id"))
+);
+
+
+ALTER TABLE "public"."follows" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."global_stats" (
+    "id" integer DEFAULT 1 NOT NULL,
+    "avg_rating_by_genre" "jsonb",
+    "avg_rating_overall" numeric,
+    "last_computed_at" timestamp with time zone
+);
+
+
+ALTER TABLE "public"."global_stats" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."import_jobs" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "source" "text" NOT NULL,
+    "status" "text" DEFAULT 'pending'::"text" NOT NULL,
+    "options" "jsonb" DEFAULT '{}'::"jsonb" NOT NULL,
+    "total" integer DEFAULT 0 NOT NULL,
+    "matched" integer DEFAULT 0 NOT NULL,
+    "already_logged" integer DEFAULT 0 NOT NULL,
+    "needs_review" integer DEFAULT 0 NOT NULL,
+    "failed" integer DEFAULT 0 NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."import_jobs" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."likes" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "entry_id" "uuid",
+    "list_id" "uuid",
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    CONSTRAINT "check_likes_single_target" CHECK (((("entry_id" IS NOT NULL) AND ("list_id" IS NULL)) OR (("entry_id" IS NULL) AND ("list_id" IS NOT NULL))))
+);
+
+
+ALTER TABLE "public"."likes" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."list_items" (
+    "list_id" "uuid" NOT NULL,
+    "media_id" "uuid" NOT NULL,
+    "position" integer
+);
+
+
+ALTER TABLE "public"."list_items" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."lists" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "title" "text" NOT NULL,
+    "description" "text",
+    "is_ranked" boolean DEFAULT false,
+    "privacy" "text" DEFAULT 'private'::"text",
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."lists" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."media" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "type" "text" NOT NULL,
+    "title" "text" NOT NULL,
+    "cover_url" "text",
+    "release_date" "text",
+    "genres" "jsonb",
+    "synopsis" "text",
+    "type_specific" "jsonb",
+    "external_ids" "jsonb",
+    "watch_providers" "jsonb",
+    "localized_fields" "jsonb" DEFAULT '{}'::"jsonb",
+    "community_rating_avg" numeric,
+    "community_rating_count" integer DEFAULT 0,
+    "last_synced_at" timestamp with time zone,
+    "tmdb_id" integer,
+    "imdb_id" "text",
+    "original_title" "text",
+    "tagline" "text",
+    "poster_path" "text",
+    "backdrop_path" "text",
+    "poster_url" "text",
+    "backdrop_url" "text",
+    "year" integer,
+    "status" "text",
+    "runtime" integer,
+    "number_of_seasons" integer,
+    "number_of_episodes" integer,
+    "vote_average" numeric(4,2),
+    "vote_count" integer,
+    "popularity" numeric(10,3),
+    "original_language" "text",
+    "spoken_languages" "jsonb" DEFAULT '[]'::"jsonb" NOT NULL,
+    "production_companies" "jsonb" DEFAULT '[]'::"jsonb" NOT NULL,
+    "cast" "jsonb" DEFAULT '[]'::"jsonb" NOT NULL,
+    "crew" "jsonb" DEFAULT '[]'::"jsonb" NOT NULL,
+    "credits" "jsonb" DEFAULT '{}'::"jsonb" NOT NULL,
+    "raw_data" "jsonb" DEFAULT '{}'::"jsonb" NOT NULL,
+    "overview" "text",
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    CONSTRAINT "media_type_check" CHECK (("type" = ANY (ARRAY['movie'::"text", 'tv'::"text", 'game'::"text", 'book'::"text"])))
+);
+
+
+ALTER TABLE "public"."media" OWNER TO "postgres";
+
+
+COMMENT ON TABLE "public"."media" IS 'Central catalog for media items (movies, TV shows, games, books) with synced metadata.';
+
+
+
+COMMENT ON COLUMN "public"."media"."last_synced_at" IS 'Timestamp of the last metadata fetch from external providers.';
+
+
+
+COMMENT ON COLUMN "public"."media"."tmdb_id" IS 'Unique identifier from The Movie Database (TMDB).';
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."profiles" (
+    "id" "uuid" NOT NULL,
+    "display_name" "text",
+    "bio" "text",
+    "avatar_url" "text",
+    "region" "text",
+    "locale" "text" DEFAULT 'en'::"text",
+    "rating_scale" "text" DEFAULT 'stars5'::"text",
+    "theme" "text" DEFAULT 'light'::"text",
+    "default_privacy" "text" DEFAULT 'private'::"text",
+    "dashboard_widgets" "jsonb" DEFAULT '[]'::"jsonb",
+    "joined_at" timestamp with time zone DEFAULT "now"(),
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "profile_visibility" "text" DEFAULT 'public'::"text" NOT NULL,
+    CONSTRAINT "profiles_profile_visibility_check" CHECK (("profile_visibility" = ANY (ARRAY['public'::"text", 'private'::"text"])))
+);
+
+
+ALTER TABLE "public"."profiles" OWNER TO "postgres";
+
+
+COMMENT ON TABLE "public"."profiles" IS 'Extends auth.users with user profile information, privacy, and preferences.';
+
+
+
+CREATE OR REPLACE VIEW "public"."safe_profiles" AS
+ SELECT "id",
+    "display_name",
+    "avatar_url"
+   FROM "public"."profiles";
+
+
+ALTER VIEW "public"."safe_profiles" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."user_stats" (
+    "user_id" "uuid" NOT NULL,
+    "genre_counts" "jsonb",
+    "rating_distribution" "jsonb",
+    "entries_by_month" "jsonb",
+    "type_mix_pct" "jsonb",
+    "completion_averages" "jsonb",
+    "last_computed_at" timestamp with time zone
+);
+
+
+ALTER TABLE "public"."user_stats" OWNER TO "postgres";
+
+
+ALTER TABLE ONLY "public"."activity"
+    ADD CONSTRAINT "activity_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."comments"
+    ADD CONSTRAINT "comments_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."entries"
+    ADD CONSTRAINT "entries_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."entries"
+    ADD CONSTRAINT "entries_user_id_media_id_key" UNIQUE ("user_id", "media_id");
+
+
+
+ALTER TABLE ONLY "public"."follows"
+    ADD CONSTRAINT "follows_pkey" PRIMARY KEY ("follower_id", "following_id");
+
+
+
+ALTER TABLE ONLY "public"."global_stats"
+    ADD CONSTRAINT "global_stats_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."import_items"
+    ADD CONSTRAINT "import_items_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."import_jobs"
+    ADD CONSTRAINT "import_jobs_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."likes"
+    ADD CONSTRAINT "likes_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."list_items"
+    ADD CONSTRAINT "list_items_pkey" PRIMARY KEY ("list_id", "media_id");
+
+
+
+ALTER TABLE ONLY "public"."lists"
+    ADD CONSTRAINT "lists_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."media"
+    ADD CONSTRAINT "media_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."media"
+    ADD CONSTRAINT "media_tmdb_id_key" UNIQUE ("tmdb_id");
+
+
+
+ALTER TABLE ONLY "public"."profiles"
+    ADD CONSTRAINT "profiles_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."entries"
+    ADD CONSTRAINT "unique_user_media" UNIQUE ("user_id", "media_id");
+
+
+
+COMMENT ON CONSTRAINT "unique_user_media" ON "public"."entries" IS 'Ensures each user can have at most one active entry row per media item.';
+
+
+
+ALTER TABLE ONLY "public"."user_stats"
+    ADD CONSTRAINT "user_stats_pkey" PRIMARY KEY ("user_id");
+
+
+
+CREATE INDEX "idx_activity_created_at" ON "public"."activity" USING "btree" ("created_at");
+
+
+
+CREATE INDEX "idx_activity_media_type" ON "public"."activity" USING "btree" ("media_type");
+
+
+
+CREATE INDEX "idx_activity_user_id" ON "public"."activity" USING "btree" ("user_id");
+
+
+
+CREATE UNIQUE INDEX "idx_activity_user_type_ref" ON "public"."activity" USING "btree" ("user_id", "type", "ref_id");
+
+
+
+CREATE INDEX "idx_comments_created_at" ON "public"."comments" USING "btree" ("created_at");
+
+
+
+CREATE INDEX "idx_comments_entry_id" ON "public"."comments" USING "btree" ("entry_id");
+
+
+
+CREATE INDEX "idx_comments_list_id" ON "public"."comments" USING "btree" ("list_id");
+
+
+
+CREATE INDEX "idx_comments_parent_id" ON "public"."comments" USING "btree" ("parent_id");
+
+
+
+CREATE INDEX "idx_comments_user_id" ON "public"."comments" USING "btree" ("user_id");
+
+
+
+CREATE INDEX "idx_entries_contains_spoilers" ON "public"."entries" USING "btree" ("contains_spoilers");
+
+
+
+CREATE INDEX "idx_entries_created_at" ON "public"."entries" USING "btree" ("created_at");
+
+
+
+CREATE INDEX "idx_entries_media_id" ON "public"."entries" USING "btree" ("media_id");
+
+
+
+CREATE INDEX "idx_entries_privacy" ON "public"."entries" USING "btree" ("privacy");
+
+
+
+CREATE INDEX "idx_entries_progress" ON "public"."entries" USING "gin" ("progress");
+
+
+
+CREATE INDEX "idx_entries_status" ON "public"."entries" USING "btree" ("status");
+
+
+
+CREATE INDEX "idx_entries_user_id" ON "public"."entries" USING "btree" ("user_id");
+
+
+
+CREATE INDEX "idx_follows_created_at" ON "public"."follows" USING "btree" ("created_at");
+
+
+
+CREATE INDEX "idx_follows_follower_id" ON "public"."follows" USING "btree" ("follower_id");
+
+
+
+CREATE INDEX "idx_follows_following_id" ON "public"."follows" USING "btree" ("following_id");
+
+
+
+CREATE INDEX "idx_import_items_claim" ON "public"."import_items" USING "btree" ("job_id", "status", "claimed_at");
+
+
+
+CREATE INDEX "idx_import_items_job_id" ON "public"."import_items" USING "btree" ("job_id");
+
+
+
+CREATE INDEX "idx_import_items_job_status" ON "public"."import_items" USING "btree" ("job_id", "status");
+
+
+
+CREATE INDEX "idx_import_items_status" ON "public"."import_items" USING "btree" ("status");
+
+
+
+CREATE INDEX "idx_import_jobs_status" ON "public"."import_jobs" USING "btree" ("status");
+
+
+
+CREATE UNIQUE INDEX "idx_import_jobs_user_active" ON "public"."import_jobs" USING "btree" ("user_id") WHERE ("status" = ANY (ARRAY['pending'::"text", 'processing'::"text", 'paused'::"text"]));
+
+
+
+CREATE INDEX "idx_import_jobs_user_id" ON "public"."import_jobs" USING "btree" ("user_id");
+
+
+
+CREATE INDEX "idx_likes_created_at" ON "public"."likes" USING "btree" ("created_at" DESC);
+
+
+
+CREATE INDEX "idx_likes_entry_id" ON "public"."likes" USING "btree" ("entry_id");
+
+
+
+CREATE INDEX "idx_likes_list_id" ON "public"."likes" USING "btree" ("list_id");
+
+
+
+CREATE UNIQUE INDEX "idx_likes_user_entry" ON "public"."likes" USING "btree" ("user_id", "entry_id") WHERE ("entry_id" IS NOT NULL);
+
+
+
+CREATE INDEX "idx_likes_user_id" ON "public"."likes" USING "btree" ("user_id");
+
+
+
+CREATE UNIQUE INDEX "idx_likes_user_list" ON "public"."likes" USING "btree" ("user_id", "list_id") WHERE ("list_id" IS NOT NULL);
+
+
+
+CREATE INDEX "idx_list_items_list_id" ON "public"."list_items" USING "btree" ("list_id");
+
+
+
+CREATE INDEX "idx_list_items_media_id" ON "public"."list_items" USING "btree" ("media_id");
+
+
+
+CREATE INDEX "idx_list_items_position" ON "public"."list_items" USING "btree" ("list_id", "position");
+
+
+
+CREATE INDEX "idx_lists_created_at" ON "public"."lists" USING "btree" ("created_at");
+
+
+
+CREATE INDEX "idx_lists_privacy" ON "public"."lists" USING "btree" ("privacy");
+
+
+
+CREATE INDEX "idx_lists_user_id" ON "public"."lists" USING "btree" ("user_id");
+
+
+
+CREATE INDEX "idx_media_release_date" ON "public"."media" USING "btree" ("release_date");
+
+
+
+CREATE INDEX "idx_media_title" ON "public"."media" USING "gin" ("to_tsvector"('"english"'::"regconfig", "title"));
+
+
+
+CREATE INDEX "idx_media_tmdb_id" ON "public"."media" USING "btree" ("tmdb_id");
+
+
+
+CREATE INDEX "idx_media_type" ON "public"."media" USING "btree" ("type");
+
+
+
+CREATE OR REPLACE TRIGGER "set_entries_updated_at" BEFORE UPDATE ON "public"."entries" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "set_lists_updated_at" BEFORE UPDATE ON "public"."lists" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "set_media_updated_at" BEFORE UPDATE ON "public"."media" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "set_profiles_updated_at" BEFORE UPDATE ON "public"."profiles" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "tr_entry_activity_sync" AFTER DELETE OR UPDATE OF "privacy", "review", "rating", "status", "contains_spoilers" ON "public"."entries" FOR EACH ROW EXECUTE FUNCTION "public"."sync_activity_on_entry_change"();
+
+
+
+CREATE OR REPLACE TRIGGER "tr_list_activity_sync" AFTER DELETE OR UPDATE OF "privacy", "title", "description" ON "public"."lists" FOR EACH ROW EXECUTE FUNCTION "public"."sync_activity_on_list_change"();
+
+
+
+CREATE OR REPLACE TRIGGER "trigger_comment_guards" BEFORE INSERT ON "public"."comments" FOR EACH ROW EXECUTE FUNCTION "public"."check_comment_guards"();
+
+
+
+ALTER TABLE ONLY "public"."activity"
+    ADD CONSTRAINT "activity_media_id_fkey" FOREIGN KEY ("media_id") REFERENCES "public"."media"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."activity"
+    ADD CONSTRAINT "activity_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id");
+
+
+
+ALTER TABLE ONLY "public"."comments"
+    ADD CONSTRAINT "comments_entry_id_fkey" FOREIGN KEY ("entry_id") REFERENCES "public"."entries"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."comments"
+    ADD CONSTRAINT "comments_list_id_fkey" FOREIGN KEY ("list_id") REFERENCES "public"."lists"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."comments"
+    ADD CONSTRAINT "comments_parent_id_fkey" FOREIGN KEY ("parent_id") REFERENCES "public"."comments"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."comments"
+    ADD CONSTRAINT "comments_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."entries"
+    ADD CONSTRAINT "entries_media_id_fkey" FOREIGN KEY ("media_id") REFERENCES "public"."media"("id");
+
+
+
+ALTER TABLE ONLY "public"."entries"
+    ADD CONSTRAINT "entries_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id");
+
+
+
+ALTER TABLE ONLY "public"."follows"
+    ADD CONSTRAINT "follows_follower_id_fkey" FOREIGN KEY ("follower_id") REFERENCES "public"."profiles"("id");
+
+
+
+ALTER TABLE ONLY "public"."follows"
+    ADD CONSTRAINT "follows_following_id_fkey" FOREIGN KEY ("following_id") REFERENCES "public"."profiles"("id");
+
+
+
+ALTER TABLE ONLY "public"."import_items"
+    ADD CONSTRAINT "import_items_job_id_fkey" FOREIGN KEY ("job_id") REFERENCES "public"."import_jobs"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."import_items"
+    ADD CONSTRAINT "import_items_media_id_fkey" FOREIGN KEY ("media_id") REFERENCES "public"."media"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."import_jobs"
+    ADD CONSTRAINT "import_jobs_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."likes"
+    ADD CONSTRAINT "likes_entry_id_fkey" FOREIGN KEY ("entry_id") REFERENCES "public"."entries"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."likes"
+    ADD CONSTRAINT "likes_list_id_fkey" FOREIGN KEY ("list_id") REFERENCES "public"."lists"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."likes"
+    ADD CONSTRAINT "likes_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."list_items"
+    ADD CONSTRAINT "list_items_list_id_fkey" FOREIGN KEY ("list_id") REFERENCES "public"."lists"("id");
+
+
+
+ALTER TABLE ONLY "public"."list_items"
+    ADD CONSTRAINT "list_items_media_id_fkey" FOREIGN KEY ("media_id") REFERENCES "public"."media"("id");
+
+
+
+ALTER TABLE ONLY "public"."lists"
+    ADD CONSTRAINT "lists_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id");
+
+
+
+ALTER TABLE ONLY "public"."profiles"
+    ADD CONSTRAINT "profiles_id_fkey" FOREIGN KEY ("id") REFERENCES "auth"."users"("id");
+
+
+
+ALTER TABLE ONLY "public"."user_stats"
+    ADD CONSTRAINT "user_stats_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id");
+
+
+
+CREATE POLICY "Activity is viewable based on privacy and visibility" ON "public"."activity" FOR SELECT USING ((("auth"."uid"() = "user_id") OR (("privacy" = 'public'::"text") AND (EXISTS ( SELECT 1
+   FROM "public"."profiles"
+  WHERE (("profiles"."id" = "activity"."user_id") AND ("profiles"."profile_visibility" = 'public'::"text"))))) OR (("privacy" = 'friends'::"text") AND (EXISTS ( SELECT 1
+   FROM "public"."follows"
+  WHERE (("follows"."follower_id" = "auth"."uid"()) AND ("follows"."following_id" = "activity"."user_id")))) AND (EXISTS ( SELECT 1
+   FROM "public"."follows"
+  WHERE (("follows"."follower_id" = "activity"."user_id") AND ("follows"."following_id" = "auth"."uid"())))))));
+
+
+
+CREATE POLICY "Comments are readable if target is readable" ON "public"."comments" FOR SELECT USING (((("entry_id" IS NOT NULL) AND (EXISTS ( SELECT 1
+   FROM "public"."entries"
+  WHERE ("entries"."id" = "comments"."entry_id")))) OR (("list_id" IS NOT NULL) AND (EXISTS ( SELECT 1
+   FROM "public"."lists"
+  WHERE ("lists"."id" = "comments"."list_id"))))));
+
+
+
+CREATE POLICY "Entries are viewable based on privacy and ownership" ON "public"."entries" FOR SELECT USING ((("privacy" = 'public'::"text") OR ("auth"."uid"() = "user_id") OR (("privacy" = 'friends'::"text") AND (EXISTS ( SELECT 1
+   FROM "public"."follows"
+  WHERE (("follows"."follower_id" = "auth"."uid"()) AND ("follows"."following_id" = "entries"."user_id")))) AND (EXISTS ( SELECT 1
+   FROM "public"."follows"
+  WHERE (("follows"."follower_id" = "entries"."user_id") AND ("follows"."following_id" = "auth"."uid"())))))));
+
+
+
+CREATE POLICY "Follows are viewable based on ownership or public profiles" ON "public"."follows" FOR SELECT USING ((("auth"."uid"() = "follower_id") OR ("auth"."uid"() = "following_id") OR ((EXISTS ( SELECT 1
+   FROM "public"."profiles" "p1"
+  WHERE (("p1"."id" = "follows"."follower_id") AND ("p1"."profile_visibility" = 'public'::"text")))) AND (EXISTS ( SELECT 1
+   FROM "public"."profiles" "p2"
+  WHERE (("p2"."id" = "follows"."following_id") AND ("p2"."profile_visibility" = 'public'::"text")))))));
+
+
+
+CREATE POLICY "Likes are readable if target is readable" ON "public"."likes" FOR SELECT USING (((("entry_id" IS NOT NULL) AND (EXISTS ( SELECT 1
+   FROM "public"."entries"
+  WHERE ("entries"."id" = "likes"."entry_id")))) OR (("list_id" IS NOT NULL) AND (EXISTS ( SELECT 1
+   FROM "public"."lists"
+  WHERE ("lists"."id" = "likes"."list_id"))))));
+
+
+
+CREATE POLICY "List items deletable by list owner" ON "public"."list_items" FOR DELETE USING ((EXISTS ( SELECT 1
+   FROM "public"."lists"
+  WHERE (("lists"."id" = "list_items"."list_id") AND ("lists"."user_id" = "auth"."uid"())))));
+
+
+
+CREATE POLICY "List items insertable by list owner" ON "public"."list_items" FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
+   FROM "public"."lists"
+  WHERE (("lists"."id" = "list_items"."list_id") AND ("lists"."user_id" = "auth"."uid"())))));
+
+
+
+CREATE POLICY "List items updatable by list owner" ON "public"."list_items" FOR UPDATE USING ((EXISTS ( SELECT 1
+   FROM "public"."lists"
+  WHERE (("lists"."id" = "list_items"."list_id") AND ("lists"."user_id" = "auth"."uid"()))))) WITH CHECK ((EXISTS ( SELECT 1
+   FROM "public"."lists"
+  WHERE (("lists"."id" = "list_items"."list_id") AND ("lists"."user_id" = "auth"."uid"())))));
+
+
+
+CREATE POLICY "List items viewable if parent list is accessible" ON "public"."list_items" FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM "public"."lists"
+  WHERE (("lists"."id" = "list_items"."list_id") AND (("lists"."privacy" = 'public'::"text") OR ("lists"."user_id" = "auth"."uid"()) OR (("lists"."privacy" = 'friends'::"text") AND (EXISTS ( SELECT 1
+           FROM "public"."follows"
+          WHERE (("follows"."follower_id" = "auth"."uid"()) AND ("follows"."following_id" = "lists"."user_id")))) AND (EXISTS ( SELECT 1
+           FROM "public"."follows"
+          WHERE (("follows"."follower_id" = "lists"."user_id") AND ("follows"."following_id" = "auth"."uid"()))))))))));
+
+
+
+CREATE POLICY "Lists are viewable based on privacy and ownership" ON "public"."lists" FOR SELECT USING ((("privacy" = 'public'::"text") OR ("auth"."uid"() = "user_id") OR (("privacy" = 'friends'::"text") AND (EXISTS ( SELECT 1
+   FROM "public"."follows"
+  WHERE (("follows"."follower_id" = "auth"."uid"()) AND ("follows"."following_id" = "lists"."user_id")))) AND (EXISTS ( SELECT 1
+   FROM "public"."follows"
+  WHERE (("follows"."follower_id" = "lists"."user_id") AND ("follows"."following_id" = "auth"."uid"())))))));
+
+
+
+CREATE POLICY "Media items are viewable by everyone" ON "public"."media" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Profiles are viewable based on visibility or owner" ON "public"."profiles" FOR SELECT USING ((("profile_visibility" = 'public'::"text") OR ("auth"."uid"() = "id")));
+
+
+
+CREATE POLICY "Users can delete their own activity" ON "public"."activity" FOR DELETE USING (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users can delete their own comments or target owners can delete" ON "public"."comments" FOR DELETE USING ((("auth"."uid"() = "user_id") OR (("entry_id" IS NOT NULL) AND (EXISTS ( SELECT 1
+   FROM "public"."entries"
+  WHERE (("entries"."id" = "comments"."entry_id") AND ("entries"."user_id" = "auth"."uid"()))))) OR (("list_id" IS NOT NULL) AND (EXISTS ( SELECT 1
+   FROM "public"."lists"
+  WHERE (("lists"."id" = "comments"."list_id") AND ("lists"."user_id" = "auth"."uid"())))))));
+
+
+
+CREATE POLICY "Users can delete their own follows" ON "public"."follows" FOR DELETE USING (("auth"."uid"() = "follower_id"));
+
+
+
+CREATE POLICY "Users can delete their own import items" ON "public"."import_items" FOR DELETE USING ((EXISTS ( SELECT 1
+   FROM "public"."import_jobs"
+  WHERE (("import_jobs"."id" = "import_items"."job_id") AND ("import_jobs"."user_id" = "auth"."uid"())))));
+
+
+
+CREATE POLICY "Users can delete their own import jobs" ON "public"."import_jobs" FOR DELETE USING (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users can delete their own likes" ON "public"."likes" FOR DELETE USING (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users can delete their own profile" ON "public"."profiles" FOR DELETE USING (("auth"."uid"() = "id"));
+
+
+
+CREATE POLICY "Users can insert comments on readable targets" ON "public"."comments" FOR INSERT WITH CHECK ((("auth"."uid"() = "user_id") AND ((("entry_id" IS NOT NULL) AND (EXISTS ( SELECT 1
+   FROM "public"."entries"
+  WHERE ("entries"."id" = "comments"."entry_id")))) OR (("list_id" IS NOT NULL) AND (EXISTS ( SELECT 1
+   FROM "public"."lists"
+  WHERE ("lists"."id" = "comments"."list_id")))))));
+
+
+
+CREATE POLICY "Users can insert their own activity" ON "public"."activity" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users can insert their own follows" ON "public"."follows" FOR INSERT WITH CHECK (("auth"."uid"() = "follower_id"));
+
+
+
+CREATE POLICY "Users can insert their own import items" ON "public"."import_items" FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
+   FROM "public"."import_jobs"
+  WHERE (("import_jobs"."id" = "import_items"."job_id") AND ("import_jobs"."user_id" = "auth"."uid"())))));
+
+
+
+CREATE POLICY "Users can insert their own import jobs" ON "public"."import_jobs" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users can insert their own likes on readable targets" ON "public"."likes" FOR INSERT WITH CHECK ((("auth"."uid"() = "user_id") AND ((("entry_id" IS NOT NULL) AND (EXISTS ( SELECT 1
+   FROM "public"."entries"
+  WHERE ("entries"."id" = "likes"."entry_id")))) OR (("list_id" IS NOT NULL) AND (EXISTS ( SELECT 1
+   FROM "public"."lists"
+  WHERE ("lists"."id" = "likes"."list_id")))))));
+
+
+
+CREATE POLICY "Users can insert their own profile" ON "public"."profiles" FOR INSERT WITH CHECK (("auth"."uid"() = "id"));
+
+
+
+CREATE POLICY "Users can only delete their own entries" ON "public"."entries" FOR DELETE USING (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users can only delete their own lists" ON "public"."lists" FOR DELETE USING (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users can only insert their own entries" ON "public"."entries" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users can only insert their own lists" ON "public"."lists" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users can only update their own entries" ON "public"."entries" FOR UPDATE USING (("auth"."uid"() = "user_id")) WITH CHECK (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users can only update their own lists" ON "public"."lists" FOR UPDATE USING (("auth"."uid"() = "user_id")) WITH CHECK (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users can update their own activity" ON "public"."activity" FOR UPDATE USING (("auth"."uid"() = "user_id")) WITH CHECK (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users can update their own import items" ON "public"."import_items" FOR UPDATE USING ((EXISTS ( SELECT 1
+   FROM "public"."import_jobs"
+  WHERE (("import_jobs"."id" = "import_items"."job_id") AND ("import_jobs"."user_id" = "auth"."uid"()))))) WITH CHECK ((EXISTS ( SELECT 1
+   FROM "public"."import_jobs"
+  WHERE (("import_jobs"."id" = "import_items"."job_id") AND ("import_jobs"."user_id" = "auth"."uid"())))));
+
+
+
+CREATE POLICY "Users can update their own import jobs" ON "public"."import_jobs" FOR UPDATE USING (("auth"."uid"() = "user_id")) WITH CHECK (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users can update their own profile" ON "public"."profiles" FOR UPDATE USING (("auth"."uid"() = "id")) WITH CHECK (("auth"."uid"() = "id"));
+
+
+
+CREATE POLICY "Users can view their own import items" ON "public"."import_items" FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM "public"."import_jobs"
+  WHERE (("import_jobs"."id" = "import_items"."job_id") AND ("import_jobs"."user_id" = "auth"."uid"())))));
+
+
+
+CREATE POLICY "Users can view their own import jobs" ON "public"."import_jobs" FOR SELECT USING (("auth"."uid"() = "user_id"));
+
+
+
+ALTER TABLE "public"."activity" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."comments" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."entries" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."follows" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."global_stats" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."import_items" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."import_jobs" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."likes" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."list_items" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."lists" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."media" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."profiles" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."user_stats" ENABLE ROW LEVEL SECURITY;
+
+
+GRANT USAGE ON SCHEMA "public" TO "postgres";
+GRANT USAGE ON SCHEMA "public" TO "anon";
+GRANT USAGE ON SCHEMA "public" TO "authenticated";
+GRANT USAGE ON SCHEMA "public" TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."check_comment_guards"() TO "anon";
+GRANT ALL ON FUNCTION "public"."check_comment_guards"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."check_comment_guards"() TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."import_items" TO "anon";
+GRANT ALL ON TABLE "public"."import_items" TO "authenticated";
+GRANT ALL ON TABLE "public"."import_items" TO "service_role";
+
+
+
+REVOKE ALL ON FUNCTION "public"."claim_import_items"("p_job_id" "uuid", "p_limit" integer) FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."claim_import_items"("p_job_id" "uuid", "p_limit" integer) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."claim_import_items"("p_job_id" "uuid", "p_limit" integer) TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "anon";
+GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."handle_updated_at"() TO "anon";
+GRANT ALL ON FUNCTION "public"."handle_updated_at"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."handle_updated_at"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."sync_activity_on_entry_change"() TO "anon";
+GRANT ALL ON FUNCTION "public"."sync_activity_on_entry_change"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."sync_activity_on_entry_change"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."sync_activity_on_list_change"() TO "anon";
+GRANT ALL ON FUNCTION "public"."sync_activity_on_list_change"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."sync_activity_on_list_change"() TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."activity" TO "anon";
+GRANT ALL ON TABLE "public"."activity" TO "authenticated";
+GRANT ALL ON TABLE "public"."activity" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."comments" TO "anon";
+GRANT ALL ON TABLE "public"."comments" TO "authenticated";
+GRANT ALL ON TABLE "public"."comments" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."entries" TO "anon";
+GRANT ALL ON TABLE "public"."entries" TO "authenticated";
+GRANT ALL ON TABLE "public"."entries" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."follows" TO "anon";
+GRANT ALL ON TABLE "public"."follows" TO "authenticated";
+GRANT ALL ON TABLE "public"."follows" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."global_stats" TO "anon";
+GRANT ALL ON TABLE "public"."global_stats" TO "authenticated";
+GRANT ALL ON TABLE "public"."global_stats" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."import_jobs" TO "anon";
+GRANT ALL ON TABLE "public"."import_jobs" TO "authenticated";
+GRANT ALL ON TABLE "public"."import_jobs" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."likes" TO "anon";
+GRANT ALL ON TABLE "public"."likes" TO "authenticated";
+GRANT ALL ON TABLE "public"."likes" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."list_items" TO "anon";
+GRANT ALL ON TABLE "public"."list_items" TO "authenticated";
+GRANT ALL ON TABLE "public"."list_items" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."lists" TO "anon";
+GRANT ALL ON TABLE "public"."lists" TO "authenticated";
+GRANT ALL ON TABLE "public"."lists" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."media" TO "anon";
+GRANT ALL ON TABLE "public"."media" TO "authenticated";
+GRANT ALL ON TABLE "public"."media" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."profiles" TO "anon";
+GRANT ALL ON TABLE "public"."profiles" TO "authenticated";
+GRANT ALL ON TABLE "public"."profiles" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."safe_profiles" TO "anon";
+GRANT ALL ON TABLE "public"."safe_profiles" TO "authenticated";
+GRANT ALL ON TABLE "public"."safe_profiles" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."user_stats" TO "anon";
+GRANT ALL ON TABLE "public"."user_stats" TO "authenticated";
+GRANT ALL ON TABLE "public"."user_stats" TO "service_role";
+
+
+
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "postgres";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "anon";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "authenticated";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "service_role";
+
+
+
+
+
+
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "postgres";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "anon";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "authenticated";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "service_role";
+
+
+
+
+
+
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "postgres";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "anon";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "authenticated";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "service_role";
 
 
 
