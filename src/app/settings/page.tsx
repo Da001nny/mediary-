@@ -317,8 +317,8 @@ export default function SettingsPage() {
                   },
                   {
                     id: "private",
-                    label: "Private Profile",
-                    desc: "Only name and avatar appear in feeds. Bio, stats, logs, and follow lists are hidden.",
+                    label: "Hide my profile page",
+                    desc: "Your profile page, followers and feed activity are hidden from others. Your name and avatar still appear on comments, and entries or lists you've marked public stay visible to anyone who has the link.",
                     icon: Lock,
                   },
                 ].map((item) => {

@@ -47,6 +47,7 @@ interface PublicUserData {
     region?: string | null;
     default_privacy: string;
     joined_at: string;
+    profile_visibility?: string;
   };
   followersCount: number;
   followingCount: number;
@@ -206,10 +207,10 @@ export default function PublicProfilePage({
                       <h1 className="font-serif text-xl sm:text-2xl md:text-3xl font-bold text-text truncate">
                         {data.profile.display_name || "Anonymous Member"}
                       </h1>
-                      {data.isPrivate && (
+                      {(data.isPrivate || (isOwner && data.profile.profile_visibility === "private")) && (
                         <Badge variant="subtle" size="sm" className="gap-1 text-[10px]">
                           <Lock className="w-3 h-3 text-text-muted" />
-                          <span>Private</span>
+                          <span>Profile hidden</span>
                         </Badge>
                       )}
                     </div>
@@ -322,10 +323,10 @@ export default function PublicProfilePage({
                 </div>
                 <div className="space-y-1.5">
                   <h3 className="font-serif text-lg sm:text-xl font-bold text-text">
-                    This Profile is Private
+                    This Profile is Hidden
                   </h3>
                   <p className="text-xs sm:text-sm text-text-muted leading-relaxed max-w-md mx-auto">
-                    This member has chosen to keep their logs and media entries private. Follow this user to stay connected.
+                    This member has chosen to hide their profile page, followers and feed activity.
                   </p>
                 </div>
               </div>

@@ -349,8 +349,8 @@ function SettingsModalContent({ onClose }: { onClose: () => void }) {
                   },
                   {
                     id: "private",
-                    label: "Private Profile",
-                    desc: "Only name and avatar appear. Bio, stats, logs, and follow lists stay hidden.",
+                    label: "Hide my profile page",
+                    desc: "Your profile page, followers and feed activity are hidden from others. Your name and avatar still appear on comments, and entries or lists you've marked public stay visible to anyone who has the link.",
                     icon: Lock,
                   },
                 ].map((item) => {
