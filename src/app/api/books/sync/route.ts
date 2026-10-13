@@ -163,9 +163,25 @@ export async function POST(req: NextRequest) {
         .single();
     }
 
-    const { data: inserted, error: dbError } = upsertResult;
+    let { data: inserted, error: dbError } = upsertResult;
 
     if (dbError) {
+      if (dbError.code === "23505") {
+        const { data: conflictRow } = await supabase
+          .from("media")
+          .select()
+          .filter("external_ids->>google_books_id", "eq", details.google_books_id)
+          .eq("type", "book")
+          .maybeSingle();
+
+        if (conflictRow) {
+          inserted = conflictRow;
+          dbError = null;
+        }
+      }
+    }
+
+    if (dbError || !inserted) {
       console.error("Supabase book upsert error:", dbError);
       return NextResponse.json(
         { error: "Failed to persist book title to database" },

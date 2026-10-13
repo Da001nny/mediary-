@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import {
   syncTMDBMovieToMedia,
+  syncTMDBTVToMedia,
+  syncRAWGGameToMedia,
   syncGoogleBookToMedia,
   resolveImportPrivacy,
 } from "@/lib/import-service";
@@ -80,19 +82,53 @@ export async function POST(
     }
 
     if (action === "pick") {
-      if (!candidate || (!candidate.tmdb_id && !candidate.google_books_id)) {
+      const rawgId =
+        candidate?.rawg_id ??
+        (candidate?.type === "game" || candidate?.media_type === "game"
+          ? candidate?.id
+          : undefined);
+      const tmdbId =
+        candidate?.tmdb_id ??
+        (candidate?.type === "movie" ||
+        candidate?.type === "tv" ||
+        candidate?.media_type === "movie" ||
+        candidate?.media_type === "tv"
+          ? candidate?.id
+          : undefined);
+      const googleBooksId =
+        candidate?.google_books_id ??
+        (candidate?.type === "book" || candidate?.media_type === "book"
+          ? candidate?.id
+          : undefined);
+
+      if (!candidate || (!rawgId && !tmdbId && !googleBooksId)) {
         return NextResponse.json(
-          { error: "Candidate selection requires tmdb_id or google_books_id" },
+          {
+            error:
+              "Candidate selection requires tmdb_id, google_books_id, or rawg_id",
+          },
           { status: 400 }
         );
       }
 
       // Sync candidate to media
       let mediaId: string;
-      if (candidate.tmdb_id) {
-        mediaId = await syncTMDBMovieToMedia(Number(candidate.tmdb_id));
+      const isTv =
+        candidate?.type === "tv" ||
+        candidate?.media_type === "tv" ||
+        (item.row as Record<string, unknown>)?.type === "tv" ||
+        (item.row as Record<string, unknown>)?.media_type === "tv";
+
+      if (rawgId) {
+        mediaId = await syncRAWGGameToMedia(rawgId);
+      } else if (tmdbId) {
+        if (isTv) {
+          mediaId = await syncTMDBTVToMedia(Number(tmdbId));
+        } else {
+          mediaId = await syncTMDBMovieToMedia(Number(tmdbId));
+        }
       } else {
-        mediaId = await syncGoogleBookToMedia(String(candidate.google_books_id));
+        mediaId = await syncGoogleBookToMedia(String(googleBooksId));
       }
 
       const row = item.row as unknown as ParsedImportItem;

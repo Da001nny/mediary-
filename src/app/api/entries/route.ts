@@ -385,7 +385,23 @@ export async function POST(request: NextRequest) {
             .select()
             .single();
 
-          if (createMediaError || !newMedia) {
+          let mediaRow = newMedia;
+          if (createMediaError) {
+            if (createMediaError.code === "23505") {
+              const { data: conflictRow } = await adminSupabase
+                .from("media")
+                .select()
+                .filter("external_ids->>tmdb_id", "eq", String(idNum))
+                .eq("type", targetType)
+                .maybeSingle();
+
+              if (conflictRow) {
+                mediaRow = conflictRow;
+              }
+            }
+          }
+
+          if (!mediaRow) {
             console.error("Failed to insert media row from TMDB:", createMediaError);
             return NextResponse.json(
               { error: "Failed to persist media title to database" },
@@ -394,12 +410,12 @@ export async function POST(request: NextRequest) {
           }
 
           try {
-            await indexMediaItem(newMedia as MediaItem);
+            await indexMediaItem(mediaRow as MediaItem);
           } catch (algoliaErr) {
             console.warn("Best-effort Algolia indexing failed for TMDB item:", algoliaErr);
           }
 
-          resolvedMediaId = newMedia.id;
+          resolvedMediaId = mediaRow.id;
           resolvedMediaType = targetType;
         }
       } else if (targetType === "game") {
@@ -455,7 +471,23 @@ export async function POST(request: NextRequest) {
             .select()
             .single();
 
-          if (createMediaError || !newMedia) {
+          let mediaRow = newMedia;
+          if (createMediaError) {
+            if (createMediaError.code === "23505") {
+              const { data: conflictRow } = await adminSupabase
+                .from("media")
+                .select()
+                .filter("external_ids->>rawg_id", "eq", String(idNum))
+                .eq("type", "game")
+                .maybeSingle();
+
+              if (conflictRow) {
+                mediaRow = conflictRow;
+              }
+            }
+          }
+
+          if (!mediaRow) {
             console.error("Failed to insert media row from RAWG:", createMediaError);
             return NextResponse.json(
               { error: "Failed to persist game title to database" },
@@ -464,12 +496,12 @@ export async function POST(request: NextRequest) {
           }
 
           try {
-            await indexMediaItem(newMedia as MediaItem);
+            await indexMediaItem(mediaRow as MediaItem);
           } catch (algoliaErr) {
             console.warn("Best-effort Algolia indexing failed for RAWG item:", algoliaErr);
           }
 
-          resolvedMediaId = newMedia.id;
+          resolvedMediaId = mediaRow.id;
           resolvedMediaType = "game";
         }
       } else {
@@ -534,7 +566,23 @@ export async function POST(request: NextRequest) {
             .select()
             .single();
 
-          if (createMediaError || !newMedia) {
+          let mediaRow = newMedia;
+          if (createMediaError) {
+            if (createMediaError.code === "23505") {
+              const { data: conflictRow } = await adminSupabase
+                .from("media")
+                .select()
+                .filter("external_ids->>google_books_id", "eq", strId)
+                .eq("type", "book")
+                .maybeSingle();
+
+              if (conflictRow) {
+                mediaRow = conflictRow;
+              }
+            }
+          }
+
+          if (!mediaRow) {
             console.error("Failed to insert media row from Google Books:", createMediaError);
             return NextResponse.json(
               { error: "Failed to persist book title to database" },
@@ -543,12 +591,12 @@ export async function POST(request: NextRequest) {
           }
 
           try {
-            await indexMediaItem(newMedia as MediaItem);
+            await indexMediaItem(mediaRow as MediaItem);
           } catch (algoliaErr) {
             console.warn("Best-effort Algolia indexing failed for Google Books item:", algoliaErr);
           }
 
-          resolvedMediaId = newMedia.id;
+          resolvedMediaId = mediaRow.id;
           resolvedMediaType = "book";
         }
       }

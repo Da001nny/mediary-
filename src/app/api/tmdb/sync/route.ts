@@ -187,9 +187,25 @@ export async function POST(req: NextRequest) {
         .single();
     }
 
-    const { data: upsertedData, error: dbError } = upsertResult;
+    let { data: upsertedData, error: dbError } = upsertResult;
 
     if (dbError) {
+      if (dbError.code === "23505") {
+        const { data: conflictRow } = await supabase
+          .from("media")
+          .select()
+          .filter("external_ids->>tmdb_id", "eq", String(details.tmdb_id))
+          .eq("type", type)
+          .maybeSingle();
+
+        if (conflictRow) {
+          upsertedData = conflictRow;
+          dbError = null;
+        }
+      }
+    }
+
+    if (dbError || !upsertedData) {
       console.error("Supabase upsert error:", dbError);
       return NextResponse.json(
         { error: "Failed to persist media title to database" },

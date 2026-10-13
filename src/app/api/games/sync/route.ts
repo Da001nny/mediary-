@@ -179,9 +179,25 @@ export async function POST(req: NextRequest) {
         .single();
     }
 
-    const { data: inserted, error: dbError } = upsertResult;
+    let { data: inserted, error: dbError } = upsertResult;
 
     if (dbError) {
+      if (dbError.code === "23505") {
+        const { data: conflictRow } = await supabase
+          .from("media")
+          .select()
+          .filter("external_ids->>rawg_id", "eq", String(details.rawg_id))
+          .eq("type", "game")
+          .maybeSingle();
+
+        if (conflictRow) {
+          inserted = conflictRow;
+          dbError = null;
+        }
+      }
+    }
+
+    if (dbError || !inserted) {
       console.error("Supabase game upsert error:", dbError);
       return NextResponse.json(
         { error: "Failed to persist game title to database" },

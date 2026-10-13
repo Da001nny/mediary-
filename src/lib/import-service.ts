@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { indexMediaItem } from "@/lib/algolia";
 import { fetchTMDBDetails, TMDB_IMAGE_BASE_W500, TMDB_IMAGE_BASE_ORIGINAL } from "@/lib/tmdb";
+import { fetchRAWGGameDetails, rawgGameToMediaPayload } from "@/lib/rawg";
 import {
   fetchGoogleBookDetails,
   bookToMediaPayload,
@@ -19,6 +20,10 @@ export class UpstreamQuotaError extends Error {
 export interface CandidateItem {
   tmdb_id?: number;
   google_books_id?: string;
+  rawg_id?: number;
+  type?: "movie" | "tv" | "game" | "book";
+  media_type?: string;
+  id?: number | string;
   title: string;
   year?: string | number | null;
   author?: string | null;
@@ -199,8 +204,24 @@ export async function syncTMDBMovieToMedia(tmdbId: number): Promise<string> {
     .select()
     .single();
 
-  if (dbErr || !upserted) {
-    throw new Error(dbErr?.message || "Failed to persist movie to database");
+  if (dbErr) {
+    if (dbErr.code === "23505") {
+      const { data: existingOnConflict } = await admin
+        .from("media")
+        .select("id")
+        .filter("external_ids->>tmdb_id", "eq", String(tmdbId))
+        .eq("type", "movie")
+        .maybeSingle();
+
+      if (existingOnConflict?.id) {
+        return existingOnConflict.id;
+      }
+    }
+    throw new Error(dbErr.message || "Failed to persist movie to database");
+  }
+
+  if (!upserted) {
+    throw new Error("Failed to persist movie to database");
   }
 
   // Index in Algolia
@@ -249,8 +270,24 @@ export async function syncGoogleBookToMedia(googleBooksId: string): Promise<stri
     .select()
     .single();
 
-  if (dbErr || !inserted) {
-    throw new Error(dbErr?.message || "Failed to persist book to database");
+  if (dbErr) {
+    if (dbErr.code === "23505") {
+      const { data: existingOnConflict } = await admin
+        .from("media")
+        .select("id")
+        .filter("external_ids->>google_books_id", "eq", cleanId)
+        .eq("type", "book")
+        .maybeSingle();
+
+      if (existingOnConflict?.id) {
+        return existingOnConflict.id;
+      }
+    }
+    throw new Error(dbErr.message || "Failed to persist book to database");
+  }
+
+  if (!inserted) {
+    throw new Error("Failed to persist book to database");
   }
 
   // Index in Algolia
@@ -258,6 +295,190 @@ export async function syncGoogleBookToMedia(googleBooksId: string): Promise<stri
     await indexMediaItem(inserted as unknown as MediaItem);
   } catch (algoliaErr) {
     console.warn("Algolia indexing skipped for imported book:", algoliaErr);
+  }
+
+  return inserted.id;
+}
+
+/**
+ * Syncs a TMDB TV Series ID to public.media and Algolia.
+ */
+export async function syncTMDBTVToMedia(tmdbId: number): Promise<string> {
+  const admin = createAdminClient();
+  if (!admin) {
+    throw new Error("Database admin client unavailable");
+  }
+
+  // Check if media already exists
+  const { data: existing } = await admin
+    .from("media")
+    .select("id")
+    .filter("external_ids->>tmdb_id", "eq", String(tmdbId))
+    .eq("type", "tv")
+    .maybeSingle();
+
+  if (existing?.id) {
+    return existing.id;
+  }
+
+  // Fetch from TMDB
+  const apiKey = process.env.TMDB_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error("TMDB_API_KEY is not configured");
+  }
+
+  const { data: details, error: tmdbErr, isMock } = await fetchTMDBDetails(tmdbId, "tv");
+  if (tmdbErr || !details || isMock) {
+    throw new Error(tmdbErr || "Failed to retrieve real TV series details from TMDB");
+  }
+
+  const genreNames = Array.isArray(details.genres)
+    ? details.genres.map((g) => (typeof g === "string" ? g : g.name)).filter(Boolean)
+    : [];
+
+  const payload = {
+    type: "tv" as const,
+    title: details.title,
+    cover_url: details.poster_path
+      ? `${TMDB_IMAGE_BASE_W500}${details.poster_path}`
+      : (details.poster_url || null),
+    release_date: details.release_date || null,
+    genres: genreNames,
+    synopsis: details.overview || null,
+    type_specific: {
+      runtime: details.runtime,
+      tagline: details.tagline,
+      original_title: details.original_title,
+      status: details.status,
+      backdrop_url: details.backdrop_path
+        ? `${TMDB_IMAGE_BASE_ORIGINAL}${details.backdrop_path}`
+        : (details.backdrop_url || null),
+      number_of_seasons: details.number_of_seasons,
+      number_of_episodes: details.number_of_episodes,
+      cast: details.cast,
+      crew: details.crew,
+    } as unknown as Json,
+    external_ids: {
+      tmdb_id: details.tmdb_id,
+      imdb_id: details.imdb_id,
+    } as unknown as Json,
+    watch_providers: details.watch_providers as unknown as Json,
+    localized_fields: {
+      original_language: details.original_language,
+      spoken_languages: details.spoken_languages,
+      production_companies: details.production_companies,
+    } as unknown as Json,
+    community_rating_avg: details.vote_average || null,
+    community_rating_count: details.vote_count || 0,
+    last_synced_at: new Date().toISOString(),
+  };
+
+  const { data: upserted, error: dbErr } = await admin
+    .from("media")
+    .insert(payload)
+    .select()
+    .single();
+
+  if (dbErr) {
+    if (dbErr.code === "23505") {
+      const { data: existingOnConflict } = await admin
+        .from("media")
+        .select("id")
+        .filter("external_ids->>tmdb_id", "eq", String(tmdbId))
+        .eq("type", "tv")
+        .maybeSingle();
+
+      if (existingOnConflict?.id) {
+        return existingOnConflict.id;
+      }
+    }
+    throw new Error(dbErr.message || "Failed to persist TV series to database");
+  }
+
+  if (!upserted) {
+    throw new Error("Failed to persist TV series to database");
+  }
+
+  // Index in Algolia
+  try {
+    await indexMediaItem(upserted as unknown as MediaItem);
+  } catch (algoliaErr) {
+    console.warn("Algolia indexing skipped for imported TV series:", algoliaErr);
+  }
+
+  return upserted.id;
+}
+
+/**
+ * Syncs a RAWG Game ID to public.media and Algolia.
+ */
+export async function syncRAWGGameToMedia(rawgId: number | string): Promise<string> {
+  const admin = createAdminClient();
+  if (!admin) {
+    throw new Error("Database admin client unavailable");
+  }
+
+  const numId = Number(rawgId);
+  const cleanId =
+    !isNaN(numId) && numId > 0
+      ? String(numId)
+      : String(rawgId).replace(/^(game-|rawg-)/i, "");
+
+  // Check if media already exists
+  const { data: existing } = await admin
+    .from("media")
+    .select("id")
+    .filter("external_ids->>rawg_id", "eq", cleanId)
+    .eq("type", "game")
+    .maybeSingle();
+
+  if (existing?.id) {
+    return existing.id;
+  }
+
+  const apiKey = process.env.RAWG_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error("RAWG_API_KEY is not configured");
+  }
+
+  const { data: details, error: rawgErr, isMock } = await fetchRAWGGameDetails(cleanId);
+  if (rawgErr || !details || isMock) {
+    throw new Error(rawgErr || "Failed to retrieve real game details from RAWG");
+  }
+
+  const payload = rawgGameToMediaPayload(details);
+
+  const { data: inserted, error: dbErr } = await admin
+    .from("media")
+    .insert(payload)
+    .select()
+    .single();
+
+  if (dbErr) {
+    if (dbErr.code === "23505") {
+      const { data: existingOnConflict } = await admin
+        .from("media")
+        .select("id")
+        .filter("external_ids->>rawg_id", "eq", cleanId)
+        .eq("type", "game")
+        .maybeSingle();
+
+      if (existingOnConflict?.id) {
+        return existingOnConflict.id;
+      }
+    }
+    throw new Error(dbErr.message || "Failed to persist game to database");
+  }
+
+  if (!inserted) {
+    throw new Error("Failed to persist game to database");
+  }
+
+  // Index in Algolia
+  try {
+    await indexMediaItem(inserted as unknown as MediaItem);
+  } catch (algoliaErr) {
+    console.warn("Algolia indexing skipped for imported game:", algoliaErr);
   }
 
   return inserted.id;

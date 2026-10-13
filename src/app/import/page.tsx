@@ -48,6 +48,10 @@ interface ImportJob {
 interface NeedsReviewCandidate {
   tmdb_id?: number;
   google_books_id?: string;
+  rawg_id?: number;
+  type?: string;
+  media_type?: string;
+  id?: number | string;
   title: string;
   year?: string | number | null;
   author?: string | null;
