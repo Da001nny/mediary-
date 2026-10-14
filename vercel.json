@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/trending-external",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}

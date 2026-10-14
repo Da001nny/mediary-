@@ -210,9 +210,13 @@ const SAMPLE_RECENT_LOGS: HomeEntryItem[] = [
 
 interface HomeDashboardClientProps {
   trendingSection: React.ReactNode;
+  popularSection?: React.ReactNode;
 }
 
-export function HomeDashboardClient({ trendingSection }: HomeDashboardClientProps) {
+export function HomeDashboardClient({
+  trendingSection,
+  popularSection,
+}: HomeDashboardClientProps) {
   const { user, profile, isLoading: isAuthLoading } = useAuth();
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -475,6 +479,9 @@ export function HomeDashboardClient({ trendingSection }: HomeDashboardClientProp
 
             {/* Trending now / Popular and new Section */}
             {trendingSection}
+
+            {/* Popular right now (external trending) Section */}
+            {popularSection}
 
             {/* Quiet Editorial Features */}
             <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 pt-4">
@@ -829,6 +836,9 @@ export function HomeDashboardClient({ trendingSection }: HomeDashboardClientProp
 
             {/* 4. Trending Now / Popular and New Section */}
             {trendingSection}
+
+            {/* Popular right now (external trending) - placed above community section */}
+            {popularSection}
 
             {/* 5. Friends & Community Activity Section */}
             <section className="pt-2">

@@ -99,6 +99,28 @@ function getTMDBFetchConfig(endpoint: string, queryParams: Record<string, string
 }
 
 /**
+ * Fetches TMDB's weekly trending movies or TV shows.
+ */
+export async function fetchTMDBWeeklyTrending(
+  type: "movie" | "tv"
+): Promise<Array<{ id: number; title?: string; name?: string }>> {
+  const endpoint = `/trending/${type}/week`;
+  const config = getTMDBFetchConfig(endpoint, { language: "en-US" });
+
+  if (!config.apiKeyPresent || !config.url) {
+    throw new Error("TMDB_API_KEY environment variable is not configured");
+  }
+
+  const res = await fetch(config.url, { headers: config.headers });
+  if (!res.ok) {
+    throw new Error(`TMDB trending failed with status ${res.status}`);
+  }
+
+  const data = await res.json();
+  return Array.isArray(data.results) ? data.results : [];
+}
+
+/**
  * Searches TMDB for movies, TV shows, or both.
  * Includes graceful mock fallbacks if TMDB_API_KEY is not yet populated.
  */

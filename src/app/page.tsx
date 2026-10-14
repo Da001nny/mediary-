@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { TrendingSection } from "@/components/home/TrendingSection";
+import { PopularRightNowSection } from "@/components/home/PopularRightNowSection";
 import { HomeDashboardClient } from "@/components/home/HomeDashboardClient";
 import type { MediaItem, MediaType } from "@/types/database.types";
 
@@ -137,13 +138,95 @@ async function getTrendingMediaData(typeParam?: string): Promise<{
   return { heading, items, activeType };
 }
 
+async function getExternalTrendingData(
+  popularTypeParam?: string,
+  generalTypeParam?: string
+): Promise<{
+  items: MediaItem[];
+  activeType: "movie" | "tv";
+}> {
+  const normalized = (popularTypeParam || "").toLowerCase().trim();
+  let activeType: "movie" | "tv" = "movie";
+  if (normalized === "tv") {
+    activeType = "tv";
+  } else if (normalized === "movie") {
+    activeType = "movie";
+  } else if (generalTypeParam === "tv") {
+    activeType = "tv";
+  }
+
+  const supabase = createAdminClient() || (await createClient());
+  if (!supabase) {
+    return { items: [], activeType };
+  }
+
+  // Read from public.external_trending joined to public.media, ordered by rank
+  const { data: raw, error } = await supabase
+    .from("external_trending")
+    .select("media_id, type, rank, source, media:media_id (*)")
+    .eq("type", activeType)
+    .order("rank", { ascending: true })
+    .limit(20);
+
+  const items: MediaItem[] = [];
+
+  if (!error && Array.isArray(raw)) {
+    for (const row of raw) {
+      const m = (row as unknown as { media?: MediaItem | MediaItem[] | null }).media;
+      if (m) {
+        items.push(Array.isArray(m) ? m[0] : m);
+      }
+    }
+  }
+
+  // Fallback if PostgREST join wasn't resolved by foreign key cache
+  if (items.length === 0 && !error && Array.isArray(raw) && raw.length > 0) {
+    const ids = raw.map((r) => r.media_id);
+    const { data: mediaRows } = await supabase.from("media").select("*").in("id", ids);
+    if (mediaRows) {
+      const map = new Map(mediaRows.map((m) => [m.id, m]));
+      for (const r of raw) {
+        const item = map.get(r.media_id);
+        if (item) items.push(item);
+      }
+    }
+  } else if (error) {
+    const { data: unjoined } = await supabase
+      .from("external_trending")
+      .select("media_id, type, rank, source")
+      .eq("type", activeType)
+      .order("rank", { ascending: true })
+      .limit(20);
+
+    if (unjoined && unjoined.length > 0) {
+      const ids = unjoined.map((r) => r.media_id);
+      const { data: mediaRows } = await supabase.from("media").select("*").in("id", ids);
+      if (mediaRows) {
+        const map = new Map(mediaRows.map((m) => [m.id, m]));
+        for (const r of unjoined) {
+          const item = map.get(r.media_id);
+          if (item) items.push(item);
+        }
+      }
+    }
+  }
+
+  return { items, activeType };
+}
+
 export default async function HomePage({ searchParams }: PageProps) {
   const resolvedParams = await searchParams;
   const rawType = Array.isArray(resolvedParams?.type)
     ? resolvedParams?.type[0]
     : resolvedParams?.type;
 
+  const rawPopularType = Array.isArray(resolvedParams?.popular_type)
+    ? resolvedParams?.popular_type[0]
+    : resolvedParams?.popular_type;
+
   const { heading, items, activeType } = await getTrendingMediaData(rawType);
+  const { items: popularItems, activeType: activePopularType } =
+    await getExternalTrendingData(rawPopularType, rawType);
 
   return (
     <HomeDashboardClient
@@ -152,6 +235,13 @@ export default async function HomePage({ searchParams }: PageProps) {
           heading={heading}
           items={items}
           activeType={activeType}
+        />
+      }
+      popularSection={
+        <PopularRightNowSection
+          items={popularItems}
+          activeType={activePopularType}
+          currentSearchParams={resolvedParams as Record<string, string | string[] | undefined>}
         />
       }
     />
