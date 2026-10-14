@@ -143,16 +143,20 @@ async function getExternalTrendingData(
   generalTypeParam?: string
 ): Promise<{
   items: MediaItem[];
-  activeType: "movie" | "tv";
+  activeType: "movie" | "tv" | "game";
 }> {
   const normalized = (popularTypeParam || "").toLowerCase().trim();
-  let activeType: "movie" | "tv" = "movie";
+  let activeType: "movie" | "tv" | "game" = "movie";
   if (normalized === "tv") {
     activeType = "tv";
+  } else if (normalized === "game") {
+    activeType = "game";
   } else if (normalized === "movie") {
     activeType = "movie";
   } else if (generalTypeParam === "tv") {
     activeType = "tv";
+  } else if (generalTypeParam === "game") {
+    activeType = "game";
   }
 
   const supabase = createAdminClient() || (await createClient());

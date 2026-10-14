@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchTMDBWeeklyTrending } from "@/lib/tmdb";
-import { syncTMDBMovieToMedia, syncTMDBTVToMedia } from "@/lib/import-service";
+import { fetchRAWGTrendingGames } from "@/lib/rawg";
+import {
+  syncTMDBMovieToMedia,
+  syncTMDBTVToMedia,
+  syncRAWGGameToMedia,
+} from "@/lib/import-service";
 
 export const maxDuration = 120; // 2 minutes for external syncing
 
@@ -25,6 +30,7 @@ export async function GET(req: NextRequest) {
   // 2. Fetch TMDB's weekly trending movies and TV (top 20 each)
   let rawMovies: Array<{ id: number }> = [];
   let rawTV: Array<{ id: number }> = [];
+  let rawGames: Array<{ id: number }> = [];
 
   try {
     rawMovies = (await fetchTMDBWeeklyTrending("movie")).slice(0, 20);
@@ -38,9 +44,24 @@ export async function GET(req: NextRequest) {
     console.warn("Failed to fetch TMDB weekly trending TV:", err);
   }
 
-  const syncedRows: Array<{
+  // Fetch top 20 games from RAWG (ordering=-added, covering last 12 months)
+  try {
+    rawGames = (await fetchRAWGTrendingGames(20)).slice(0, 20);
+  } catch (err) {
+    console.warn("Failed to fetch RAWG trending games:", err);
+  }
+
+  const syncedTMDBRows: Array<{
     media_id: string;
     type: "movie" | "tv";
+    rank: number;
+    source: string;
+    computed_at: string;
+  }> = [];
+
+  const syncedGameRows: Array<{
+    media_id: string;
+    type: "game";
     rank: number;
     source: string;
     computed_at: string;
@@ -55,7 +76,7 @@ export async function GET(req: NextRequest) {
     try {
       const mediaId = await syncTMDBMovieToMedia(item.id);
       if (mediaId) {
-        syncedRows.push({
+        syncedTMDBRows.push({
           media_id: mediaId,
           type: "movie",
           rank: i + 1,
@@ -76,7 +97,7 @@ export async function GET(req: NextRequest) {
     try {
       const mediaId = await syncTMDBTVToMedia(item.id);
       if (mediaId) {
-        syncedRows.push({
+        syncedTMDBRows.push({
           media_id: mediaId,
           type: "tv",
           rank: i + 1,
@@ -90,11 +111,31 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // 5. Store ordered list in public.external_trending
-  if (syncedRows.length > 0) {
-    // Deduplicate on (media_id, source)
+  // 5. Sync Games (top 20)
+  for (let i = 0; i < rawGames.length; i++) {
+    const item = rawGames[i];
+    if (!item?.id) continue;
+    try {
+      const mediaId = await syncRAWGGameToMedia(item.id);
+      if (mediaId) {
+        syncedGameRows.push({
+          media_id: mediaId,
+          type: "game",
+          rank: i + 1,
+          source: "rawg",
+          computed_at: now,
+        });
+      }
+    } catch (err) {
+      // Skip titles that fail; don't abort the run
+      console.warn(`Failed to sync trending game ID ${item.id}:`, err);
+    }
+  }
+
+  // 6. Store TMDB ordered list in public.external_trending
+  if (syncedTMDBRows.length > 0) {
     const seenMediaIds = new Set<string>();
-    const uniqueRows = syncedRows.filter((row) => {
+    const uniqueTMDBRows = syncedTMDBRows.filter((row) => {
       if (seenMediaIds.has(row.media_id)) return false;
       seenMediaIds.add(row.media_id);
       return true;
@@ -106,27 +147,51 @@ export async function GET(req: NextRequest) {
       .eq("source", "tmdb");
 
     if (deleteErr) {
-      console.warn("Error deleting old external_trending rows:", deleteErr);
+      console.warn("Error deleting old external_trending tmdb rows:", deleteErr);
     }
 
     const { error: insertErr } = await admin
       .from("external_trending")
-      .insert(uniqueRows);
+      .insert(uniqueTMDBRows);
 
     if (insertErr) {
-      console.error("Error inserting external_trending rows:", insertErr);
-      return NextResponse.json(
-        { error: "Failed to store external trending rows", details: insertErr.message },
-        { status: 500 }
-      );
+      console.error("Error inserting external_trending tmdb rows:", insertErr);
+    }
+  }
+
+  // 7. Store RAWG ordered list in public.external_trending (clear and replace only source = 'rawg')
+  if (syncedGameRows.length > 0) {
+    const seenGameIds = new Set<string>();
+    const uniqueGameRows = syncedGameRows.filter((row) => {
+      if (seenGameIds.has(row.media_id)) return false;
+      seenGameIds.add(row.media_id);
+      return true;
+    });
+
+    const { error: deleteGamesErr } = await admin
+      .from("external_trending")
+      .delete()
+      .eq("source", "rawg");
+
+    if (deleteGamesErr) {
+      console.warn("Error deleting old external_trending rawg rows:", deleteGamesErr);
+    }
+
+    const { error: insertGamesErr } = await admin
+      .from("external_trending")
+      .insert(uniqueGameRows);
+
+    if (insertGamesErr) {
+      console.error("Error inserting external_trending rawg rows:", insertGamesErr);
     }
   }
 
   return NextResponse.json({
     success: true,
-    synced_movies: syncedRows.filter((r) => r.type === "movie").length,
-    synced_tv: syncedRows.filter((r) => r.type === "tv").length,
-    total_stored: syncedRows.length,
+    synced_movies: syncedTMDBRows.filter((r) => r.type === "movie").length,
+    synced_tv: syncedTMDBRows.filter((r) => r.type === "tv").length,
+    synced_games: syncedGameRows.length,
+    total_stored: syncedTMDBRows.length + syncedGameRows.length,
   });
 }
 

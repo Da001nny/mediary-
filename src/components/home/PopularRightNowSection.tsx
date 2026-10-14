@@ -6,7 +6,7 @@ import type { MediaItem } from "@/types/database.types";
 
 interface PopularRightNowSectionProps {
   items: MediaItem[];
-  activeType: "movie" | "tv";
+  activeType: "movie" | "tv" | "game";
   currentSearchParams?: Record<string, string | string[] | undefined>;
 }
 
@@ -33,6 +33,7 @@ export function PopularRightNowSection({
   const TABS = [
     { label: "Movies", value: "movie" },
     { label: "TV", value: "tv" },
+    { label: "Games", value: "game" },
   ];
 
   return (

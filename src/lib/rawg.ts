@@ -138,6 +138,39 @@ function getRAWGFetchConfig(
 }
 
 /**
+ * Fetches the top games from RAWG, ordered by most recently released with highest added count
+ * (ordering=-added and dates range covering the last 12 months).
+ */
+export async function fetchRAWGTrendingGames(
+  limit = 20
+): Promise<Array<{ id: number; name?: string; slug?: string }>> {
+  const now = new Date();
+  const endDate = now.toISOString().slice(0, 10);
+  const oneYearAgo = new Date(now);
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+  const startDate = oneYearAgo.toISOString().slice(0, 10);
+  const dates = `${startDate},${endDate}`;
+
+  const config = getRAWGFetchConfig("/games", {
+    ordering: "-added",
+    dates,
+    page_size: limit,
+  });
+
+  if (!config.apiKeyPresent || !config.url) {
+    throw new Error("RAWG_API_KEY environment variable is not configured");
+  }
+
+  const res = await fetch(config.url, { headers: config.headers });
+  if (!res.ok) {
+    throw new Error(`RAWG trending games fetch failed with status ${res.status}`);
+  }
+
+  const data = await res.json();
+  return Array.isArray(data.results) ? data.results.slice(0, limit) : [];
+}
+
+/**
  * Curated high-fidelity mock game database for development, testing, and offline resilience.
  */
 export const MOCK_GAMES: RAWGTransformedGame[] = [
