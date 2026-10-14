@@ -560,6 +560,38 @@ export type Database = {
         };
         Relationships: [];
       };
+      trending: {
+        Row: {
+          media_id: string;
+          type: string;
+          entry_count: number;
+          rank: number;
+          computed_at: string;
+        };
+        Insert: {
+          media_id: string;
+          type: string;
+          entry_count: number;
+          rank: number;
+          computed_at?: string;
+        };
+        Update: {
+          media_id?: string;
+          type?: string;
+          entry_count?: number;
+          rank?: number;
+          computed_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "trending_media_id_fkey";
+            columns: ["media_id"];
+            isOneToOne: true;
+            referencedRelation: "media";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       safe_profiles: {
