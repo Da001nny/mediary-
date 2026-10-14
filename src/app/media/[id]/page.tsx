@@ -16,6 +16,7 @@ import { fetchRAWGGameDetails, rawgGameToMediaPayload } from "@/lib/rawg";
 import { fetchGoogleBookDetails, bookToMediaPayload } from "@/lib/google-books";
 import type {
   MediaItem,
+  MediaType,
   CastMember,
   CrewMember,
   WatchProvidersCountry,
@@ -23,6 +24,8 @@ import type {
 } from "@/types/database.types";
 import { Coffee, Film, ArrowLeft, Lock, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import Image from "next/image";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -363,6 +366,73 @@ async function getUserRegion(): Promise<string> {
 }
 
 /**
+ * Queries public.media for other rows of the same type with overlapping genres,
+ * ranked by number of shared genres, excluding the current title, limit 8.
+ */
+async function getSimilarMedia(
+  currentId: string,
+  type: MediaType,
+  genres: string[]
+): Promise<MediaItem[]> {
+  if (!genres || !Array.isArray(genres) || genres.length === 0) {
+    return [];
+  }
+
+  const validGenres = genres.filter(
+    (g) => typeof g === "string" && g.trim().length > 0
+  );
+  if (validGenres.length === 0) {
+    return [];
+  }
+
+  const supabase = createAdminClient() || (await createClient());
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("media")
+    .select("*")
+    .eq("type", type)
+    .neq("id", currentId)
+    .overlaps("genres", validGenres)
+    .limit(50);
+
+  if (error || !data || data.length === 0) {
+    return [];
+  }
+
+  const currentGenreSet = new Set(
+    validGenres.map((g) => g.toLowerCase().trim())
+  );
+
+  const scored = (data as MediaItem[]).map((item) => {
+    const itemGenres = Array.isArray(item.genres) ? item.genres : [];
+    let sharedCount = 0;
+    for (const g of itemGenres) {
+      if (typeof g === "string" && currentGenreSet.has(g.toLowerCase().trim())) {
+        sharedCount++;
+      }
+    }
+    return { item, sharedCount };
+  });
+
+  const matches = scored.filter((s) => s.sharedCount > 0);
+
+  matches.sort((a, b) => {
+    if (b.sharedCount !== a.sharedCount) {
+      return b.sharedCount - a.sharedCount;
+    }
+    const aRating = a.item.community_rating_avg;
+    const bRating = b.item.community_rating_avg;
+    if (aRating == null && bRating == null) return 0;
+    if (aRating == null) return 1;
+    if (bRating == null) return -1;
+    return bRating - aRating;
+  });
+
+  return matches.slice(0, 8).map((s) => s.item);
+}
+
+/**
  * Generate rich SEO metadata for the title page.
  */
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -495,6 +565,12 @@ export default async function MediaDetailPage({ params }: PageProps) {
     );
   }
 
+  const similarMedia = await getSimilarMedia(
+    media.id,
+    media.type,
+    media.genres
+  );
+
   const typeSpecific = (media.type_specific as Record<string, unknown>) || {};
   const cast = (Array.isArray(typeSpecific.cast)
     ? typeSpecific.cast
@@ -531,6 +607,53 @@ export default async function MediaDetailPage({ params }: PageProps) {
               />
               <CastCrewSection cast={cast} crew={crew} />
             </>
+          )}
+
+          {/* More like this Recommendations Panel */}
+          {similarMedia.length > 0 && (
+            <section className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="font-serif text-xl sm:text-2xl font-bold text-text">
+                  More like this
+                </h2>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4">
+                {similarMedia.map((item) => (
+                  <Link
+                    key={item.id}
+                    href={`/media/${encodeURIComponent(item.id)}`}
+                    className="group block h-full focus-visible:outline-none"
+                  >
+                    <Card
+                      variant="interactive"
+                      className="p-2.5 sm:p-3 flex flex-col h-full bg-surface hover:border-accent transition-all"
+                    >
+                      <div className="relative aspect-2/3 w-full rounded-xl overflow-hidden bg-bg/80 shrink-0 poster-depth-sm mb-2.5">
+                        {item.cover_url ? (
+                          <Image
+                            src={item.cover_url}
+                            alt={item.title}
+                            fill
+                            sizes="(max-width: 640px) 45vw, (max-width: 1024px) 25vw, 12vw"
+                            className="object-cover group-hover:scale-105 transition-transform duration-200"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-text-muted font-serif text-xs font-semibold p-1 text-center">
+                            {item.title ? item.title.slice(0, 2).toUpperCase() : "??"}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-serif text-xs sm:text-sm font-bold text-text group-hover:text-accent transition-colors line-clamp-2 leading-snug">
+                          {item.title}
+                        </h3>
+                      </div>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            </section>
           )}
 
           {/* Community Public Reviews Feed (with spoiler shields & sorting) */}
