@@ -45,169 +45,6 @@ interface HomeEntryItem {
   media: MediaItem | null;
 }
 
-// Sample fallback items for demo / preview mode
-const SAMPLE_IN_PROGRESS: HomeEntryItem[] = [
-  {
-    id: "sample-prog-1",
-    user_id: "demo",
-    media_id: "tv-95557",
-    status: "in_progress",
-    rating: 90,
-    progress: { season: 2, episode: 4 },
-    privacy: "public",
-    created_at: "2026-10-06T14:00:00Z",
-    media: {
-      id: "tv-95557",
-      type: "tv",
-      title: "Severance",
-      cover_url: "https://image.tmdb.org/t/p/w342/pG0vMpsuXpZ23B330i3sI6u2t9a.jpg",
-      release_date: "2022-02-18",
-      genres: ["Drama", "Mystery", "Sci-Fi"],
-      community_rating_avg: 84,
-      community_rating_count: 1200,
-      external_ids: { tmdb_id: 95557 },
-      last_synced_at: "2026-10-01",
-      localized_fields: {},
-      synopsis: null,
-      type_specific: null,
-      watch_providers: null,
-    },
-  },
-  {
-    id: "sample-prog-2",
-    user_id: "demo",
-    media_id: "game-3498",
-    status: "in_progress",
-    rating: 95,
-    progress: { percent: 65 },
-    privacy: "public",
-    created_at: "2026-10-04T18:30:00Z",
-    media: {
-      id: "game-3498",
-      type: "game",
-      title: "Elden Ring",
-      cover_url: "https://media.rawg.io/media/games/b54/b545f1638f886c0400b99a175b111429.jpg",
-      release_date: "2022-02-25",
-      genres: ["Action", "RPG"],
-      community_rating_avg: 92,
-      community_rating_count: 4800,
-      external_ids: { rawg_id: 3498 },
-      last_synced_at: "2026-10-01",
-      localized_fields: {},
-      synopsis: null,
-      type_specific: null,
-      watch_providers: null,
-    },
-  },
-];
-
-const SAMPLE_RECENT_LOGS: HomeEntryItem[] = [
-  {
-    id: "sample-log-1",
-    user_id: "demo",
-    media_id: "movie-157336",
-    status: "completed",
-    rating: 100,
-    review: "The docking sequence and Zimmer organ score remain completely unmatched.",
-    privacy: "public",
-    created_at: "2026-10-05T20:15:00Z",
-    media: {
-      id: "movie-157336",
-      type: "movie",
-      title: "Interstellar",
-      cover_url: "https://image.tmdb.org/t/p/w342/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg",
-      release_date: "2014-11-05",
-      genres: ["Adventure", "Drama", "Sci-Fi"],
-      community_rating_avg: 86,
-      community_rating_count: 32000,
-      external_ids: { tmdb_id: 157336 },
-      last_synced_at: "2026-10-01",
-      localized_fields: {},
-      synopsis: null,
-      type_specific: null,
-      watch_providers: null,
-    },
-  },
-  {
-    id: "sample-log-2",
-    user_id: "demo",
-    media_id: "movie-550",
-    status: "completed",
-    rating: 90,
-    review: "Masterful pacing and razor-sharp satire of modern consumerism.",
-    privacy: "public",
-    created_at: "2026-10-02T19:00:00Z",
-    media: {
-      id: "movie-550",
-      type: "movie",
-      title: "Fight Club",
-      cover_url: "https://image.tmdb.org/t/p/w342/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg",
-      release_date: "1999-10-15",
-      genres: ["Drama"],
-      community_rating_avg: 84,
-      community_rating_count: 27000,
-      external_ids: { tmdb_id: 550 },
-      last_synced_at: "2026-10-01",
-      localized_fields: {},
-      synopsis: null,
-      type_specific: null,
-      watch_providers: null,
-    },
-  },
-  {
-    id: "sample-log-3",
-    user_id: "demo",
-    media_id: "tv-94605",
-    status: "completed",
-    rating: 95,
-    review: "Visual masterpiece from Fortiche Studio. Incredible emotional gravity.",
-    privacy: "public",
-    created_at: "2026-09-28T21:30:00Z",
-    media: {
-      id: "tv-94605",
-      type: "tv",
-      title: "Arcane",
-      cover_url: "https://image.tmdb.org/t/p/w342/fqldf2t8ztc9aiwn397rgg3c9.jpg",
-      release_date: "2021-11-06",
-      genres: ["Animation", "Sci-Fi", "Action"],
-      community_rating_avg: 87,
-      community_rating_count: 3400,
-      external_ids: { tmdb_id: 94605 },
-      last_synced_at: "2026-10-01",
-      localized_fields: {},
-      synopsis: null,
-      type_specific: null,
-      watch_providers: null,
-    },
-  },
-  {
-    id: "sample-log-4",
-    user_id: "demo",
-    media_id: "game-452634",
-    status: "completed",
-    rating: 95,
-    review: "The pinnacle of reactive storytelling and CRPG roleplaying freedom.",
-    privacy: "public",
-    created_at: "2026-09-20T16:00:00Z",
-    media: {
-      id: "game-452634",
-      type: "game",
-      title: "Baldur's Gate 3",
-      cover_url: "https://media.rawg.io/media/games/699/699222d81a502178ea93d07976a3702c.jpg",
-      release_date: "2023-08-03",
-      genres: ["RPG", "Strategy"],
-      community_rating_avg: 96,
-      community_rating_count: 5200,
-      external_ids: { rawg_id: 452634 },
-      last_synced_at: "2026-10-01",
-      localized_fields: {},
-      synopsis: null,
-      type_specific: null,
-      watch_providers: null,
-    },
-  },
-];
-
 interface HomeDashboardClientProps {
   trendingSection: React.ReactNode;
   popularSection?: React.ReactNode;
@@ -243,6 +80,17 @@ export function HomeDashboardClient({
     user?.email?.split("@")[0] ||
     "Reader";
 
+  // Clean up legacy localStorage diary entries on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("mediary_diary_entries");
+      } catch {
+        // ignore
+      }
+    }
+  }, []);
+
   // Load user entries when authenticated
   useEffect(() => {
     let cancelled = false;
@@ -255,63 +103,18 @@ export function HomeDashboardClient({
           .then((res) => (res.ok ? res.json() : Promise.reject(res)))
           .then((data) => {
             if (cancelled) return;
-            const fetchedProg = Array.isArray(data.inProgress) ? data.inProgress : [];
-            const fetchedRecent = Array.isArray(data.recent) ? data.recent : [];
+            const fetchedProg = Array.isArray(data?.inProgress) ? data.inProgress : [];
+            const fetchedRecent = Array.isArray(data?.recent) ? data.recent : [];
 
-            // If database returned entries, use them; if empty demo user, fallback to sample entries
-            if (fetchedProg.length > 0 || fetchedRecent.length > 0) {
-              setInProgressEntries(fetchedProg);
-              setRecentEntries(fetchedRecent);
-            } else {
-              // Check local storage for demo items or use sample items
-              try {
-                const localDiary = localStorage.getItem("mediary_diary_entries");
-                if (localDiary) {
-                  const parsed = JSON.parse(localDiary);
-                  if (Array.isArray(parsed) && parsed.length > 0) {
-                    const mapped: HomeEntryItem[] = parsed.map((item) => ({
-                      id: item.id || `entry-${item.media_id}`,
-                      user_id: user.id,
-                      media_id: item.media_id,
-                      status: item.status || "completed",
-                      rating: item.rating,
-                      review: item.notes || item.review,
-                      privacy: "public",
-                      created_at: item.logged_at || item.created_at || new Date().toISOString(),
-                      media: {
-                        id: item.media_id,
-                        type: item.type || "movie",
-                        title: item.title,
-                        cover_url: item.cover_url,
-                        release_date: item.release_year ? `${item.release_year}-01-01` : null,
-                        genres: item.genres || [],
-                        community_rating_avg: null,
-                        community_rating_count: 0,
-                        external_ids: {},
-                        last_synced_at: new Date().toISOString(),
-                        localized_fields: {},
-                        synopsis: null,
-                        type_specific: null,
-                        watch_providers: null,
-                      },
-                    }));
-                    setInProgressEntries(mapped.filter((m) => m.status === "in_progress"));
-                    setRecentEntries(mapped);
-                    return;
-                  }
-                }
-              } catch {
-                // ignore
-              }
-              setInProgressEntries(SAMPLE_IN_PROGRESS);
-              setRecentEntries(SAMPLE_RECENT_LOGS);
-            }
+            // Directly set user database entries without sample/demo fallbacks
+            setInProgressEntries(fetchedProg);
+            setRecentEntries(fetchedRecent);
           })
           .catch((err) => {
             console.warn("Could not load user home entries:", err);
             if (!cancelled) {
-              setInProgressEntries(SAMPLE_IN_PROGRESS);
-              setRecentEntries(SAMPLE_RECENT_LOGS);
+              setInProgressEntries([]);
+              setRecentEntries([]);
             }
           })
           .finally(() => {
@@ -737,7 +540,7 @@ export function HomeDashboardClient({
                   href="/diary"
                   className="text-xs text-accent hover:underline font-medium inline-flex items-center gap-1"
                 >
-                  <span>View all logs ({recentEntries.length})</span>
+                  <span>{recentEntries.length > 0 ? `View all logs (${recentEntries.length})` : "View diary"}</span>
                   <ChevronRight className="w-3 h-3" />
                 </Link>
               </div>
