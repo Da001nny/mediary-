@@ -516,6 +516,10 @@ export async function searchRAWGGames(
     search_precise: "true",
   });
 
+  if (process.env.NODE_ENV !== "development" && (!apiKeyPresent || !url)) {
+    throw new Error("RAWG_API_KEY environment variable is not configured");
+  }
+
   if (apiKeyPresent && url) {
     try {
       const res = await fetch(url, { headers });
@@ -551,12 +555,23 @@ export async function searchRAWGGames(
         );
         return { results, isMock: false };
       }
-    } catch {
-      // Fall through to mock search
+
+      if (process.env.NODE_ENV !== "development") {
+        throw new Error(`RAWG search failed with status ${res.status}`);
+      }
+    } catch (err) {
+      if (process.env.NODE_ENV !== "development") {
+        throw err instanceof Error ? err : new Error("RAWG search failed");
+      }
+      // Fall through to mock search in development
     }
   }
 
-  // Filter Mock Games
+  if (process.env.NODE_ENV !== "development") {
+    throw new Error("RAWG search failed or RAWG_API_KEY is not configured");
+  }
+
+  // Filter Mock Games (development only)
   const filtered = MOCK_GAMES.filter((g) => {
     const titleMatch = g.title.toLowerCase().includes(trimmed);
     const genreMatch = g.genres.some((gen) =>
@@ -600,6 +615,10 @@ export async function fetchRAWGGameDetails(
 
   // 1. Try Live RAWG API if key present
   const { url, headers, apiKeyPresent } = getRAWGFetchConfig(`/games/${id}`);
+
+  if (process.env.NODE_ENV !== "development" && (!apiKeyPresent || !url)) {
+    throw new Error("RAWG_API_KEY environment variable is not configured");
+  }
 
   if (apiKeyPresent && url) {
     try {
@@ -685,12 +704,27 @@ export async function fetchRAWGGameDetails(
 
         return { data: transformed, isMock: false };
       }
-    } catch {
-      // Fall through to mock
+
+      if (res.status === 404) {
+        return { data: null, error: `Game with ID '${id}' not found`, isMock: false };
+      }
+
+      if (process.env.NODE_ENV !== "development") {
+        throw new Error(`RAWG details API failed with status ${res.status}`);
+      }
+    } catch (err) {
+      if (process.env.NODE_ENV !== "development") {
+        throw err instanceof Error ? err : new Error(`RAWG details request failed for ID ${id}`);
+      }
+      // Fall through to mock in development
     }
   }
 
-  // 2. Check in mock games
+  if (process.env.NODE_ENV !== "development") {
+    throw new Error(`Game with ID '${id}' not found or RAWG_API_KEY is not configured`);
+  }
+
+  // 2. Check in mock games (development only)
   const mockFound = MOCK_GAMES.find(
     (g) => g.rawg_id === numericId || g.slug === String(id)
   );

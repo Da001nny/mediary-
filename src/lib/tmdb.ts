@@ -155,8 +155,11 @@ export async function searchTMDB(params: {
     language: "en-US",
   });
 
-  // If no API key is provided yet, return curated fallback results matching search query
+  // If no API key is provided yet, return curated fallback results matching search query (dev only)
   if (!config.apiKeyPresent || !config.url) {
+    if (process.env.NODE_ENV !== "development") {
+      throw new Error("TMDB_API_KEY environment variable is not configured");
+    }
     const mock = getMockSearchResults(query, type);
     return {
       results: mock,
@@ -174,6 +177,9 @@ export async function searchTMDB(params: {
     });
 
     if (!res.ok) {
+      if (process.env.NODE_ENV !== "development") {
+        throw new Error(`TMDB Search API error: ${res.status} ${res.statusText}`);
+      }
       if (res.status === 401) {
         console.warn("TMDB API key invalid or unauthorized, falling back to mock results.");
         const mock = getMockSearchResults(query, type);
@@ -237,6 +243,9 @@ export async function searchTMDB(params: {
       isMock: false,
     };
   } catch (error) {
+    if (process.env.NODE_ENV !== "development") {
+      throw error instanceof Error ? error : new Error("TMDB search failed");
+    }
     console.error("TMDB search error:", error);
     const mock = getMockSearchResults(query, type);
     return {
@@ -268,6 +277,9 @@ export async function fetchTMDBDetails(
   });
 
   if (!config.apiKeyPresent || !config.url) {
+    if (process.env.NODE_ENV !== "development") {
+      throw new Error("TMDB_API_KEY environment variable is not configured");
+    }
     const mockDetails = getMockDetails(numericId, type);
     return { data: mockDetails, error: null, isMock: true };
   }
@@ -279,19 +291,25 @@ export async function fetchTMDBDetails(
 
     if (!res.ok) {
       if (res.status === 404) {
-        return { data: null, error: `Media item with ID ${numericId} not found on TMDB` };
+        return { data: null, error: `Media item with ID ${numericId} not found on TMDB`, isMock: false };
+      }
+      if (process.env.NODE_ENV !== "development") {
+        throw new Error(`TMDB Details API error: ${res.status} ${res.statusText}`);
       }
       if (res.status === 401) {
         console.warn("TMDB API key unauthorized, returning mock details.");
         return { data: getMockDetails(numericId, type), error: null, isMock: true };
       }
-      return { data: null, error: `TMDB Details API error: ${res.status} ${res.statusText}` };
+      return { data: null, error: `TMDB Details API error: ${res.status} ${res.statusText}`, isMock: false };
     }
 
     const json = await res.json();
     const transformed = transformTMDBDetails(json, type, numericId);
     return { data: transformed, error: null, isMock: false };
   } catch (err) {
+    if (process.env.NODE_ENV !== "development") {
+      throw err instanceof Error ? err : new Error(`TMDB details request failed for ID ${numericId}`);
+    }
     console.error("fetchTMDBDetails exception:", err);
     return { data: getMockDetails(numericId, type), error: null, isMock: true };
   }
@@ -694,6 +712,9 @@ export async function fetchTMDBPerson(
   });
 
   if (!config.apiKeyPresent || !config.url) {
+    if (process.env.NODE_ENV !== "development") {
+      throw new Error("TMDB_API_KEY environment variable is not configured");
+    }
     const mock = getMockPersonDetails(numericId);
     return { data: mock, error: null, isMock: true };
   }
@@ -706,13 +727,16 @@ export async function fetchTMDBPerson(
 
     if (!res.ok) {
       if (res.status === 404) {
-        return { data: null, error: `Person with ID ${numericId} not found on TMDB` };
+        return { data: null, error: `Person with ID ${numericId} not found on TMDB`, isMock: false };
+      }
+      if (process.env.NODE_ENV !== "development") {
+        throw new Error(`TMDB Person API error: ${res.status} ${res.statusText}`);
       }
       if (res.status === 401) {
         console.warn("TMDB API key unauthorized, returning mock person data.");
         return { data: getMockPersonDetails(numericId), error: null, isMock: true };
       }
-      return { data: null, error: `TMDB Person API error: ${res.status} ${res.statusText}` };
+      return { data: null, error: `TMDB Person API error: ${res.status} ${res.statusText}`, isMock: false };
     }
 
     const raw = await res.json();
@@ -791,6 +815,9 @@ export async function fetchTMDBPerson(
       isMock: false,
     };
   } catch (err) {
+    if (process.env.NODE_ENV !== "development") {
+      throw err instanceof Error ? err : new Error(`TMDB person request failed for ID ${numericId}`);
+    }
     console.error("fetchTMDBPerson exception:", err);
     return { data: getMockPersonDetails(numericId), error: null, isMock: true };
   }

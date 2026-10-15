@@ -16,6 +16,12 @@ export async function GET(request: NextRequest) {
     const batchListIds = searchParams.get("list_ids");
 
     const supabase = await createClient();
+    if (!supabase && process.env.NODE_ENV === "production") {
+      return NextResponse.json(
+        { error: "Database service unavailable: Supabase is not configured" },
+        { status: 503 }
+      );
+    }
 
     // 1. Batch lookup for multiple entries
     if (batchEntryIds) {
@@ -166,6 +172,12 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
     if (!supabase) {
+      if (process.env.NODE_ENV === "production") {
+        return NextResponse.json(
+          { error: "Database service unavailable: Supabase is not configured" },
+          { status: 503 }
+        );
+      }
       return NextResponse.json({ success: true, isLiked: true, count: 1, isMock: true });
     }
 
@@ -275,6 +287,12 @@ export async function DELETE(request: NextRequest) {
 
     const supabase = await createClient();
     if (!supabase) {
+      if (process.env.NODE_ENV === "production") {
+        return NextResponse.json(
+          { error: "Database service unavailable: Supabase is not configured" },
+          { status: 503 }
+        );
+      }
       return NextResponse.json({ success: true, isLiked: false, count: 0, isMock: true });
     }
 

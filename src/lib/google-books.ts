@@ -347,6 +347,10 @@ export async function searchGoogleBooks(
   if (!trimmed) return { results: [], isMock: false };
 
   const apiKey = process.env.GOOGLE_BOOKS_API_KEY?.trim();
+  if (process.env.NODE_ENV !== "development" && !apiKey) {
+    throw new Error("GOOGLE_BOOKS_API_KEY environment variable is not configured");
+  }
+
   const url = new URL(GOOGLE_BOOKS_BASE_URL);
   url.searchParams.set("q", query);
   url.searchParams.set("maxResults", "15");
@@ -402,12 +406,24 @@ export async function searchGoogleBooks(
 
         return { results, isMock: false };
       }
+      return { results: [], isMock: false };
     }
-  } catch {
-    // Fall through to mock search
+
+    if (process.env.NODE_ENV !== "development") {
+      throw new Error(`Google Books API error: ${res.status} ${res.statusText}`);
+    }
+  } catch (err) {
+    if (process.env.NODE_ENV !== "development") {
+      throw err instanceof Error ? err : new Error("Google Books search failed");
+    }
+    // Fall through to mock search in development
   }
 
-  // Filter Mock Books
+  if (process.env.NODE_ENV !== "development") {
+    throw new Error("Google Books search failed or GOOGLE_BOOKS_API_KEY is not configured");
+  }
+
+  // Filter Mock Books (development only)
   const filtered = MOCK_BOOKS.filter((b) => {
     const titleMatch = b.title.toLowerCase().includes(trimmed);
     const authorMatch = b.type_specific.authors.some((a) => a.toLowerCase().includes(trimmed));
@@ -446,8 +462,12 @@ export async function fetchGoogleBookDetails(
 ): Promise<{ data: TransformedBook | null; error?: string; isMock: boolean }> {
   const cleanId = id.replace(/^(book-|gb-)/i, "");
 
-  // 1. Try Live API
   const apiKey = process.env.GOOGLE_BOOKS_API_KEY?.trim();
+  if (process.env.NODE_ENV !== "development" && !apiKey) {
+    throw new Error("GOOGLE_BOOKS_API_KEY environment variable is not configured");
+  }
+
+  // 1. Try Live API
   const url = new URL(`${GOOGLE_BOOKS_BASE_URL}/${cleanId}`);
   if (apiKey) {
     url.searchParams.set("key", apiKey);
@@ -517,11 +537,26 @@ export async function fetchGoogleBookDetails(
 
       return { data: transformed, isMock: false };
     }
-  } catch {
-    // Fallback to mock
+
+    if (res.status === 404) {
+      return { data: null, error: `Book with ID '${cleanId}' not found`, isMock: false };
+    }
+
+    if (process.env.NODE_ENV !== "development") {
+      throw new Error(`Google Books API error: ${res.status} ${res.statusText}`);
+    }
+  } catch (err) {
+    if (process.env.NODE_ENV !== "development") {
+      throw err instanceof Error ? err : new Error(`Google Books details request failed for ID ${cleanId}`);
+    }
+    // Fallback to mock in development
   }
 
-  // 2. Check in mock catalog
+  if (process.env.NODE_ENV !== "development") {
+    throw new Error(`Book with ID '${id}' not found or GOOGLE_BOOKS_API_KEY is not configured`);
+  }
+
+  // 2. Check in mock catalog (development only)
   const found = MOCK_BOOKS.find(
     (b) =>
       b.google_books_id === cleanId ||

@@ -38,6 +38,12 @@ export async function GET(request: NextRequest) {
 
     const supabase = await createClient();
     if (!supabase) {
+      if (process.env.NODE_ENV === "production") {
+        return NextResponse.json(
+          { error: "Database service unavailable: Supabase is not configured" },
+          { status: 503 }
+        );
+      }
       // In demo mode without configured Supabase
       return NextResponse.json({ entry: null, publicEntries: [], entries: [], isMock: true });
     }
@@ -238,7 +244,13 @@ export async function POST(request: NextRequest) {
 
     // Check if Supabase server environment is configured
     if (!supabase) {
-      // Mock / Demo fallback response
+      if (process.env.NODE_ENV === "production") {
+        return NextResponse.json(
+          { error: "Database service unavailable: Supabase is not configured" },
+          { status: 503 }
+        );
+      }
+      // Mock / Demo fallback response (development only)
       const mockEntry = {
         id: `mock-entry-${Date.now()}`,
         user_id: "demo-user-id",
@@ -743,6 +755,12 @@ export async function DELETE(request: NextRequest) {
 
     const supabase = await createClient();
     if (!supabase) {
+      if (process.env.NODE_ENV === "production") {
+        return NextResponse.json(
+          { error: "Database service unavailable: Supabase is not configured" },
+          { status: 503 }
+        );
+      }
       return NextResponse.json({ success: true, isMock: true });
     }
 

@@ -157,8 +157,8 @@ export async function syncTMDBMovieToMedia(tmdbId: number): Promise<string> {
   }
 
   const { data: details, error: tmdbErr, isMock } = await fetchTMDBDetails(tmdbId, "movie");
-  if (tmdbErr || !details || isMock) {
-    throw new Error(tmdbErr || "Failed to retrieve real movie details from TMDB");
+  if (tmdbErr || !details || isMock || (details.raw_data as { mock?: boolean })?.mock) {
+    throw new Error(tmdbErr || "Cannot sync mock movie data into public.media");
   }
 
   const genreNames = Array.isArray(details.genres)
@@ -257,9 +257,14 @@ export async function syncGoogleBookToMedia(googleBooksId: string): Promise<stri
     return existing.id;
   }
 
+  const apiKey = process.env.GOOGLE_BOOKS_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error("GOOGLE_BOOKS_API_KEY is not configured");
+  }
+
   const { data: details, error: gbErr, isMock } = await fetchGoogleBookDetails(cleanId);
   if (gbErr || !details || isMock) {
-    throw new Error(gbErr || "Failed to retrieve real book details from Google Books");
+    throw new Error(gbErr || "Cannot sync mock book data into public.media");
   }
 
   const payload = bookToMediaPayload(details);
@@ -328,8 +333,8 @@ export async function syncTMDBTVToMedia(tmdbId: number): Promise<string> {
   }
 
   const { data: details, error: tmdbErr, isMock } = await fetchTMDBDetails(tmdbId, "tv");
-  if (tmdbErr || !details || isMock) {
-    throw new Error(tmdbErr || "Failed to retrieve real TV series details from TMDB");
+  if (tmdbErr || !details || isMock || (details.raw_data as { mock?: boolean })?.mock) {
+    throw new Error(tmdbErr || "Cannot sync mock TV series data into public.media");
   }
 
   const genreNames = Array.isArray(details.genres)
@@ -443,7 +448,7 @@ export async function syncRAWGGameToMedia(rawgId: number | string): Promise<stri
 
   const { data: details, error: rawgErr, isMock } = await fetchRAWGGameDetails(cleanId);
   if (rawgErr || !details || isMock) {
-    throw new Error(rawgErr || "Failed to retrieve real game details from RAWG");
+    throw new Error(rawgErr || "Cannot sync mock game data into public.media");
   }
 
   const payload = rawgGameToMediaPayload(details);
