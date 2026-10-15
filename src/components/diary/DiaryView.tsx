@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -14,6 +14,7 @@ import {
   Filter,
   Plus,
   BookMarked,
+  Loader2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -21,6 +22,7 @@ import { MediaSearchModal } from "@/components/media/MediaSearchModal";
 import { SpoilerReviewText } from "@/components/media/SpoilerReviewText";
 import { RatingBadge } from "@/components/ui/RatingBadge";
 import { LikeButton } from "@/components/social/LikeButton";
+import { useAuth } from "@/context/AuthContext";
 import type { CastMember, CrewMember } from "@/types/database.types";
 
 export interface DiaryEntry {
@@ -42,140 +44,148 @@ export interface DiaryEntry {
   crew?: CrewMember[];
 }
 
-const DEFAULT_SAMPLE_ENTRIES: DiaryEntry[] = [
-  {
-    id: "log-1",
-    media_id: "movie-550",
-    title: "Fight Club",
-    type: "movie",
-    cover_url: "https://image.tmdb.org/t/p/w342/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg",
-    release_year: 1999,
-    genres: ["Drama", "Thriller"],
-    status: "completed",
-    rating: 90,
-    notes:
-      "A masterpiece of nihilistic satire and psychological tension. Brad Pitt and Edward Norton have unmatched chemistry under Fincher's kinetic direction.",
-    logged_at: "2026-09-24T18:30:00Z",
-    cast: [
-      { id: 819, name: "Edward Norton", character: "The Narrator" },
-      { id: 287, name: "Brad Pitt", character: "Tyler Durden" },
-      { id: 1283, name: "Helena Bonham Carter", character: "Marla Singer" },
-    ],
-    crew: [{ id: 7467, name: "David Fincher", job: "Director", department: "Directing" }],
-  },
-  {
-    id: "log-2",
-    media_id: "movie-157336",
-    title: "Interstellar",
-    type: "movie",
-    cover_url: "https://image.tmdb.org/t/p/w342/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg",
-    release_year: 2014,
-    genres: ["Adventure", "Drama", "Sci-Fi"],
-    status: "completed",
-    rating: 100,
-    notes:
-      "The docking scene remains one of the greatest moments in modern cinema. Zimmer's organ score reverberates long after the credits roll.",
-    logged_at: "2026-09-22T21:00:00Z",
-    cast: [
-      { id: 10297, name: "Matthew McConaughey", character: "Cooper" },
-      { id: 1813, name: "Anne Hathaway", character: "Brand" },
-      { id: 83002, name: "Jessica Chastain", character: "Murph" },
-    ],
-    crew: [{ id: 525, name: "Christopher Nolan", job: "Director", department: "Directing" }],
-  },
-  {
-    id: "log-3",
-    media_id: "tv-95557",
-    title: "Severance",
-    type: "tv",
-    cover_url: "https://image.tmdb.org/t/p/w342/pG0vMpsuXpZ23B330i3sI6u2t9a.jpg",
-    release_year: 2022,
-    genres: ["Drama", "Mystery", "Sci-Fi"],
-    status: "in_progress",
-    rating: 90,
-    progress: { season: 1, episode: 9 },
-    contains_spoilers: true,
-    notes:
-      "Finished season 1. The waffle party and finale cliffhanger left me breathless. Stellar, unnerving performance by Adam Scott.",
-    logged_at: "2026-09-20T14:15:00Z",
-    cast: [
-      { id: 36801, name: "Adam Scott", character: "Mark Scout" },
-      { id: 4587, name: "Patricia Arquette", character: "Harmony Cobel" },
-      { id: 3895, name: "John Turturro", character: "Irving" },
-      { id: 193, name: "Christopher Walken", character: "Burt" },
-    ],
-    crew: [{ id: 7399, name: "Ben Stiller", job: "Director", department: "Directing" }],
-  },
-  {
-    id: "log-4",
-    media_id: "movie-16869",
-    title: "Inglourious Basterds",
-    type: "movie",
-    cover_url: "https://image.tmdb.org/t/p/w342/7sfbEnaARXDD5Km007MsbY9KiEH.jpg",
-    release_year: 2009,
-    genres: ["War", "Drama", "Thriller"],
-    status: "completed",
-    rating: 80,
-    notes:
-      "Brad Pitt's Lt. Aldo Raine is endlessly quotable. The opening farmhouse scene is a masterclass in suspense.",
-    logged_at: "2026-09-18T19:40:00Z",
-    cast: [
-      { id: 287, name: "Brad Pitt", character: "Lt. Aldo Raine" },
-      { id: 27319, name: "Christoph Waltz", character: "Col. Hans Landa" },
-      { id: 137427, name: "Michael Fassbender", character: "Lt. Archie Hicox" },
-    ],
-    crew: [{ id: 138, name: "Quentin Tarantino", job: "Director", department: "Directing" }],
-  },
-  {
-    id: "log-5",
-    media_id: "movie-129",
-    title: "Spirited Away",
-    type: "movie",
-    cover_url: "https://image.tmdb.org/t/p/w342/39wmItIWsg5sZMyRUHLkWBcuVCM.jpg",
-    release_year: 2001,
-    genres: ["Animation", "Family", "Fantasy"],
-    status: "completed",
-    rating: 100,
-    notes:
-      "A quiet morning rewatch. Miyazaki's visual imagination and Joe Hisaishi's gentle piano motifs feel like a warm hug.",
-    logged_at: "2026-09-15T09:10:00Z",
-    cast: [
-      { id: 19588, name: "Rumi Hiiragi", character: "Chihiro (voice)" },
-      { id: 19589, name: "Miyu Irino", character: "Haku (voice)" },
-    ],
-    crew: [{ id: 608, name: "Hayao Miyazaki", job: "Director", department: "Directing" }],
-  },
-];
+interface DbMediaJoined {
+  id: string;
+  type?: "movie" | "tv" | "book" | "game";
+  title?: string;
+  cover_url?: string | null;
+  release_date?: string | null;
+  genres?: string[];
+  community_rating_avg?: number | null;
+  type_specific?: Record<string, unknown> | null;
+}
+
+interface DbEntryJoined {
+  id: string;
+  user_id: string;
+  media_id: string;
+  status: "completed" | "in_progress" | "planned" | "dropped" | "on_hold";
+  rating?: number | null;
+  progress?: Record<string, unknown> | null;
+  review?: string | null;
+  contains_spoilers?: boolean;
+  privacy?: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+  created_at: string;
+  updated_at?: string;
+  media?: DbMediaJoined | null;
+}
+
+function mapDbEntryToDiaryEntry(entry: DbEntryJoined): DiaryEntry {
+  const media = entry.media || ({} as DbMediaJoined);
+  const releaseYear = media.release_date
+    ? new Date(media.release_date).getFullYear()
+    : null;
+  const typeSpec = (media.type_specific || {}) as Record<string, unknown>;
+  const credits = (typeSpec.credits || {}) as Record<string, unknown>;
+  const cast = (Array.isArray(credits.cast)
+    ? credits.cast
+    : Array.isArray(typeSpec.cast)
+    ? typeSpec.cast
+    : []) as CastMember[];
+  const crew = (Array.isArray(credits.crew)
+    ? credits.crew
+    : Array.isArray(typeSpec.crew)
+    ? typeSpec.crew
+    : []) as CrewMember[];
+
+  // Normalize status: on_hold maps to in_progress for diary status tabs
+  const status: "completed" | "in_progress" | "planned" | "dropped" =
+    entry.status === "on_hold" ? "in_progress" : entry.status;
+
+  return {
+    id: entry.id,
+    media_id: entry.media_id,
+    title: media.title || "Untitled",
+    type: media.type || "movie",
+    cover_url: media.cover_url || null,
+    release_year: releaseYear,
+    genres: Array.isArray(media.genres) ? media.genres : [],
+    status,
+    rating: entry.rating ?? null,
+    progress: (entry.progress as Record<string, unknown>) || null,
+    notes: entry.review || undefined,
+    review: entry.review || undefined,
+    contains_spoilers: Boolean(entry.contains_spoilers),
+    logged_at: entry.completed_at || entry.created_at || new Date().toISOString(),
+    cast,
+    crew,
+  };
+}
 
 export function DiaryView() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { user, isLoading: isAuthLoading } = useAuth();
+
+  // State: Default entries is empty array (no sample fallback for signed-in users)
+  const [entries, setEntries] = useState<DiaryEntry[]>([]);
+  const [isLoaded, setIsLoaded] = useState<boolean>(false);
+  const isLoadingEntries = Boolean(user) && !isLoaded;
+
+  // 4. Delete mediary_diary_entries key on load
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("mediary_diary_entries");
+      } catch {
+        // Ignore
+      }
+    }
+  }, []);
+
+  // 3. For signed-out visitors, redirect to sign in
+  useEffect(() => {
+    if (!isAuthLoading && !user) {
+      router.replace("/login");
+    }
+  }, [isAuthLoading, user, router]);
+
+  // 1. Fetch from server route using normal client, filtered by user_id = user.id, joined to media
+  const refreshEntries = useCallback(async () => {
+    if (!user) return;
+    try {
+      const res = await fetch("/api/diary/entries");
+      if (res.ok) {
+        const data = await res.json();
+        const rawEntries: DbEntryJoined[] = Array.isArray(data.entries)
+          ? data.entries
+          : [];
+        setEntries(rawEntries.map(mapDbEntryToDiaryEntry));
+      }
+    } catch (err) {
+      console.error("Failed to refresh user diary entries:", err);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    let isCancelled = false;
+    if (user) {
+      fetch("/api/diary/entries")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (isCancelled) return;
+          const rawEntries: DbEntryJoined[] = Array.isArray(data?.entries)
+            ? data.entries
+            : [];
+          setEntries(rawEntries.map(mapDbEntryToDiaryEntry));
+          setIsLoaded(true);
+        })
+        .catch((err) => {
+          if (isCancelled) return;
+          console.error("Failed to load user diary entries:", err);
+          setEntries([]);
+          setIsLoaded(true);
+        });
+    }
+    return () => {
+      isCancelled = true;
+    };
+  }, [user]);
 
   // Load person filter from URL params if present
   const personQuery = searchParams.get("person") || "";
-
-  // State
-  const [entries] = useState<DiaryEntry[]>(() => {
-    if (typeof window === "undefined") return DEFAULT_SAMPLE_ENTRIES;
-    try {
-      const stored = localStorage.getItem("mediary_diary_entries");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const merged = [...parsed];
-          DEFAULT_SAMPLE_ENTRIES.forEach((d) => {
-            if (!merged.some((m) => m.media_id === d.media_id)) {
-              merged.push(d);
-            }
-          });
-          return merged;
-        }
-      }
-    } catch {
-      // Ignore
-    }
-    return DEFAULT_SAMPLE_ENTRIES;
-  });
 
   const [selectedType, setSelectedType] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
@@ -236,7 +246,7 @@ export function DiaryView() {
     return allPeopleInDiary.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 10);
   }, [allPeopleInDiary, personSearchInput]);
 
-  // Filter entries based on all active criteria
+  // 2. Filter entries based on all active criteria (status, media-type, actor/crew, text search, sorting)
   const filteredEntries = useMemo(() => {
     return entries.filter((entry) => {
       // 1. Media Type
@@ -249,7 +259,7 @@ export function DiaryView() {
         return false;
       }
 
-      // 3. Actor / Crew Filter (User Request Feature!)
+      // 3. Actor / Crew Filter
       if (personFilter.trim()) {
         const pLower = personFilter.toLowerCase().trim();
         const hasActor =
@@ -309,6 +319,16 @@ export function DiaryView() {
     setShowPersonDropdown(false);
   };
 
+  // If visitor is signed out and auth state resolved, render redirecting placeholder
+  if (!isAuthLoading && !user) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 space-y-4">
+        <Loader2 className="w-8 h-8 text-accent animate-spin" />
+        <p className="text-xs text-text-muted">Redirecting to sign in...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-10 sm:space-y-12 lg:space-y-14">
       {/* 1. Header Banner */}
@@ -339,7 +359,7 @@ export function DiaryView() {
           </div>
         </div>
 
-        {/* Quick Stats Row with Subtle Ambient Elevation */}
+        {/* Quick Stats Row with Ambient Elevation */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-6 pt-5 sm:pt-6 border-t border-border/70">
           <div className="p-3 sm:p-5 rounded-xl bg-surface/70 border border-border/80 card-depth-hover transition-all space-y-0.5 sm:space-y-1">
             <span className="text-[10px] sm:text-[11px] text-text-muted uppercase font-mono font-semibold block">
@@ -395,7 +415,7 @@ export function DiaryView() {
 
         {/* Primary Filter Rows */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          {/* A. Actor / Crew Filter (Target feature from prompt!) */}
+          {/* A. Actor / Crew Filter */}
           <div className="space-y-1 relative">
             <label className="text-[11px] font-semibold text-text uppercase tracking-wider flex items-center justify-between">
               <span className="flex items-center gap-1.5">
@@ -589,7 +609,40 @@ export function DiaryView() {
 
       {/* 3. Logged Entries Feed / Grid */}
       <section className="space-y-4">
-        {filteredEntries.length === 0 ? (
+        {isLoadingEntries ? (
+          <div className="p-8 sm:p-14 rounded-2xl bg-surface/60 border border-border card-depth flex flex-col items-center justify-center space-y-3">
+            <Loader2 className="w-8 h-8 text-accent animate-spin" />
+            <p className="text-xs sm:text-sm text-text-muted font-medium">
+              Loading your diary entries...
+            </p>
+          </div>
+        ) : entries.length === 0 ? (
+          /* Empty State for signed-in users with 0 logged entries */
+          <div className="bg-surface rounded-2xl border border-dashed border-border/90 p-8 sm:p-14 text-center space-y-4 max-w-xl mx-auto my-6 card-depth">
+            <div className="w-14 h-14 rounded-full bg-accent/15 text-accent mx-auto flex items-center justify-center">
+              <BookMarked className="w-7 h-7" />
+            </div>
+            <div className="space-y-1.5">
+              <h3 className="font-serif text-xl sm:text-2xl font-bold text-text">
+                Your Diary is Empty
+              </h3>
+              <p className="text-xs sm:text-sm text-text-muted max-w-md mx-auto leading-relaxed">
+                You haven&apos;t logged any titles yet. Start logging movies, television shows, books, and video games to track your thoughts, ratings, and progress over slow mornings.
+              </p>
+            </div>
+            <div className="pt-2 flex justify-center">
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => setIsSearchModalOpen(true)}
+                leftIcon={<Plus className="w-4 h-4" />}
+              >
+                Log Your First Title
+              </Button>
+            </div>
+          </div>
+        ) : filteredEntries.length === 0 ? (
+          /* Filtered empty state */
           <div className="bg-surface rounded-2xl border border-dashed border-border p-8 sm:p-12 text-center space-y-4">
             <div className="w-12 h-12 rounded-full bg-accent/15 text-accent mx-auto flex items-center justify-center">
               <Search className="w-6 h-6" />
@@ -622,7 +675,7 @@ export function DiaryView() {
                 size="sm"
                 onClick={() => setIsSearchModalOpen(true)}
               >
-                Discover Titles on TMDB
+                Discover Titles
               </Button>
             </div>
           </div>
@@ -765,53 +818,55 @@ export function DiaryView() {
                       </div>
                     )}
 
-                    {/* Cast & Crew Chips (Allows filtering right from entry!) */}
-                    <div className="space-y-1.5 pt-2 border-t border-border/60">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">
-                        Cast & Crew · Click to filter diary
-                      </span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {entry.cast?.slice(0, 3).map((c) => {
-                          const isCurrentFilter =
-                            personFilter.toLowerCase().trim() === c.name.toLowerCase().trim();
-                          return (
-                            <button
-                              key={c.id}
-                              type="button"
-                              onClick={() => handleSelectPerson(c.name)}
-                              className={`text-xs px-3 py-1 rounded-md transition-colors cursor-pointer border ${
-                                isCurrentFilter
-                                  ? "bg-accent text-[#0E0902] dark:text-[#0A0702] border-amber-950/20 font-semibold"
-                                  : "bg-surface hover:bg-surface-hover text-text border-border"
-                              }`}
-                              title={`Filter diary to ${c.name}`}
-                            >
-                              {c.name} {c.character ? `(${c.character})` : ""}
-                            </button>
-                          );
-                        })}
+                    {/* Cast & Crew Chips */}
+                    {((entry.cast && entry.cast.length > 0) || (entry.crew && entry.crew.length > 0)) && (
+                      <div className="space-y-1.5 pt-2 border-t border-border/60">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">
+                          Cast & Crew · Click to filter diary
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {entry.cast?.slice(0, 3).map((c) => {
+                            const isCurrentFilter =
+                              personFilter.toLowerCase().trim() === c.name.toLowerCase().trim();
+                            return (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onClick={() => handleSelectPerson(c.name)}
+                                className={`text-xs px-3 py-1 rounded-md transition-colors cursor-pointer border ${
+                                  isCurrentFilter
+                                    ? "bg-accent text-[#0E0902] dark:text-[#0A0702] border-amber-950/20 font-semibold"
+                                    : "bg-surface hover:bg-surface-hover text-text border-border"
+                                }`}
+                                title={`Filter diary to ${c.name}`}
+                              >
+                                {c.name} {c.character ? `(${c.character})` : ""}
+                              </button>
+                            );
+                          })}
 
-                        {entry.crew?.slice(0, 2).map((c) => {
-                          const isCurrentFilter =
-                            personFilter.toLowerCase().trim() === c.name.toLowerCase().trim();
-                          return (
-                            <button
-                              key={c.id}
-                              type="button"
-                              onClick={() => handleSelectPerson(c.name)}
-                              className={`text-xs px-3 py-1 rounded-md transition-colors cursor-pointer border ${
-                                isCurrentFilter
-                                  ? "bg-accent-secondary text-white border-accent-secondary font-semibold"
-                                  : "bg-surface hover:bg-surface-hover text-accent-secondary border-accent-secondary/30"
-                              }`}
-                              title={`Filter diary to ${c.name}`}
-                            >
-                              {c.name} ({c.job || "Director"})
-                            </button>
-                          );
-                        })}
+                          {entry.crew?.slice(0, 2).map((c) => {
+                            const isCurrentFilter =
+                              personFilter.toLowerCase().trim() === c.name.toLowerCase().trim();
+                            return (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onClick={() => handleSelectPerson(c.name)}
+                                className={`text-xs px-3 py-1 rounded-md transition-colors cursor-pointer border ${
+                                  isCurrentFilter
+                                    ? "bg-accent-secondary text-white border-accent-secondary font-semibold"
+                                    : "bg-surface hover:bg-surface-hover text-accent-secondary border-accent-secondary/30"
+                                }`}
+                                title={`Filter diary to ${c.name}`}
+                              >
+                                {c.name} ({c.job || "Director"})
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               );
@@ -823,7 +878,10 @@ export function DiaryView() {
       {/* TMDB Search Modal for adding new items */}
       <MediaSearchModal
         isOpen={isSearchModalOpen}
-        onClose={() => setIsSearchModalOpen(false)}
+        onClose={() => {
+          setIsSearchModalOpen(false);
+          refreshEntries();
+        }}
       />
     </div>
   );

@@ -36,22 +36,65 @@ export async function GET(request: NextRequest) {
     const mediaId = searchParams.get("media_id");
     const includeReviews = searchParams.get("include_reviews") === "true" || searchParams.get("reviews") === "true";
 
-    if (!mediaId) {
-      return NextResponse.json(
-        { error: "media_id query parameter is required" },
-        { status: 400 }
-      );
-    }
-
     const supabase = await createClient();
     if (!supabase) {
       // In demo mode without configured Supabase
-      return NextResponse.json({ entry: null, publicEntries: [], isMock: true });
+      return NextResponse.json({ entry: null, publicEntries: [], entries: [], isMock: true });
     }
 
     const {
       data: { user },
     } = await supabase.auth.getUser();
+
+    // If no mediaId provided, return all entries for the authenticated user joined to media
+    if (!mediaId) {
+      if (!user) {
+        return NextResponse.json(
+          { error: "Unauthorized", entries: [] },
+          { status: 401 }
+        );
+      }
+
+      const { data: userEntries, error: userEntriesError } = await supabase
+        .from("entries")
+        .select(`
+          id,
+          user_id,
+          media_id,
+          status,
+          rating,
+          progress,
+          review,
+          contains_spoilers,
+          privacy,
+          started_at,
+          completed_at,
+          created_at,
+          updated_at,
+          media (
+            id,
+            type,
+            title,
+            cover_url,
+            release_date,
+            genres,
+            community_rating_avg,
+            type_specific
+          )
+        `)
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (userEntriesError) {
+        console.error("Error fetching user entries:", userEntriesError);
+        return NextResponse.json(
+          { error: "Failed to fetch entries", entries: [] },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({ entries: userEntries || [] });
+    }
 
     // Fetch user entry if authenticated
     let userEntry = null;

@@ -38,6 +38,17 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const DEMO_STORAGE_KEY = "mediary_demo_auth_user";
 const PROFILE_STORAGE_KEY = "mediary_user_profile";
 
+function clearDemoAndProfileStorage() {
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.removeItem(DEMO_STORAGE_KEY);
+      localStorage.removeItem(PROFILE_STORAGE_KEY);
+    } catch {
+      // Ignore
+    }
+  }
+}
+
 function getInitialDemoState(): { user: User | null; profile: Profile | null } {
   if (typeof window !== "undefined") {
     try {
@@ -83,7 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   const [profile, setProfile] = useState<Profile | null>(() => {
-    return getInitialStoredProfile() || (!isConfigured ? getInitialDemoState().profile : null);
+    return !isConfigured ? (getInitialStoredProfile() || getInitialDemoState().profile) : null;
   });
 
   const [session, setSession] = useState<Session | null>(null);
@@ -149,16 +160,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
+    // Delete mediary_diary_entries key on load
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("mediary_diary_entries");
+      } catch {
+        // Ignore
+      }
+    }
+
     // If Supabase is not configured, we are immediately ready in demo preview mode
     if (!isConfigured) {
       return;
     }
 
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
       if (currentSession?.user) {
+        clearDemoAndProfileStorage();
+        setSession(currentSession);
+        setUser(currentSession.user);
         fetchProfile(currentSession.user.id, currentSession.user);
+      } else {
+        setSession(null);
+        setUser(null);
+        setProfile(null);
       }
       setIsLoading(false);
     });
@@ -166,11 +191,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
-      setSession(newSession);
-      setUser(newSession?.user ?? null);
       if (newSession?.user) {
+        clearDemoAndProfileStorage();
+        setSession(newSession);
+        setUser(newSession.user);
         await fetchProfile(newSession.user.id, newSession.user);
       } else {
+        setSession(null);
+        setUser(null);
         setProfile(null);
       }
       setIsLoading(false);
@@ -195,9 +223,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) return { error };
 
-      if (data.user) {
-        setUser(data.user);
-        await fetchProfile(data.user.id, data.user);
+      if (data.session?.user || data.user) {
+        clearDemoAndProfileStorage();
+        if (data.session) {
+          setSession(data.session);
+        }
+        if (data.user) {
+          setUser(data.user);
+          await fetchProfile(data.user.id, data.user);
+        }
       }
       return { error: null };
     } catch (err) {
@@ -229,7 +263,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) return { error, user: null };
 
-      if (data.user) {
+      if (data.session?.user) {
+        clearDemoAndProfileStorage();
+        setSession(data.session);
+        if (data.user) {
+          setUser(data.user);
+          await fetchProfile(data.user.id, data.user);
+        }
+      } else if (data.user) {
         setUser(data.user);
         await fetchProfile(data.user.id, data.user);
       }
@@ -259,12 +300,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("mediary_diary_entries");
+      } catch {
+        // Ignore
+      }
+    }
+    clearDemoAndProfileStorage();
     if (isConfigured) {
       await supabase.auth.signOut();
-    } else {
-      if (typeof window !== "undefined") {
-        localStorage.removeItem(DEMO_STORAGE_KEY);
-      }
     }
     setUser(null);
     setProfile(null);
@@ -275,6 +320,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     displayName = "Claire Beauchamp",
     email = "claire@mediary.app"
   ) => {
+    // If a real Supabase session is detected, ignore any demo user
+    if (session?.user || (isConfigured && user && user.id !== "demo-user-1234")) {
+      return;
+    }
+
     const demoUser = {
       id: "demo-user-1234",
       app_metadata: {},

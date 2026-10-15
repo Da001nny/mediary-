@@ -231,7 +231,6 @@ function LogEntryModalContent({
     try {
       // 1. Rating is already normalized 0-100 internally
       const normalizedRating = rating;
-      const starRating = storedRatingToStars(normalizedRating);
 
       // 2. Build media-specific progress payload
       let progressPayload: Record<string, unknown> | null = null;
@@ -286,38 +285,10 @@ function LogEntryModalContent({
         throw new Error(data.error || "Failed to log entry");
       }
 
-      // Sync to localStorage for immediate reactive update across /diary
+      // Clear deprecated localStorage diary key to prevent stale cache
       try {
         if (typeof window !== "undefined") {
-          const stored = localStorage.getItem("mediary_diary_entries");
-          const localEntries = stored ? JSON.parse(stored) : [];
-          const newEntryData = {
-            id: data.entry?.id || `log-${Date.now()}`,
-            media_id: media.id,
-            title: media.title,
-            type: media.type,
-            cover_url: media.cover_url,
-            release_year: releaseYear,
-            genres: media.genres,
-            status,
-            rating: normalizedRating, // stored 0-100 normalized
-            star_rating: starRating, // 0.5-5.0 display scale
-            progress: progressPayload,
-            notes: review.trim() || null,
-            review: review.trim() || null,
-            contains_spoilers: containsSpoilers,
-            privacy,
-            logged_at: new Date().toISOString(),
-          };
-
-          const filtered = localEntries.filter(
-            (entryItem: { media_id: string }) => entryItem.media_id !== media.id
-          );
-          filtered.unshift(newEntryData);
-          localStorage.setItem(
-            "mediary_diary_entries",
-            JSON.stringify(filtered)
-          );
+          localStorage.removeItem("mediary_diary_entries");
         }
       } catch (localErr) {
         console.error("Local sync error:", localErr);
@@ -351,20 +322,10 @@ function LogEntryModalContent({
         method: "DELETE",
       });
 
-      // Remove from localStorage
+      // Remove deprecated localStorage key
       try {
         if (typeof window !== "undefined") {
-          const stored = localStorage.getItem("mediary_diary_entries");
-          if (stored) {
-            const localEntries = JSON.parse(stored);
-            const filtered = localEntries.filter(
-              (e: { media_id: string }) => e.media_id !== media.id
-            );
-            localStorage.setItem(
-              "mediary_diary_entries",
-              JSON.stringify(filtered)
-            );
-          }
+          localStorage.removeItem("mediary_diary_entries");
         }
       } catch (e) {
         console.error("Local removal error:", e);

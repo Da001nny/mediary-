@@ -1,5 +1,7 @@
 import React, { Suspense } from "react";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/navigation/TopNav";
 import { DiaryView } from "@/components/diary/DiaryView";
 import { DiaryGridSkeleton } from "@/components/ui/Skeleton";
@@ -10,7 +12,18 @@ export const metadata: Metadata = {
     "Log, review, and filter your movies, television shows, and books over slow mornings.",
 };
 
-export default function DiaryPage() {
+export default async function DiaryPage() {
+  const supabase = await createClient();
+  if (supabase) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      redirect("/login");
+    }
+  }
+
   return (
     <div className="min-h-screen bg-bg text-text flex flex-col font-sans">
       <TopNav />
