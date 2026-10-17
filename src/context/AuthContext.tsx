@@ -160,10 +160,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
-    // Delete mediary_diary_entries key on load
+    // Delete obsolete localStorage keys on load
     if (typeof window !== "undefined") {
       try {
         localStorage.removeItem("mediary_diary_entries");
+        localStorage.removeItem("mediary_custom_lists_v1");
       } catch {
         // Ignore
       }
@@ -303,6 +304,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== "undefined") {
       try {
         localStorage.removeItem("mediary_diary_entries");
+        localStorage.removeItem("mediary_custom_lists_v1");
       } catch {
         // Ignore
       }

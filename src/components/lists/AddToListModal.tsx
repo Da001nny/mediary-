@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import {
   X,
@@ -12,17 +12,18 @@ import {
   Gamepad2,
   BookOpen,
   Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import {
-  getStoredLists,
+  getLists,
   addItemToList,
   removeItemFromList,
   createCustomList,
 } from "@/lib/lists";
 import { useAuth } from "@/context/AuthContext";
-import type { ListWithItems, PrivacyLevel } from "@/types/database.types";
+import type { ListWithItems, PrivacyLevel, MediaItem, Json } from "@/types/database.types";
 
 interface AddToListModalProps {
   isOpen: boolean;
@@ -68,21 +69,12 @@ function AddToListModalContent({
 }: Omit<AddToListModalProps, "isOpen">) {
   const { user, profile } = useAuth();
 
-  const [lists, setLists] = useState<ListWithItems[]>(() => getStoredLists());
+  const [lists, setLists] = useState<ListWithItems[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [processingListId, setProcessingListId] = useState<string | null>(null);
 
-  const [notesByList, setNotesByList] = useState<Record<string, string>>(() => {
-    const all = getStoredLists();
-    const initialNotes: Record<string, string> = {};
-    all.forEach((l) => {
-      const item = l.items?.find((it) => it.media_id === media.id);
-      if (item?.notes) {
-        initialNotes[l.id] = item.notes;
-      }
-    });
-    return initialNotes;
-  });
-
+  const [notesByList, setNotesByList] = useState<Record<string, string>>({});
   const [expandedNotesListId, setExpandedNotesListId] = useState<string | null>(null);
 
   // Quick inline list creation state
@@ -92,7 +84,41 @@ function AddToListModalContent({
   const [newListPrivacy, setNewListPrivacy] = useState<PrivacyLevel>("public");
   const [creatingInline, setCreatingInline] = useState(false);
 
-  const mediaPayload = {
+  useEffect(() => {
+    let isMounted = true;
+    getLists(user?.id)
+      .then((res) => {
+        if (!isMounted) return;
+        if (res.error) {
+          setErrorMessage(res.error);
+          setLists([]);
+        } else {
+          setLists(res.lists);
+          // Initialize existing notes
+          const initialNotes: Record<string, string> = {};
+          res.lists.forEach((l) => {
+            const item = l.items?.find((it) => it.media_id === media.id);
+            if (item?.notes) {
+              initialNotes[l.id] = item.notes;
+            }
+          });
+          setNotesByList(initialNotes);
+        }
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setErrorMessage("Couldn't load lists");
+        setLists([]);
+        setLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id, media.id]);
+
+  const mediaPayload: MediaItem = {
     id: media.id,
     title: media.title,
     type: media.type as "movie" | "tv" | "game" | "book",
@@ -102,28 +128,65 @@ function AddToListModalContent({
     synopsis: media.synopsis || null,
     community_rating_avg: media.community_rating_avg || null,
     community_rating_count: media.community_rating_count || 0,
+    type_specific: (media.type_specific as Json) || {},
+    external_ids: (media.external_ids as Json) || {},
+    watch_providers: {},
+    localized_fields: {},
+    last_synced_at: new Date().toISOString(),
   };
 
   const handleToggle = async (list: ListWithItems) => {
     setProcessingListId(list.id);
+    setErrorMessage(null);
+    const previousLists = lists;
     const isAlreadyInList = list.items?.some((it) => it.media_id === media.id);
+
+    // Optimistic component state update
+    if (isAlreadyInList) {
+      setLists((prev) =>
+        prev.map((l) => {
+          if (l.id !== list.id) return l;
+          const items = (l.items || []).filter((it) => it.media_id !== media.id);
+          return { ...l, items, item_count: items.length };
+        })
+      );
+    } else {
+      const tempId = `temp-${media.id}-${list.id}`;
+      const nowIso = new Date().toISOString();
+      setLists((prev) =>
+        prev.map((l) => {
+          if (l.id !== list.id) return l;
+          const items = [
+            ...(l.items || []),
+            {
+              id: tempId,
+              list_id: l.id,
+              media_id: media.id,
+              position: (l.items?.length || 0) + 1,
+              notes: notesByList[l.id] || null,
+              added_at: nowIso,
+              media: mediaPayload,
+            },
+          ];
+          return { ...l, items, item_count: items.length };
+        })
+      );
+    }
 
     try {
       if (isAlreadyInList) {
-        const updated = await removeItemFromList(list.id, media.id);
-        if (updated) {
-          setLists((prev) => prev.map((l) => (l.id === list.id ? updated : l)));
-        }
+        await removeItemFromList(list.id, media.id);
       } else {
         const note = notesByList[list.id];
-        const updated = await addItemToList(list.id, mediaPayload, note);
-        if (updated) {
-          setLists((prev) => prev.map((l) => (l.id === list.id ? updated : l)));
-          if (onSuccess) onSuccess(list.id);
-        }
+        await addItemToList(list.id, mediaPayload, note);
+        if (onSuccess) onSuccess(list.id);
       }
     } catch (e) {
-      console.error("Failed to toggle list item:", e);
+      // Roll back optimistic state on error
+      setLists(previousLists);
+      setErrorMessage(
+        e instanceof Error ? e.message : "Failed to update list. Changes rolled back."
+      );
     } finally {
       setProcessingListId(null);
     }
@@ -131,13 +194,31 @@ function AddToListModalContent({
 
   const handleSaveNotes = async (listId: string) => {
     setProcessingListId(listId);
+    setErrorMessage(null);
+    const previousLists = lists;
+    const note = notesByList[listId] || "";
+
+    // Optimistically update note in component state
+    setLists((prev) =>
+      prev.map((l) => {
+        if (l.id !== listId) return l;
+        return {
+          ...l,
+          items: (l.items || []).map((it) =>
+            it.media_id === media.id ? { ...it, notes: note } : it
+          ),
+        };
+      })
+    );
+
     try {
-      const note = notesByList[listId] || "";
-      const updated = await addItemToList(listId, mediaPayload, note);
-      if (updated) {
-        setLists((prev) => prev.map((l) => (l.id === listId ? updated : l)));
-        setExpandedNotesListId(null);
-      }
+      await addItemToList(listId, mediaPayload, note);
+      setExpandedNotesListId(null);
+    } catch (e) {
+      setLists(previousLists);
+      setErrorMessage(
+        e instanceof Error ? e.message : "Failed to save note. Changes rolled back."
+      );
     } finally {
       setProcessingListId(null);
     }
@@ -148,6 +229,7 @@ function AddToListModalContent({
     if (!newListName.trim()) return;
 
     setCreatingInline(true);
+    setErrorMessage(null);
     try {
       const created = await createCustomList({
         name: newListName.trim(),
@@ -157,17 +239,34 @@ function AddToListModalContent({
         userName: profile?.display_name || user?.user_metadata?.full_name || "You",
       });
 
-      // Automatically add this media item to the newly created list
-      const updated = await addItemToList(created.id, mediaPayload);
-      if (updated) {
-        setLists((prev) => [updated, ...prev]);
-        if (onSuccess) onSuccess(created.id);
-      }
+      // Add media item to the newly created database list
+      await addItemToList(created.id, mediaPayload);
+      const newItemId = `item-${created.id}-${media.id}`;
+      const updatedCreated: ListWithItems = {
+        ...created,
+        items: [
+          {
+            id: newItemId,
+            list_id: created.id,
+            media_id: media.id,
+            position: 1,
+            notes: null,
+            added_at: created.created_at || new Date().toISOString(),
+            media: mediaPayload,
+          },
+        ],
+        item_count: 1,
+        preview_covers: media.cover_url ? [media.cover_url] : [],
+      };
 
+      setLists((prev) => [updatedCreated, ...prev]);
+      if (onSuccess) onSuccess(created.id);
       setNewListName("");
       setShowCreateInline(false);
     } catch (e) {
-      console.error("Failed to create and add to list:", e);
+      setErrorMessage(
+        e instanceof Error ? e.message : "Failed to create and add to list."
+      );
     } finally {
       setCreatingInline(false);
     }
@@ -238,6 +337,23 @@ function AddToListModalContent({
             <X className="w-4 h-4" />
           </button>
         </div>
+
+        {/* Error notification banner if any action failed */}
+        {errorMessage && (
+          <div className="p-3 bg-rose-500/10 border-b border-rose-500/30 text-rose-500 text-xs flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span className="truncate">{errorMessage}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setErrorMessage(null)}
+              className="text-rose-400 hover:text-rose-200 font-bold px-1 cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
         {/* List Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -319,7 +435,12 @@ function AddToListModalContent({
               Your Lists ({lists.length})
             </span>
 
-            {lists.length === 0 ? (
+            {loading ? (
+              <div className="py-8 flex flex-col items-center justify-center gap-2 text-text-muted">
+                <Loader2 className="w-5 h-5 animate-spin text-accent" />
+                <span className="text-xs">Loading lists...</span>
+              </div>
+            ) : lists.length === 0 ? (
               <div className="text-center py-6 text-xs text-text-muted border border-border/60 rounded-lg p-4">
                 <p>You haven&apos;t created any lists yet.</p>
                 <p className="mt-1 text-[11px]">

@@ -20,6 +20,7 @@ import {
   Tv,
   Gamepad2,
   BookOpen,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -56,17 +57,18 @@ export function ListDetailView({ initialList }: ListDetailViewProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  // Determine if current user is owner
-  const isOwner =
-    Boolean(user && list.user_id === user.id) ||
-    list.user_id === "demo-user-1"; // allow editing demo lists for preview
+  // isOwner must be true ONLY when list.user_id equals the signed-in user's id
+  const isOwner = Boolean(user && list.user_id === user.id);
 
-  // Refresh list data from local/server
+  // Refresh list data from server
   useEffect(() => {
     async function load() {
-      const fresh = await getListById(initialList.id);
-      if (fresh) setList(fresh);
+      const res = await getListById(initialList.id);
+      if (res.list) {
+        setList(res.list);
+      }
     }
     load();
   }, [initialList.id]);
@@ -81,6 +83,7 @@ export function ListDetailView({ initialList }: ListDetailViewProps) {
 
   const handleDelete = async () => {
     setIsDeleting(true);
+    setActionError(null);
     try {
       await deleteCustomList(list.id);
       router.push("/lists");
@@ -88,41 +91,89 @@ export function ListDetailView({ initialList }: ListDetailViewProps) {
       console.error("Failed to delete list:", e);
       setIsDeleting(false);
       setIsConfirmingDelete(false);
+      setActionError(e instanceof Error ? e.message : "Failed to delete list. Please try again.");
     }
   };
 
   const handleReorder = async (reorderedItems: ListItemWithMedia[]) => {
+    const previousList = list;
+    setActionError(null);
+    // Optimistic update in component state only
     setList((prev) => ({
       ...prev,
       items: reorderedItems,
     }));
-    await reorderListItems(
-      list.id,
-      reorderedItems.map((it) => it.id)
-    );
+
+    try {
+      await reorderListItems(
+        list.id,
+        reorderedItems.map((it) => it.id)
+      );
+    } catch (err) {
+      // Roll back on failure
+      setList(previousList);
+      setActionError(err instanceof Error ? err.message : "Failed to reorder list items. Changes rolled back.");
+    }
   };
 
   const handleRemoveItem = async (mediaId: string) => {
-    const updated = await removeItemFromList(list.id, mediaId);
-    if (updated) {
-      setList(updated);
+    const previousList = list;
+    setActionError(null);
+    const currentItems = list.items || [];
+    const remainingItems = currentItems
+      .filter((it) => it.media_id !== mediaId)
+      .map((it, idx) => ({ ...it, position: idx + 1 }));
+    const previewCovers = remainingItems
+      .map((it) => it.media?.cover_url)
+      .filter((c): c is string => Boolean(c))
+      .slice(0, 4);
+
+    // Optimistic update in component state only
+    setList((prev) => ({
+      ...prev,
+      items: remainingItems,
+      item_count: remainingItems.length,
+      preview_covers: previewCovers,
+    }));
+
+    try {
+      await removeItemFromList(list.id, mediaId);
+    } catch (err) {
+      // Roll back on failure
+      setList(previousList);
+      setActionError(err instanceof Error ? err.message : "Failed to remove item from list. Changes rolled back.");
     }
   };
 
   const handleUpdateNotes = async (itemId: string, notes: string) => {
+    const previousList = list;
+    setActionError(null);
     const targetItem = list.items?.find((it) => it.id === itemId);
     if (!targetItem) return;
 
-    const updated = await addItemToList(
-      list.id,
-      targetItem.media || {
-        id: targetItem.media_id,
-        title: "Media",
-        type: "movie",
-      },
-      notes
-    );
-    if (updated) setList(updated);
+    // Optimistic update in component state only
+    setList((prev) => ({
+      ...prev,
+      items: (prev.items || []).map((it) =>
+        it.id === itemId ? { ...it, notes } : it
+      ),
+    }));
+
+    try {
+      await addItemToList(
+        list.id,
+        targetItem.media || {
+          id: targetItem.media_id,
+          title: "Media",
+          type: "movie",
+        },
+        notes
+      );
+    } catch (err) {
+      // Roll back on failure
+      setList(previousList);
+      setActionError(err instanceof Error ? err.message : "Failed to update item notes. Changes rolled back.");
+    }
   };
 
   // Filter items by media type
@@ -170,6 +221,23 @@ export function ListDetailView({ initialList }: ListDetailViewProps) {
           <span>Back to All Lists</span>
         </Link>
       </div>
+
+      {/* Action Error Notification */}
+      {actionError && (
+        <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs flex items-center justify-between gap-3 animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{actionError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActionError(null)}
+            className="text-rose-400 hover:text-rose-200 cursor-pointer font-bold px-1"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* List Header Hero Banner */}
       <div className="p-6 sm:p-8 rounded-2xl bg-surface border border-border shadow-xs space-y-6">

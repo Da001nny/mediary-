@@ -14,6 +14,9 @@ import {
   BookOpen,
   Sparkles,
   ArrowRight,
+  AlertCircle,
+  RefreshCw,
+  Loader2,
 } from "lucide-react";
 import { TopNav } from "@/components/navigation/TopNav";
 import { Button } from "@/components/ui/Button";
@@ -27,17 +30,44 @@ import type { ListWithItems } from "@/types/database.types";
 export default function ListsPage() {
   const { user } = useAuth();
   const [lists, setLists] = useState<ListWithItems[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"all" | "my" | "ranked" | "unranked">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
+  const [retryKey, setRetryKey] = useState(0);
+
   useEffect(() => {
-    async function load() {
-      const data = await getLists(user?.id);
-      setLists(data);
-    }
-    load();
-  }, [user?.id]);
+    let isMounted = true;
+    getLists(user?.id)
+      .then((result) => {
+        if (!isMounted) return;
+        if (result.error) {
+          setError(result.error);
+          setLists([]);
+        } else {
+          setLists(result.lists);
+        }
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setError("Couldn't load lists");
+        setLists([]);
+        setLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id, retryKey]);
+
+  const handleRetry = () => {
+    setLoading(true);
+    setError(null);
+    setRetryKey((prev) => prev + 1);
+  };
 
   const handleListCreated = (newList: ListWithItems) => {
     setLists((prev) => [newList, ...prev]);
@@ -45,9 +75,11 @@ export default function ListsPage() {
 
   // Filter lists based on tab and query
   const filteredLists = lists.filter((list) => {
-    // Tab filter
-    if (activeTab === "my" && user && list.user_id !== user.id && list.user_id !== "demo-user-1") {
-      return false;
+    // Tab filter: My Lists only includes lists owned by the signed-in user
+    if (activeTab === "my") {
+      if (!user || list.user_id !== user.id) {
+        return false;
+      }
     }
     if (activeTab === "ranked" && !list.is_ranked) {
       return false;
@@ -142,8 +174,34 @@ export default function ListsPage() {
           </div>
         </div>
 
-        {/* Lists Grid */}
-        {filteredLists.length === 0 ? (
+        {/* Content Section: Loading, Error, or Lists Grid */}
+        {loading ? (
+          <div className="py-24 flex flex-col items-center justify-center gap-3 text-text-muted">
+            <Loader2 className="w-8 h-8 animate-spin text-accent" />
+            <span className="text-xs font-serif italic">Loading collections...</span>
+          </div>
+        ) : error ? (
+          <div className="py-20 text-center border border-dashed border-rose-500/30 rounded-xl bg-rose-500/5 p-8 space-y-4">
+            <div className="w-12 h-12 mx-auto rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <div className="space-y-1 max-w-sm mx-auto">
+              <h3 className="font-serif text-lg font-bold text-text">Couldn&apos;t load lists</h3>
+              <p className="text-xs text-text-muted">
+                We encountered an issue communicating with the database. Please check your connection and try again.
+              </p>
+            </div>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleRetry}
+              leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
+              className="gap-1.5"
+            >
+              Retry
+            </Button>
+          </div>
+        ) : filteredLists.length === 0 ? (
           <div className="py-20 text-center border border-dashed border-border rounded-xl bg-surface/30 p-8 space-y-4">
             <div className="w-12 h-12 mx-auto rounded-full bg-surface border border-border flex items-center justify-center text-text-muted">
               <BookOpen className="w-6 h-6 opacity-40" />
