@@ -120,7 +120,13 @@ export async function GET(request: NextRequest) {
 
     const supabase = await createClient();
     if (!supabase) {
-      // Mock / fallback
+      if (process.env.NODE_ENV === "production") {
+        return NextResponse.json(
+          { error: "Database service unavailable: Supabase is not configured" },
+          { status: 503 }
+        );
+      }
+      // Mock / fallback (development only)
       return NextResponse.json({
         items: SAMPLE_FEED_ITEMS,
         hasMore: false,
