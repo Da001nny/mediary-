@@ -7,7 +7,7 @@ import {
   bookToMediaPayload,
   formatBookCoverUrl,
 } from "@/lib/google-books";
-import type { MediaItem, Json, PrivacyLevel } from "@/types/database.types";
+import type { MediaItem, Json, PrivacyLevel, Tables } from "@/types/database.types";
 import type { ParsedImportItem } from "@/lib/import-parser";
 
 export class UpstreamQuotaError extends Error {
@@ -753,4 +753,328 @@ export async function resolveImportPrivacy(
     return profile.default_privacy;
   }
   return "private";
+}
+
+export interface ProcessImportBatchResult {
+  success: boolean;
+  status: "pending" | "processing" | "completed" | "paused" | "failed";
+  processedBatchSize: number;
+  remaining: number;
+  job: Tables<"import_jobs"> | null;
+  quotaHit?: boolean;
+  message?: string;
+  error?: string;
+}
+
+/**
+ * Shared server-side batch processor for an import job.
+ * Always runs with admin credentials, loads the job, and strictly uses
+ * job.user_id as the owner of every created diary entry.
+ * Recovers stuck items (> 2 min in processing) and handles 23505 deduplication.
+ */
+export async function processImportBatch(jobId: string): Promise<ProcessImportBatchResult> {
+  const admin = createAdminClient();
+  if (!admin) {
+    return {
+      success: false,
+      status: "failed",
+      processedBatchSize: 0,
+      remaining: 0,
+      job: null,
+      error: "Database admin client unavailable",
+    };
+  }
+
+  // 1. Load job
+  const { data: job, error: jobErr } = await admin
+    .from("import_jobs")
+    .select("*")
+    .eq("id", jobId)
+    .maybeSingle();
+
+  if (jobErr || !job) {
+    return {
+      success: false,
+      status: "failed",
+      processedBatchSize: 0,
+      remaining: 0,
+      job: null,
+      error: "Import job not found",
+    };
+  }
+
+  // If job was already marked completed, return current status
+  if (job.status === "completed") {
+    return {
+      success: true,
+      status: "completed",
+      processedBatchSize: 0,
+      remaining: 0,
+      job,
+    };
+  }
+
+  // Resolve user's chosen privacy setting using job.user_id
+  const chosenPrivacyOpt = (job.options as Record<string, string>)?.privacy;
+  const resolvedPrivacy = await resolveImportPrivacy(
+    admin,
+    job.user_id,
+    chosenPrivacyOpt
+  );
+
+  // 2. Atomically claim next up to 10 pending items
+  let claimedItems: Array<{ id: string; row: unknown }> = [];
+
+  const { data: rpcClaimed, error: rpcErr } = await admin.rpc(
+    "claim_import_items",
+    {
+      p_job_id: jobId,
+      p_limit: 10,
+    }
+  );
+
+  if (!rpcErr && Array.isArray(rpcClaimed)) {
+    claimedItems = rpcClaimed;
+  } else {
+    // Fallback claim via standard PostgREST select & update (including items stuck in processing > 2 min)
+    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+    const { data: pendingRows } = await admin
+      .from("import_items")
+      .select("id, row")
+      .eq("job_id", jobId)
+      .or(`status.eq.pending,and(status.eq.processing,or(claimed_at.is.null,claimed_at.lt.${twoMinutesAgo}))`)
+      .order("created_at", { ascending: true })
+      .limit(10);
+
+    if (pendingRows && pendingRows.length > 0) {
+      const itemIds = pendingRows.map((p) => p.id);
+      await admin
+        .from("import_items")
+        .update({
+          status: "processing",
+          claimed_at: new Date().toISOString(),
+        })
+        .in("id", itemIds);
+
+      claimedItems = pendingRows;
+    }
+  }
+
+  // If no pending items were claimed, check if any pending or stuck items remain
+  if (claimedItems.length === 0) {
+    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+    const { count: pendingCount } = await admin
+      .from("import_items")
+      .select("id", { count: "exact", head: true })
+      .eq("job_id", jobId)
+      .or(`status.eq.pending,and(status.eq.processing,or(claimed_at.is.null,claimed_at.lt.${twoMinutesAgo}))`);
+
+    if (!pendingCount || pendingCount === 0) {
+      // Mark job as completed
+      const { data: updatedJob } = await admin
+        .from("import_jobs")
+        .update({
+          status: "completed",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", jobId)
+        .select()
+        .single();
+
+      return {
+        success: true,
+        status: "completed",
+        processedBatchSize: 0,
+        remaining: 0,
+        job: updatedJob || job,
+      };
+    }
+
+    return {
+      success: true,
+      status: "processing",
+      processedBatchSize: 0,
+      remaining: pendingCount,
+      job,
+    };
+  }
+
+  // 3. Process each claimed item
+  let quotaHit = false;
+
+  for (const item of claimedItems) {
+    const row = item.row as unknown as ParsedImportItem;
+
+    try {
+      const match = await matchImportItem(row);
+
+      if (match.status === "matched" && match.media_id) {
+        // Check if already logged by user
+        const { data: existingEntry } = await admin
+          .from("entries")
+          .select("id")
+          .eq("user_id", job.user_id)
+          .eq("media_id", match.media_id)
+          .maybeSingle();
+
+        if (existingEntry) {
+          // Already logged: Leave it alone, count as already_logged
+          await admin
+            .from("import_items")
+            .update({
+              status: "already_logged",
+              media_id: match.media_id,
+            })
+            .eq("id", item.id);
+        } else {
+          // Insert into entries without calling activity helpers
+          const { error: insertEntryErr } = await admin
+            .from("entries")
+            .insert({
+              user_id: job.user_id,
+              media_id: match.media_id,
+              status: row.status,
+              rating: row.rating,
+              review: row.review,
+              contains_spoilers: row.contains_spoilers,
+              privacy: resolvedPrivacy,
+              completed_at: row.completed_at || null,
+              created_at: row.completed_at || new Date().toISOString(),
+            });
+
+          if (insertEntryErr) {
+            console.warn("Failed to insert imported entry:", insertEntryErr);
+            // If failed due to unique constraint (23505) or similar
+            if (insertEntryErr.code === "23505") {
+              await admin
+                .from("import_items")
+                .update({
+                  status: "already_logged",
+                  media_id: match.media_id,
+                })
+                .eq("id", item.id);
+            } else {
+              await admin
+                .from("import_items")
+                .update({
+                  status: "failed",
+                  error: insertEntryErr.message || "Could not create diary entry",
+                })
+                .eq("id", item.id);
+            }
+          } else {
+            await admin
+              .from("import_items")
+              .update({
+                status: "matched",
+                media_id: match.media_id,
+              })
+              .eq("id", item.id);
+          }
+        }
+      } else if (match.status === "needs_review") {
+        await admin
+          .from("import_items")
+          .update({
+            status: "needs_review",
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            candidates: (match.candidates || []) as any,
+          })
+          .eq("id", item.id);
+      } else {
+        // Failed
+        await admin
+          .from("import_items")
+          .update({
+            status: "failed",
+            error: match.error || "Title not found in media catalog",
+          })
+          .eq("id", item.id);
+      }
+    } catch (err: unknown) {
+      if (err instanceof UpstreamQuotaError) {
+        quotaHit = true;
+        // Revert this item back to pending
+        await admin
+          .from("import_items")
+          .update({ status: "pending" })
+          .eq("id", item.id);
+        break;
+      }
+
+      // Other non-quota errors: mark item as failed with friendly reason
+      await admin
+        .from("import_items")
+        .update({
+          status: "failed",
+          error: err instanceof Error ? err.message : "Processing error",
+        })
+        .eq("id", item.id);
+    }
+  }
+
+  // 4. Recount job stats and update job status
+  const [
+    { count: matchedCount },
+    { count: alreadyLoggedCount },
+    { count: needsReviewCount },
+    { count: failedCount },
+    { count: remainingPendingCount },
+  ] = await Promise.all([
+    admin
+      .from("import_items")
+      .select("id", { count: "exact", head: true })
+      .eq("job_id", jobId)
+      .eq("status", "matched"),
+    admin
+      .from("import_items")
+      .select("id", { count: "exact", head: true })
+      .eq("job_id", jobId)
+      .eq("status", "already_logged"),
+    admin
+      .from("import_items")
+      .select("id", { count: "exact", head: true })
+      .eq("job_id", jobId)
+      .eq("status", "needs_review"),
+    admin
+      .from("import_items")
+      .select("id", { count: "exact", head: true })
+      .eq("job_id", jobId)
+      .eq("status", "failed"),
+    admin
+      .from("import_items")
+      .select("id", { count: "exact", head: true })
+      .eq("job_id", jobId)
+      .in("status", ["pending", "processing"]),
+  ]);
+
+  const newJobStatus = quotaHit
+    ? "paused"
+    : (remainingPendingCount || 0) === 0
+    ? "completed"
+    : "processing";
+
+  const { data: updatedJob } = await admin
+    .from("import_jobs")
+    .update({
+      matched: matchedCount || 0,
+      already_logged: alreadyLoggedCount || 0,
+      needs_review: needsReviewCount || 0,
+      failed: failedCount || 0,
+      status: newJobStatus,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", jobId)
+    .select()
+    .single();
+
+  return {
+    success: true,
+    status: newJobStatus,
+    processedBatchSize: claimedItems.length,
+    remaining: remainingPendingCount || 0,
+    job: updatedJob || job,
+    quotaHit,
+    message: quotaHit ? "Quota reached on upstream provider. Please resume later." : undefined,
+  };
 }

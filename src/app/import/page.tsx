@@ -110,6 +110,9 @@ export default function ImportPage() {
           const data = await res.json();
           if (data.activeJob) {
             setActiveJob(data.activeJob);
+            if (data.activeJob.status === "processing" || data.activeJob.status === "pending") {
+              setIsProcessing(true);
+            }
             if (data.activeJob.status === "paused") {
               setQuotaPausedMessage("Upstream rate quota reached. You can resume processing below.");
             }
@@ -194,57 +197,49 @@ export default function ImportPage() {
     }
   };
 
-  // Client-driven batch processor loop
-  const runProcessingLoop = useCallback(async (jobId: string) => {
-    setIsProcessing(true);
-    setQuotaPausedMessage(null);
+  // Poll job status every 3 seconds while job is processing or pending
+  useEffect(() => {
+    if (!activeJob?.id) return;
+    if (activeJob.status !== "processing" && activeJob.status !== "pending") return;
 
-    let keepGoing = true;
+    let isCancelled = false;
 
-    while (keepGoing) {
+    const pollInterval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/import/jobs/${jobId}/process`, {
-          method: "POST",
-        });
-
-        if (!res.ok) {
-          throw new Error("Failed during batch process request");
-        }
-
+        const res = await fetch(`/api/import/jobs/${activeJob.id}`);
+        if (!res.ok || isCancelled) return;
         const data = await res.json();
-        if (data.job) {
-          setActiveJob(data.job);
-        }
+        if (!data.job || isCancelled) return;
 
-        if (data.status === "completed" || data.remaining === 0) {
-          keepGoing = false;
+        setActiveJob(data.job);
+
+        if (data.job.status === "completed") {
           setIsProcessing(false);
-          await refreshReviewItems(jobId);
-          break;
-        }
-
-        if (data.status === "paused" || data.reason === "quota_reached") {
-          keepGoing = false;
+          await refreshReviewItems(data.job.id);
+        } else if (data.job.status === "paused") {
           setIsProcessing(false);
           setQuotaPausedMessage(
-            data.message || "Quota reached on upstream service. Please resume later."
+            "Upstream rate quota reached. You can resume processing below."
           );
-          await refreshReviewItems(jobId);
-          break;
+          await refreshReviewItems(data.job.id);
+        } else if (data.job.status === "failed") {
+          setIsProcessing(false);
+          await refreshReviewItems(data.job.id);
+        } else if (data.job.status === "processing") {
+          setIsProcessing(true);
         }
-
-        // Small pause between client calls to prevent UI freeze
-        await new Promise((r) => setTimeout(r, 200));
       } catch (err) {
-        console.error("Batch processing error:", err);
-        setIsProcessing(false);
-        keepGoing = false;
-        break;
+        console.warn("Error polling import job status:", err);
       }
-    }
-  }, [refreshReviewItems]);
+    }, 3000);
 
-  // Start Import workflow: Create Job -> Upload batches of items -> trigger process loop
+    return () => {
+      isCancelled = true;
+      clearInterval(pollInterval);
+    };
+  }, [activeJob?.id, activeJob?.status, refreshReviewItems]);
+
+  // Start Import workflow: Create Job -> Upload batches of items -> trigger server processing
   const handleStartImport = async () => {
     if (!preview || preview.items.length === 0) return;
 
@@ -289,19 +284,59 @@ export default function ImportPage() {
 
       setIsUploading(false);
       setPreview(null);
+      setIsProcessing(true);
 
-      // 3. Start client-driven processing loop
-      await runProcessingLoop(job.id);
+      // 3. Trigger server-side processing once (server processes batch and schedules further batches in background)
+      fetch(`/api/import/jobs/${job.id}/process`, {
+        method: "POST",
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.job) setActiveJob(data.job);
+          if (data.status === "completed") {
+            setIsProcessing(false);
+            refreshReviewItems(job.id);
+          } else if (data.status === "paused") {
+            setIsProcessing(false);
+            setQuotaPausedMessage(
+              data.message || "Quota reached on upstream service. Please resume later."
+            );
+            refreshReviewItems(job.id);
+          }
+        })
+        .catch((err) => console.warn("Initial import process trigger:", err));
     } catch (err) {
       setIsUploading(false);
       setParseError(err instanceof Error ? err.message : "Import setup failed");
     }
   };
 
-  // Resume paused or in-progress job
+  // Resume paused or in-progress job by re-triggering the server process route
   const handleResumeJob = async () => {
     if (!activeJob) return;
-    await runProcessingLoop(activeJob.id);
+    setIsProcessing(true);
+    setQuotaPausedMessage(null);
+    try {
+      const res = await fetch(`/api/import/jobs/${activeJob.id}/process`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.job) setActiveJob(data.job);
+        if (data.status === "completed") {
+          setIsProcessing(false);
+          await refreshReviewItems(activeJob.id);
+        } else if (data.status === "paused") {
+          setIsProcessing(false);
+          setQuotaPausedMessage(
+            data.message || "Quota reached on upstream service. Please resume later."
+          );
+          await refreshReviewItems(activeJob.id);
+        }
+      }
+    } catch (err) {
+      console.warn("Resume job error:", err);
+    }
   };
 
   // Cancel / delete current active job

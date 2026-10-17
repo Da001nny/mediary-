@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/trending-external",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/import-worker",
+      "schedule": "0 4 * * *"
     }
   ]
 }
