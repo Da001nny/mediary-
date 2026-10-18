@@ -24,6 +24,7 @@ import {
   X,
   Zap,
   Upload,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -394,6 +395,17 @@ export function TopNav() {
               <span className="hidden md:inline">Lists</span>
             </Link>
 
+            {user && (
+              <Link
+                href="/stats"
+                className="inline-flex items-center gap-1 p-1.5 sm:px-3 sm:py-1.5 text-xs font-medium text-text hover:text-accent rounded-md hover:bg-surface transition-colors cursor-pointer shrink-0"
+                title="Personal Stats"
+              >
+                <BarChart3 className="w-3.5 h-3.5 text-accent" />
+                <span className="hidden md:inline">Stats</span>
+              </Link>
+            )}
+
             <ThemeToggle className="hidden sm:inline-flex" />
 
             <button
@@ -476,6 +488,14 @@ export function TopNav() {
                       >
                         <Upload className="w-3.5 h-3.5 text-accent" />
                         <span>Import</span>
+                      </Link>
+                      <Link
+                        href="/stats"
+                        onClick={() => setIsProfileMenuOpen(false)}
+                        className="px-4 py-1.5 flex items-center gap-2 text-xs text-text hover:bg-surface-hover transition-colors cursor-pointer"
+                      >
+                        <BarChart3 className="w-3.5 h-3.5 text-accent" />
+                        <span>Personal Stats</span>
                       </Link>
                       <button
                         type="button"
