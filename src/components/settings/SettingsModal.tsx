@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import {
   X,
   Settings,
@@ -13,6 +14,8 @@ import {
   Check,
   Loader2,
   Info,
+  Upload,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -413,6 +416,39 @@ function SettingsModalContent({ onClose }: { onClose: () => void }) {
               </div>
             </div>
           </div>
+
+          {/* Section: Data Import */}
+          {user && (
+            <div className="p-3.5 sm:p-4 rounded-xl bg-surface border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Upload className="w-3.5 h-3.5 text-accent" />
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-text">
+                    Data Import
+                  </h4>
+                </div>
+                <p className="text-[11px] text-text-muted mt-1 leading-relaxed">
+                  Import your history from Letterboxd or Goodreads
+                </p>
+              </div>
+
+              <Link
+                href="/import"
+                onClick={onClose}
+                className="shrink-0"
+              >
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  leftIcon={<Upload className="w-3.5 h-3.5 text-accent" />}
+                  rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
+                >
+                  Go to Import
+                </Button>
+              </Link>
+            </div>
+          )}
 
           {/* Algolia Search & Catalog Indexing Status Card */}
           <AlgoliaStatusCard />

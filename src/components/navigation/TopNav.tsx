@@ -23,6 +23,7 @@ import {
   Loader2,
   X,
   Zap,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -467,6 +468,14 @@ export function TopNav() {
                       >
                         <ListOrdered className="w-3.5 h-3.5 text-accent" />
                         <span>Custom Lists & Rankings</span>
+                      </Link>
+                      <Link
+                        href="/import"
+                        onClick={() => setIsProfileMenuOpen(false)}
+                        className="px-4 py-1.5 flex items-center gap-2 text-xs text-text hover:bg-surface-hover transition-colors cursor-pointer"
+                      >
+                        <Upload className="w-3.5 h-3.5 text-accent" />
+                        <span>Import</span>
                       </Link>
                       <button
                         type="button"
