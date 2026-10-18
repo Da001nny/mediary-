@@ -624,6 +624,24 @@ export type Database = {
           },
         ];
       };
+      shared_years: {
+        Row: {
+          user_id: string;
+          year: number;
+          created_at: string;
+        };
+        Insert: {
+          user_id: string;
+          year: number;
+          created_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          year?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       safe_profiles: {

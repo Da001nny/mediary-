@@ -20,7 +20,12 @@ import {
   ArrowLeft,
   ChevronDown,
   Flame,
+  Copy,
+  Check,
+  ExternalLink,
+  Globe,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import {
   ResponsiveContainer,
   PieChart,
@@ -109,7 +114,7 @@ const TYPE_ICONS: Record<string, typeof Film> = {
 function YearInReviewContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, profile, isLoading: authLoading } = useAuth();
   const { scale } = useRatingScale();
   const shouldReduceMotion = useReducedMotion();
 
@@ -123,11 +128,95 @@ function YearInReviewContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Sharing state for selected year
+  const [isShared, setIsShared] = useState(false);
+  const [isShareLoading, setIsShareLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const isHiddenProfile = profile?.profile_visibility === "private";
+
   const isMounted = useSyncExternalStore(
     () => () => {},
     () => true,
     () => false
   );
+
+  const publicUrl =
+    isMounted && typeof window !== "undefined" && user
+      ? `${window.location.origin}/u/${user.id}/year/${selectedYear}`
+      : "";
+
+  // Check if current year is shared in shared_years table using normal client
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+
+    async function checkShareStatus() {
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("shared_years")
+          .select("year")
+          .eq("user_id", user!.id)
+          .eq("year", selectedYear)
+          .maybeSingle();
+
+        if (!cancelled) {
+          if (!error && data) {
+            setIsShared(true);
+          } else {
+            setIsShared(false);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to check shared year status:", err);
+      }
+    }
+
+    checkShareStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, selectedYear]);
+
+  // Toggle share status: inserts when turning on, deletes when turning off (normal client)
+  const handleToggleShare = async () => {
+    if (!user || isShareLoading || isHiddenProfile) return;
+    setIsShareLoading(true);
+    const supabase = createClient();
+    try {
+      if (isShared) {
+        const { error } = await supabase
+          .from("shared_years")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("year", selectedYear);
+        if (error) throw error;
+        setIsShared(false);
+      } else {
+        const { error } = await supabase
+          .from("shared_years")
+          .insert({ user_id: user.id, year: selectedYear });
+        if (error) throw error;
+        setIsShared(true);
+      }
+    } catch (err) {
+      console.error("Error updating year share status:", err);
+    } finally {
+      setIsShareLoading(false);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    if (!publicUrl) return;
+    try {
+      await navigator.clipboard.writeText(publicUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback
+    }
+  };
 
   useEffect(() => {
     if (authLoading || !user) return;
@@ -216,6 +305,85 @@ function YearInReviewContent() {
             </div>
           )}
         </div>
+
+        {/* SHARE THIS YEAR SWITCH CARD */}
+        {user && (
+          <div className="mb-6 sm:mb-8 p-4 sm:p-5 rounded-2xl bg-surface border border-border/80 card-depth space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start sm:items-center gap-3">
+                {/* Switch button */}
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={isShared}
+                  disabled={isShareLoading || isHiddenProfile}
+                  onClick={handleToggleShare}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden focus:ring-2 focus:ring-accent focus:ring-offset-2 mt-0.5 sm:mt-0 ${
+                    isShared && !isHiddenProfile ? "bg-accent" : "bg-bg-elevated border border-border"
+                  } ${
+                    isShareLoading || isHiddenProfile ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+                  aria-label={`Share ${selectedYear} year in review`}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                      isShared && !isHiddenProfile ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-bold text-text">
+                      Share this year
+                    </span>
+                    {isShareLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" />}
+                    {isShared && !isHiddenProfile && (
+                      <Badge variant="subtle" size="sm" className="gap-1 font-mono text-[11px] text-emerald-500 border-emerald-500/30 bg-emerald-500/10">
+                        <Globe className="w-3 h-3" />
+                        <span>Public link active</span>
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-text-muted leading-relaxed">
+                    Only entries you&apos;ve marked public are included. Private and friends-only entries never appear.
+                  </p>
+                </div>
+              </div>
+
+              {/* Public link and Copy button (shown when on and profile not hidden) */}
+              {isShared && !isHiddenProfile && publicUrl && (
+                <div className="flex items-center gap-2 self-start sm:self-auto shrink-0 flex-wrap">
+                  <div className="text-xs font-mono bg-bg px-3 py-1.5 rounded-xl border border-border text-text-muted max-w-[200px] sm:max-w-xs truncate select-all">
+                    {publicUrl}
+                  </div>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleCopyLink}
+                    leftIcon={copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  >
+                    {copied ? "Copied" : "Copy"}
+                  </Button>
+                  <Link href={`/u/${user.id}/year/${selectedYear}`} target="_blank" rel="noopener noreferrer">
+                    <Button variant="ghost" size="sm" aria-label="Open public recap in new tab">
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {/* Hidden profile warning */}
+            {isHiddenProfile && (
+              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-amber-600 dark:text-amber-400">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>Your profile is hidden, so this page will show as not found</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* UNAUTHENTICATED STATE */}
         {!authLoading && !user && (
