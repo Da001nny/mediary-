@@ -46,7 +46,69 @@ const catalogLookupCache = new Map<string, MatchResult>();
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Searches the local database media catalog for an existing movie or book.
+ * Normalizes titles before comparing:
+ * - lowercase
+ * - strip accents (diacritics)
+ * - strip punctuation
+ * - ignore a leading "the"
+ * - collapse whitespace
+ */
+export function normalizeTitle(rawTitle: string): string {
+  if (!rawTitle) return "";
+  let s = rawTitle.toLowerCase();
+  // Strip accents / diacritics via Unicode NFD
+  s = s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  // Strip quotes and apostrophes without space so "it's" becomes "its"
+  s = s.replace(/['’`"]/g, "");
+  // Strip other punctuation by replacing with space
+  s = s.replace(/[^\p{L}\p{N}\s]/gu, " ");
+  // Collapse whitespace
+  s = s.replace(/\s+/g, " ").trim();
+  // Ignore a leading "the"
+  if (s.startsWith("the ")) {
+    s = s.slice(4).trim();
+  }
+  return s;
+}
+
+/**
+ * Normalizes an author string for comparison.
+ */
+export function normalizeAuthor(author: string): string {
+  if (!author) return "";
+  let s = author.toLowerCase();
+  s = s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  s = s.replace(/[^\p{L}\p{N}\s]/gu, " ");
+  return s.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Checks if candidate's first author matches the imported item's author.
+ */
+export function isFirstAuthorMatch(authorA?: string | null, authorB?: string | null): boolean {
+  if (!authorA || !authorB) return false;
+  const firstA = authorA.split(/[,;&]/)[0];
+  const firstB = authorB.split(/[,;&]/)[0];
+  const normA = normalizeAuthor(firstA);
+  const normB = normalizeAuthor(firstB);
+  if (!normA || !normB) return false;
+  if (normA === normB) return true;
+  if (normA.includes(normB) || normB.includes(normA)) return true;
+
+  // Compare last name tokens
+  const partsA = normA.split(" ").filter(Boolean);
+  const partsB = normB.split(" ").filter(Boolean);
+  const lastA = partsA[partsA.length - 1];
+  const lastB = partsB[partsB.length - 1];
+  if (lastA && lastB && lastA.length >= 2 && lastA === lastB) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Searches the local database media catalog for an existing movie, TV series, or book.
+ * Strictly requires matching normalized title AND year for film/TV, and ISBN or title+author for books.
  */
 export async function findExistingMedia(
   item: ParsedImportItem
@@ -54,24 +116,29 @@ export async function findExistingMedia(
   const admin = createAdminClient();
   if (!admin) return null;
 
+  const normalizedTargetTitle = normalizeTitle(item.title);
+  if (!normalizedTargetTitle) return null;
+
   if (item.source === "letterboxd") {
-    // 1. Search movies by title
-    const { data: movies } = await admin
+    // 1. Search movies and TV in local catalog
+    const { data: localMatches } = await admin
       .from("media")
       .select("*")
-      .eq("type", "movie")
-      .ilike("title", item.title.trim())
-      .limit(10);
+      .in("type", ["movie", "tv"])
+      .ilike("title", `%${item.title.trim().slice(0, 30)}%`)
+      .limit(20);
 
-    if (movies && movies.length > 0) {
-      if (item.year) {
-        const yearMatch = movies.find((m) => {
-          const mYear = m.release_date ? parseInt(m.release_date.slice(0, 4), 10) : null;
-          return mYear === item.year;
-        });
-        if (yearMatch) return yearMatch as unknown as MediaItem;
-      } else {
-        return movies[0] as unknown as MediaItem;
+    if (localMatches && localMatches.length > 0) {
+      // Must match normalized title AND year (never auto-match on title alone when year does not match)
+      const matchingItems = localMatches.filter((m) => {
+        if (normalizeTitle(m.title) !== normalizedTargetTitle) return false;
+        if (item.year == null) return false; // Never auto-match when year is absent or doesn't match
+        const mYear = m.release_date ? parseInt(m.release_date.slice(0, 4), 10) : null;
+        return mYear === item.year;
+      });
+
+      if (matchingItems.length === 1) {
+        return matchingItems[0] as unknown as MediaItem;
       }
     }
   } else if (item.source === "goodreads") {
@@ -103,25 +170,24 @@ export async function findExistingMedia(
       }
     }
 
-    // 3. Search books by Title
+    // 3. Search books by exact normalized title plus matching first author
     const { data: titleMatches } = await admin
       .from("media")
       .select("*")
       .eq("type", "book")
-      .ilike("title", item.title.trim())
-      .limit(5);
+      .ilike("title", `%${item.title.trim().slice(0, 30)}%`)
+      .limit(20);
 
     if (titleMatches && titleMatches.length > 0) {
-      if (item.author) {
-        const cleanAuthor = item.author.toLowerCase().trim();
-        const authorMatch = titleMatches.find((m) => {
-          const typeSpec = (m.type_specific as Record<string, unknown>) || {};
-          const bookAuthor = String(typeSpec.author || "").toLowerCase();
-          return bookAuthor.includes(cleanAuthor) || cleanAuthor.includes(bookAuthor);
-        });
-        if (authorMatch) return authorMatch as unknown as MediaItem;
-      } else {
-        return titleMatches[0] as unknown as MediaItem;
+      const matchingBooks = titleMatches.filter((m) => {
+        if (normalizeTitle(m.title) !== normalizedTargetTitle) return false;
+        const typeSpec = (m.type_specific as Record<string, unknown>) || {};
+        const bookAuthor = String(typeSpec.author || "");
+        return isFirstAuthorMatch(item.author, bookAuthor);
+      });
+
+      if (matchingBooks.length === 1) {
+        return matchingBooks[0] as unknown as MediaItem;
       }
     }
   }
@@ -490,18 +556,34 @@ export async function syncRAWGGameToMedia(rawgId: number | string): Promise<stri
 }
 
 /**
- * Searches TMDB for movie candidates without mock fallback.
+ * Searches TMDB for movie and TV candidates without mock fallback using multi-search.
  */
 export async function searchTMDBReal(
   query: string
-): Promise<{ results: Array<{ id: number; title: string; release_date?: string; poster_path?: string; overview?: string }> }> {
+): Promise<{
+  results: Array<{
+    id: number;
+    title?: string;
+    name?: string;
+    media_type?: string;
+    release_date?: string;
+    first_air_date?: string;
+    poster_path?: string;
+    overview?: string;
+  }>;
+}> {
   const apiKey = process.env.TMDB_API_KEY?.trim();
   if (!apiKey) {
     throw new Error("TMDB_API_KEY is not configured in server environment");
   }
 
-  const url = new URL("https://api.themoviedb.org/3/search/movie");
-  url.searchParams.set("query", query.trim());
+  const trimmedQuery = query?.trim();
+  if (!trimmedQuery) {
+    return { results: [] };
+  }
+
+  const url = new URL("https://api.themoviedb.org/3/search/multi");
+  url.searchParams.set("query", trimmedQuery);
   url.searchParams.set("include_adult", "false");
   url.searchParams.set("language", "en-US");
 
@@ -560,14 +642,21 @@ export async function searchGoogleBooksReal(
 
 /**
  * Matches an item against the existing catalog, or queries external sources.
+ * Adheres to strict auto-match rules:
+ * 1. Normalized titles (lowercase, stripped accents/punctuation, ignored leading "the", collapsed whitespace)
+ * 2. Movies & TV: exactly one candidate matching normalized title AND year (first_air_date for TV); otherwise needs_review
+ * 3. Books: ISBN-13 or ISBN-10 first; otherwise exact normalized title plus matching first author; otherwise needs_review
+ * 4. Never auto-matches on title alone when year does not match
+ * 5. Zero candidates becomes status "failed" with error "No match found"
  */
 export async function matchImportItem(
   item: ParsedImportItem
 ): Promise<MatchResult> {
+  const normTitle = normalizeTitle(item.title);
   const cacheKey =
     item.source === "letterboxd"
-      ? `movie:${item.title.toLowerCase().trim()}:${item.year || ""}`
-      : `book:${item.isbn13 || item.isbn10 || item.title.toLowerCase().trim() + ":" + (item.author || "")}`;
+      ? `movie:${normTitle}:${item.year || ""}`
+      : `book:${item.isbn13 || item.isbn10 || normTitle + ":" + (item.author || "")}`;
 
   const cached = catalogLookupCache.get(cacheKey);
   if (cached) {
@@ -591,45 +680,82 @@ export async function matchImportItem(
 
   if (item.source === "letterboxd") {
     try {
-      const { results } = await searchTMDBReal(item.title);
+      const { results: rawResults } = await searchTMDBReal(item.title);
+      // Filter out people (cast/crew) from multi-search
+      let candidateResults = (rawResults || []).filter(
+        (r) => r.media_type !== "person"
+      );
 
-      if (!results || results.length === 0) {
+      // Fallback search with normalized title if query had punctuation and returned 0 results
+      if (candidateResults.length === 0 && normTitle && normTitle !== item.title.toLowerCase().trim()) {
+        const fallback = await searchTMDBReal(normTitle);
+        candidateResults = (fallback.results || []).filter(
+          (r) => r.media_type !== "person"
+        );
+      }
+
+      // Rule 5: A row with zero candidates becomes status "failed" with the error "No match found"
+      // instead of needs_review, so the review list only contains rows a person can actually resolve.
+      if (candidateResults.length === 0) {
         const result: MatchResult = {
-          status: "needs_review",
-          candidates: [],
+          status: "failed",
+          error: "No match found",
         };
         catalogLookupCache.set(cacheKey, result);
         return result;
       }
 
-      // Check for exact year match
-      const targetYear = item.year;
-      const exactYearMatches = targetYear
-        ? results.filter((r) => {
-            const y = r.release_date ? parseInt(r.release_date.slice(0, 4), 10) : null;
-            return y === targetYear;
-          })
-        : [];
+      // Rule 2 & 4: Movies and TV: mark the row matched automatically when exactly one
+      // candidate has the same normalized title AND a release year equal to the
+      // row's year (first_air_date year for TV). Never auto-match on title alone when the year does not match.
+      const satisfyingCandidates = candidateResults.filter((r) => {
+        const candTitle = r.title || r.name || "";
+        if (normalizeTitle(candTitle) !== normTitle) {
+          return false;
+        }
 
-      // Accept exact year match ONLY if exactly one candidate matches that year
-      if (exactYearMatches.length === 1) {
-        const matchedTmdb = exactYearMatches[0];
-        const mediaId = await syncTMDBMovieToMedia(matchedTmdb.id);
+        // Must have year matching item.year (if item.year is null or doesn't match, cannot auto-match)
+        if (item.year == null) {
+          return false;
+        }
+
+        const isTv = r.media_type === "tv" || (!r.title && Boolean(r.name));
+        const dateStr = isTv ? r.first_air_date : r.release_date;
+        const candYear = dateStr ? parseInt(dateStr.slice(0, 4), 10) : null;
+        return candYear === item.year;
+      });
+
+      // Mark matched automatically when exactly one candidate satisfies both
+      if (satisfyingCandidates.length === 1) {
+        const matched = satisfyingCandidates[0];
+        const isTv = matched.media_type === "tv" || (!matched.title && Boolean(matched.name));
+        const mediaId = isTv
+          ? await syncTMDBTVToMedia(matched.id)
+          : await syncTMDBMovieToMedia(matched.id);
+
         const result: MatchResult = { status: "matched", media_id: mediaId };
         catalogLookupCache.set(cacheKey, result);
         return result;
       }
 
-      // If several candidates match or none do, mark needs_review with up to 5 candidates
-      const candidates: CandidateItem[] = results.slice(0, 5).map((r) => ({
-        tmdb_id: r.id,
-        title: r.title,
-        year: r.release_date ? r.release_date.slice(0, 4) : null,
-        poster_url: r.poster_path
-          ? `https://image.tmdb.org/t/p/w342${r.poster_path}`
-          : null,
-        overview: r.overview ? r.overview.slice(0, 250) : null,
-      }));
+      // If zero or two-plus candidates satisfy both, send it to needs_review with its candidates (up to 5)
+      const candidates: CandidateItem[] = candidateResults.slice(0, 5).map((r) => {
+        const isTv = r.media_type === "tv" || (!r.title && Boolean(r.name));
+        const dateStr = isTv ? r.first_air_date : r.release_date;
+        const year = dateStr ? dateStr.slice(0, 4) : null;
+
+        return {
+          tmdb_id: r.id,
+          type: isTv ? "tv" : "movie",
+          media_type: isTv ? "tv" : "movie",
+          title: r.title || r.name || "Unknown",
+          year,
+          poster_url: r.poster_path
+            ? `https://image.tmdb.org/t/p/w342${r.poster_path}`
+            : null,
+          overview: r.overview ? r.overview.slice(0, 250) : null,
+        };
+      });
 
       const result: MatchResult = {
         status: "needs_review",
@@ -652,7 +778,7 @@ export async function matchImportItem(
       // Step A: Search via ISBN-13
       if (item.isbn13) {
         const { items } = await searchGoogleBooksReal(`isbn:${item.isbn13}`);
-        if (items.length > 0) {
+        if (items && items.length > 0) {
           const mediaId = await syncGoogleBookToMedia(items[0].id);
           const result: MatchResult = { status: "matched", media_id: mediaId };
           catalogLookupCache.set(cacheKey, result);
@@ -663,7 +789,7 @@ export async function matchImportItem(
       // Step B: Search via ISBN-10
       if (item.isbn10) {
         const { items } = await searchGoogleBooksReal(`isbn:${item.isbn10}`);
-        if (items.length > 0) {
+        if (items && items.length > 0) {
           const mediaId = await syncGoogleBookToMedia(items[0].id);
           const result: MatchResult = { status: "matched", media_id: mediaId };
           catalogLookupCache.set(cacheKey, result);
@@ -677,32 +803,54 @@ export async function matchImportItem(
         q += ` inauthor:${item.author.trim()}`;
       }
 
-      const { items } = await searchGoogleBooksReal(q);
+      let { items } = await searchGoogleBooksReal(q);
 
-      if (items.length === 0) {
+      // If no items with author qualifier, try searching title alone to get candidate volumes
+      if (!items || items.length === 0) {
+        const fallback = await searchGoogleBooksReal(item.title.trim());
+        items = fallback.items || [];
+      }
+
+      // Rule 5: A row with zero candidates becomes status "failed" with the error "No match found"
+      if (!items || items.length === 0) {
         const result: MatchResult = {
-          status: "needs_review",
-          candidates: [],
+          status: "failed",
+          error: "No match found",
         };
         catalogLookupCache.set(cacheKey, result);
         return result;
       }
 
-      // If exactly 1 result returned with high confidence
-      if (items.length === 1) {
-        const mediaId = await syncGoogleBookToMedia(items[0].id);
+      // Rule 3: Otherwise on exact normalized title plus matching first author. Otherwise needs_review.
+      const satisfyingCandidates = items.filter((b) => {
+        const v = (b.volumeInfo || {}) as Record<string, unknown>;
+        const candTitle = String(v.title || "");
+        if (normalizeTitle(candTitle) !== normTitle) {
+          return false;
+        }
+
+        const authors = Array.isArray(v.authors) ? v.authors : [];
+        const candFirstAuthor = authors[0] ? String(authors[0]) : null;
+        return isFirstAuthorMatch(item.author, candFirstAuthor);
+      });
+
+      // If exactly 1 candidate matches exact normalized title + matching first author
+      if (satisfyingCandidates.length === 1) {
+        const mediaId = await syncGoogleBookToMedia(satisfyingCandidates[0].id);
         const result: MatchResult = { status: "matched", media_id: mediaId };
         catalogLookupCache.set(cacheKey, result);
         return result;
       }
 
-      // Multiple candidates: mark needs_review with up to 5 candidates
+      // Otherwise needs_review with up to 5 candidates
       const candidates: CandidateItem[] = items.slice(0, 5).map((b) => {
         const v = (b.volumeInfo || {}) as Record<string, unknown>;
         const authors = Array.isArray(v.authors) ? v.authors : [];
         const imageLinks = (v.imageLinks as Record<string, string>) || {};
         return {
           google_books_id: b.id,
+          type: "book",
+          media_type: "book",
           title: String(v.title || "Unknown"),
           author: authors[0] ? String(authors[0]) : null,
           year: v.publishedDate ? String(v.publishedDate).slice(0, 4) : null,
