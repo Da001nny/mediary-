@@ -17,6 +17,7 @@ import {
   ArrowRight,
   Library,
   Layers,
+  Calendar,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -207,13 +208,18 @@ export default function StatsPage() {
               </p>
             </div>
 
-            {stats && stats.total >= 3 && (
-              <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+              <Link href="/year">
+                <Button variant="secondary" size="sm" leftIcon={<Calendar className="w-3.5 h-3.5 text-accent" />}>
+                  Year in Review
+                </Button>
+              </Link>
+              {stats && stats.total >= 3 && (
                 <Badge variant="amber" size="sm" className="font-mono text-xs py-1 px-2.5">
                   Scale: {RATING_SCALE_CONFIG[scale]?.name || scale}
                 </Badge>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
@@ -280,8 +286,13 @@ export default function StatsPage() {
                   Go to Diary
                 </Button>
               </Link>
+              <Link href="/year">
+                <Button variant="secondary" size="md" leftIcon={<Calendar className="w-4 h-4 text-accent" />}>
+                  Year in Review
+                </Button>
+              </Link>
               <Link href="/import">
-                <Button variant="secondary" size="md">
+                <Button variant="ghost" size="md">
                   Import from Letterboxd / Goodreads
                 </Button>
               </Link>
