@@ -16,6 +16,7 @@ import {
   Sparkles,
   Upload,
   ArrowRight,
+  Download,
 } from "lucide-react";
 import { TopNav } from "@/components/navigation/TopNav";
 import { Button } from "@/components/ui/Button";
@@ -405,6 +406,33 @@ export default function SettingsPage() {
                     Import Library
                   </Button>
                 </Link>
+              </div>
+            </div>
+          )}
+
+          {/* Card: Download My Data */}
+          {user && (
+            <div className="p-4 sm:p-7 lg:p-9 rounded-2xl bg-surface border border-border/80 card-depth space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h2 className="font-serif text-lg sm:text-2xl font-bold text-text">
+                    Download My Data
+                  </h2>
+                  <p className="text-xs sm:text-sm text-text-muted mt-1 leading-relaxed">
+                    Export a full JSON backup of your profile, entries, lists, comments, likes, and history
+                  </p>
+                </div>
+
+                <a href="/api/account/export" download className="shrink-0">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    leftIcon={<Download className="w-4 h-4 text-accent" />}
+                  >
+                    Download Data (JSON)
+                  </Button>
+                </a>
               </div>
             </div>
           )}

@@ -16,6 +16,7 @@ import {
   Info,
   Upload,
   ArrowRight,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -447,6 +448,38 @@ function SettingsModalContent({ onClose }: { onClose: () => void }) {
                   Go to Import
                 </Button>
               </Link>
+            </div>
+          )}
+
+          {/* Section: Download My Data */}
+          {user && (
+            <div className="p-3.5 sm:p-4 rounded-xl bg-surface border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Download className="w-3.5 h-3.5 text-accent" />
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-text">
+                    Download My Data
+                  </h4>
+                </div>
+                <p className="text-[11px] text-text-muted mt-1 leading-relaxed">
+                  Export a full JSON archive of your entries, lists, and activity
+                </p>
+              </div>
+
+              <a
+                href="/api/account/export"
+                download
+                className="shrink-0"
+              >
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  leftIcon={<Download className="w-3.5 h-3.5 text-accent" />}
+                >
+                  Download JSON
+                </Button>
+              </a>
             </div>
           )}
 
