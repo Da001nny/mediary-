@@ -550,6 +550,26 @@ export default function SettingsPage() {
             </Button>
           </div>
         </form>
+
+        {/* Legal & Policies Links */}
+        <div className="mt-10 pt-6 border-t border-border/70 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-text-muted">
+          <p className="font-mono text-[11px]">meDiary Policies</p>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/privacy"
+              className="text-text-muted hover:text-text transition-colors underline-offset-4 hover:underline"
+            >
+              Privacy
+            </Link>
+            <span className="text-border">•</span>
+            <Link
+              href="/terms"
+              className="text-text-muted hover:text-text transition-colors underline-offset-4 hover:underline"
+            >
+              Terms
+            </Link>
+          </div>
+        </div>
       </main>
 
       {/* Confirmation Dialog: Delete Account */}

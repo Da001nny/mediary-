@@ -244,6 +244,26 @@ function LoginForm() {
                 "Create Account"
               )}
             </Button>
+
+            {mode === "signup" && (
+              <p className="text-[11px] text-text-muted text-center pt-1.5 leading-relaxed">
+                By creating an account you agree to the{" "}
+                <Link
+                  href="/terms"
+                  className="text-text hover:text-accent underline underline-offset-2 transition-colors font-medium"
+                >
+                  Terms
+                </Link>{" "}
+                and{" "}
+                <Link
+                  href="/privacy"
+                  className="text-text hover:text-accent underline underline-offset-2 transition-colors font-medium"
+                >
+                  Privacy Policy
+                </Link>
+                .
+              </p>
+            )}
           </form>
 
           {/* Instant Demo Sign-In - rendered only when isSupabaseConfigured() is false */}

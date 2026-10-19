@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { X, Sparkles, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -287,6 +288,28 @@ export function AuthModal({
               >
                 {mode === "login" ? "Sign In to meDiary" : "Create My Account"}
               </Button>
+
+              {mode === "signup" && (
+                <p className="text-[11px] text-text-muted text-center pt-1.5 leading-relaxed">
+                  By creating an account you agree to the{" "}
+                  <Link
+                    href="/terms"
+                    onClick={handleClose}
+                    className="text-text hover:text-accent underline underline-offset-2 transition-colors font-medium"
+                  >
+                    Terms
+                  </Link>{" "}
+                  and{" "}
+                  <Link
+                    href="/privacy"
+                    onClick={handleClose}
+                    className="text-text hover:text-accent underline underline-offset-2 transition-colors font-medium"
+                  >
+                    Privacy Policy
+                  </Link>
+                  .
+                </p>
+              )}
             </form>
 
             {/* Preview notice if env vars not yet configured */}

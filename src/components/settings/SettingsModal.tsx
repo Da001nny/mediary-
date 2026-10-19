@@ -486,26 +486,46 @@ function SettingsModalContent({ onClose }: { onClose: () => void }) {
           {/* Algolia Search & Catalog Indexing Status Card */}
           <AlgoliaStatusCard />
 
-          {/* Footer Actions */}
-          <div className="pt-3 border-t border-border flex items-center justify-end gap-2.5">
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={onClose}
-              disabled={isSaving}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              size="sm"
-              isLoading={isSaving}
-              leftIcon={<Check className="w-3.5 h-3.5" />}
-            >
-              Save Preferences
-            </Button>
+          {/* Footer Actions & Policies */}
+          <div className="pt-3 border-t border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3 text-[11px] text-text-muted">
+              <Link
+                href="/privacy"
+                onClick={onClose}
+                className="text-text-muted hover:text-text underline-offset-2 hover:underline transition-colors"
+              >
+                Privacy
+              </Link>
+              <span>•</span>
+              <Link
+                href="/terms"
+                onClick={onClose}
+                className="text-text-muted hover:text-text underline-offset-2 hover:underline transition-colors"
+              >
+                Terms
+              </Link>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={onClose}
+                disabled={isSaving}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+                isLoading={isSaving}
+                leftIcon={<Check className="w-3.5 h-3.5" />}
+              >
+                Save Preferences
+              </Button>
+            </div>
           </div>
         </form>
       </div>
