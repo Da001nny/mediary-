@@ -228,12 +228,25 @@ export default async function HomePage({ searchParams }: PageProps) {
     ? resolvedParams?.popular_type[0]
     : resolvedParams?.popular_type;
 
+  const rawDeleted = Array.isArray(resolvedParams?.deleted)
+    ? resolvedParams?.deleted[0]
+    : resolvedParams?.deleted;
+
+  const rawMessage = Array.isArray(resolvedParams?.message)
+    ? resolvedParams?.message[0]
+    : resolvedParams?.message;
+
+  const isDeleted =
+    rawDeleted === "true" ||
+    rawMessage === "Your account and data have been deleted.";
+
   const { heading, items, activeType } = await getTrendingMediaData(rawType);
   const { items: popularItems, activeType: activePopularType } =
     await getExternalTrendingData(rawPopularType, rawType);
 
   return (
     <HomeDashboardClient
+      deletedBanner={isDeleted}
       trendingSection={
         <TrendingSection
           heading={heading}

@@ -12,6 +12,7 @@ import {
   Lock,
   ChevronRight,
   Sliders,
+  Check,
 } from "lucide-react";
 import { TopNav } from "@/components/navigation/TopNav";
 import { Button } from "@/components/ui/Button";
@@ -48,11 +49,13 @@ interface HomeEntryItem {
 interface HomeDashboardClientProps {
   trendingSection: React.ReactNode;
   popularSection?: React.ReactNode;
+  deletedBanner?: boolean;
 }
 
 export function HomeDashboardClient({
   trendingSection,
   popularSection,
+  deletedBanner = false,
 }: HomeDashboardClientProps) {
   const { user, profile, isLoading: isAuthLoading } = useAuth();
 
@@ -178,6 +181,20 @@ export function HomeDashboardClient({
       <TopNav />
 
       <main className="flex-1 max-w-6xl mx-auto w-full px-3.5 sm:px-6 lg:px-8 py-6 sm:py-12 space-y-8 sm:space-y-14">
+        {/* Account Deletion Message Banner */}
+        {deletedBanner && (
+          <div className="p-4 sm:p-5 rounded-2xl bg-surface border border-accent/40 shadow-sm flex items-center justify-between gap-3 text-text text-sm animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-accent/15 flex items-center justify-center text-accent shrink-0">
+                <Check className="w-4 h-4" />
+              </div>
+              <p className="font-medium text-text">
+                Your account and data have been deleted.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* ============================================================== */}
         {/* SIGNED-OUT VIEW                                                */}
         {/* ============================================================== */}

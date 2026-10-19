@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Star,
   Sliders,
@@ -17,6 +18,9 @@ import {
   Upload,
   ArrowRight,
   Download,
+  AlertTriangle,
+  Trash2,
+  X,
 } from "lucide-react";
 import { TopNav } from "@/components/navigation/TopNav";
 import { Button } from "@/components/ui/Button";
@@ -33,7 +37,8 @@ import { AlgoliaStatusCard } from "@/components/settings/AlgoliaStatusCard";
 import type { PrivacyLevel, ProfileVisibility } from "@/types/database.types";
 
 export default function SettingsPage() {
-  const { profile, updateProfile, user } = useAuth();
+  const router = useRouter();
+  const { profile, updateProfile, user, signOut } = useAuth();
   const { scale: currentScale, setScale } = useRatingScale();
 
   // Read current scale from profiles.rating_scale on load; fallback to currentScale
@@ -62,6 +67,58 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Account deletion state
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [confirmEmailInput, setConfirmEmailInput] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const userEmail = (user?.email || "").trim().toLowerCase();
+  const isEmailMatching =
+    confirmEmailInput.trim().toLowerCase() === userEmail && userEmail.length > 0;
+
+  const handleDeleteAccount = async () => {
+    if (!isEmailMatching || isDeleting) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    try {
+      const res = await fetch("/api/account/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: confirmEmailInput.trim() }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Failed to delete account (HTTP ${res.status})`);
+      }
+
+      // Delete required localStorage keys
+      const KEYS_TO_DELETE = [
+        "mediary_diary_entries",
+        "mediary_custom_lists_v1",
+        "mediary_demo_auth_user",
+        "mediary_user_profile",
+      ];
+      KEYS_TO_DELETE.forEach((key) => {
+        try {
+          localStorage.removeItem(key);
+        } catch {
+          // ignore
+        }
+      });
+
+      // Sign out and redirect to home with deletion message
+      await signOut();
+      router.push("/?deleted=true");
+    } catch (err: unknown) {
+      console.error("Account deletion error:", err);
+      setDeleteError(err instanceof Error ? err.message : "Failed to delete account");
+      setIsDeleting(false);
+    }
+  };
 
   // Directly update profiles.rating_scale when user selects any option
   const handleSelectScale = async (scaleOption: RatingScale) => {
@@ -440,6 +497,40 @@ export default function SettingsPage() {
           {/* Card: Algolia Search & Catalog Indexing */}
           <AlgoliaStatusCard />
 
+          {/* Section: Danger zone */}
+          {user && (
+            <div className="p-4 sm:p-7 lg:p-9 rounded-2xl bg-rose-500/5 border border-rose-500/30 card-depth space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 text-rose-500">
+                    <AlertTriangle className="w-5 h-5 shrink-0" />
+                    <h2 className="font-serif text-lg sm:text-2xl font-bold">
+                      Danger zone
+                    </h2>
+                  </div>
+                  <p className="text-xs sm:text-sm text-text-muted mt-1 leading-relaxed max-w-xl">
+                    Permanently delete your account and all associated entries, reviews, lists, comments, likes, and history. This action cannot be undone.
+                  </p>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setIsDeleteModalOpen(true);
+                    setDeleteError(null);
+                    setConfirmEmailInput("");
+                  }}
+                  leftIcon={<Trash2 className="w-4 h-4 text-rose-500" />}
+                  className="shrink-0 border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 hover:border-rose-500"
+                >
+                  Delete my account
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Submit Button */}
           <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-2">
             <Link href="/diary" className="w-full sm:w-auto">
@@ -460,6 +551,114 @@ export default function SettingsPage() {
           </div>
         </form>
       </main>
+
+      {/* Confirmation Dialog: Delete Account */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-surface border border-rose-500/40 rounded-2xl max-w-lg w-full p-6 sm:p-7 space-y-5 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-start justify-between gap-3 border-b border-border/80 pb-4">
+              <div className="flex items-center gap-2.5 text-rose-500">
+                <AlertTriangle className="w-5 h-5 shrink-0" />
+                <h3 className="font-serif text-lg sm:text-xl font-bold text-text">
+                  Delete your account
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="text-text-muted hover:text-text p-1 rounded-lg transition-colors cursor-pointer"
+                aria-label="Close dialog"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs sm:text-sm text-text-muted leading-relaxed">
+              <p className="font-semibold text-rose-500">
+                This action cannot be undone.
+              </p>
+              <p>
+                Deleting your account will permanently remove all your data from meDiary, including:
+              </p>
+              <ul className="list-disc pl-5 space-y-1 text-text">
+                <li>Entries and ratings</li>
+                <li>Reviews and spoiler notes</li>
+                <li>Custom lists and list items</li>
+                <li>Comments and replies</li>
+                <li>Likes given across entries and lists</li>
+                <li>Follows and followers</li>
+                <li>Import jobs and import history</li>
+                <li>Shared year in review pages</li>
+              </ul>
+            </div>
+
+            {/* Suggest downloading data first */}
+            <div className="p-3.5 rounded-xl bg-bg border border-border flex items-center justify-between gap-3">
+              <div className="space-y-0.5 min-w-0">
+                <div className="text-xs font-bold text-text">Save your records first?</div>
+                <div className="text-[11px] text-text-muted">
+                  We suggest downloading a complete JSON archive before deleting your account.
+                </div>
+              </div>
+              <a href="/api/account/export" download className="shrink-0">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  leftIcon={<Download className="w-3.5 h-3.5 text-accent" />}
+                >
+                  Download data
+                </Button>
+              </a>
+            </div>
+
+            {/* Email confirmation requirement */}
+            <div className="space-y-2 pt-1">
+              <label className="block text-xs font-mono text-text">
+                To confirm, type your account email <strong className="text-accent">({user?.email})</strong>:
+              </label>
+              <input
+                type="email"
+                autoComplete="off"
+                value={confirmEmailInput}
+                onChange={(e) => setConfirmEmailInput(e.target.value)}
+                placeholder={user?.email || "your.email@example.com"}
+                className="w-full bg-bg border border-border/90 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-text focus:outline-hidden focus:border-rose-500 font-mono"
+              />
+            </div>
+
+            {deleteError && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs font-medium">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-border/80">
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
+                onClick={() => setIsDeleteModalOpen(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
+                disabled={!isEmailMatching || isDeleting}
+                isLoading={isDeleting}
+                onClick={handleDeleteAccount}
+                leftIcon={<Trash2 className="w-4 h-4 text-white" />}
+                className="bg-rose-600 hover:bg-rose-700 text-white border-transparent disabled:opacity-40"
+              >
+                Delete Account Permanently
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
