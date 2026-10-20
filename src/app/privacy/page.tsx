@@ -61,7 +61,7 @@ export default function PrivacyPolicyPage() {
 
           <section className="space-y-3">
             <h2 className="font-serif text-xl sm:text-2xl font-bold text-text pt-2">
-              1. Information We Collect
+              What we collect
             </h2>
             <p>
               We collect only the information necessary to provide you with a
@@ -95,18 +95,35 @@ export default function PrivacyPolicyPage() {
                 rating scale, interface theme, region, and default entry
                 privacy settings.
               </li>
+              <li>
+                <strong className="text-text">Imports:</strong> the entries from
+                the Letterboxd or Goodreads files you choose to import, and the
+                progress of each import.
+              </li>
+              <li>
+                <strong className="text-text">Technical data:</strong> sign-in
+                session cookies that keep you signed in, your theme choice
+                (stored in your browser), and standard server logs from our
+                hosting provider, which include your IP address and browser
+                details.
+              </li>
             </ul>
           </section>
 
           <section className="space-y-3">
             <h2 className="font-serif text-xl sm:text-2xl font-bold text-text pt-2">
-              2. Privacy Tiers & Visibility Controls
+              Who can see what
             </h2>
             <p>
               Every entry in your journal is subject to strict, database-enforced
               privacy rules:
             </p>
             <ul className="list-disc pl-5 space-y-2 text-text/90">
+              <li>
+                New entries and lists use your default privacy setting, which is
+                Private unless you change it in Settings. You can also choose
+                privacy for each entry.
+              </li>
               <li>
                 <strong className="text-text">Public:</strong> Visible to anyone
                 visiting meDiary or browsing your public profile.
@@ -137,7 +154,7 @@ export default function PrivacyPolicyPage() {
 
           <section className="space-y-3">
             <h2 className="font-serif text-xl sm:text-2xl font-bold text-text pt-2">
-              3. Third-Party Services & Catalog Data
+              Services we use
             </h2>
             <p>
               meDiary interfaces with external catalog providers to provide
@@ -145,21 +162,17 @@ export default function PrivacyPolicyPage() {
             </p>
             <ul className="list-disc pl-5 space-y-2 text-text/90">
               <li>
-                <strong className="text-text">TMDB:</strong> Movie and TV data
-                from TMDB. This product uses the TMDB API but is not endorsed or
-                certified by TMDB.
+                <strong className="text-text">TMDB, RAWG and Google Books:</strong> Movie
+                and TV data from TMDB. This product uses the TMDB API but is not
+                endorsed or certified by TMDB. Game data from RAWG. Book data
+                from Google Books. Cover images are served from those services&apos;
+                image servers, which may see your IP address when an image loads.
               </li>
               <li>
-                <strong className="text-text">RAWG:</strong> Video game data
-                and platform catalog details from RAWG.
-              </li>
-              <li>
-                <strong className="text-text">Google Books:</strong> Book data,
-                authorship, and cover images from Google Books.
-              </li>
-              <li>
-                <strong className="text-text">Algolia:</strong> Fast,
-                typo-tolerant search indexing of catalog media titles.
+                <strong className="text-text">Algolia:</strong> search over the
+                title catalog. When you search, the text you type is sent to
+                Algolia along with your device&apos;s IP address, as with any
+                web request. Your diary entries are never sent to Algolia.
               </li>
               <li>
                 <strong className="text-text">Supabase:</strong> Encrypted
