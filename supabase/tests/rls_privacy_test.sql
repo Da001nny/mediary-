@@ -3,8 +3,8 @@
 -- all test data is rolled back.
 DO $$
 DECLARE
-  a uuid := '09739170-aace-4311-a658-8c6d760db4b4';
-  b uuid := 'e5a62fbf-2ee4-458c-9cf2-708e1184d1fc';
+  a uuid := 'PASTE_USER_A_ID';
+  b uuid := 'PASTE_USER_B_ID';
   ca text; cb text;
   m uuid; m2 uuid; e uuid;
   n int; blocked boolean;
