@@ -64,7 +64,7 @@ function SettingsModalContent({ onClose }: { onClose: () => void }) {
 
   const displayName = displayNameInput ?? (profile?.display_name || user?.user_metadata?.full_name || "");
   const bio = bioInput ?? (profile?.bio || "");
-  const defaultPrivacy = privacyInput ?? (profile?.default_privacy || "public");
+  const defaultPrivacy = privacyInput ?? (profile?.default_privacy || "private");
   const profileVisibility: ProfileVisibility =
     visibilityInput ??
     profile?.profile_visibility ??
@@ -385,13 +385,13 @@ function SettingsModalContent({ onClose }: { onClose: () => void }) {
             {/* Default Privacy */}
             <div className="space-y-2">
               <label className="block text-xs font-semibold text-text-muted">
-                Default Entry Privacy
+                Default privacy for new entries and lists
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {[
-                  { id: "public", label: "Public", desc: "Visible to all", icon: Globe },
-                  { id: "friends", label: "Friends", desc: "Shared only", icon: Users },
                   { id: "private", label: "Private", desc: "Only you", icon: Lock },
+                  { id: "friends", label: "Friends", desc: "People you follow who follow you back", icon: Users },
+                  { id: "public", label: "Public", desc: "Anyone, including visitors", icon: Globe },
                 ].map((item) => {
                   const Icon = item.icon;
                   const isSelected = defaultPrivacy === item.id;

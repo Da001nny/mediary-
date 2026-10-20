@@ -50,7 +50,9 @@ function CreateListModalContent({
   const [name, setName] = useState(listToEdit?.name || "");
   const [description, setDescription] = useState(listToEdit?.description || "");
   const [isRanked, setIsRanked] = useState(Boolean(listToEdit?.is_ranked));
-  const [privacy, setPrivacy] = useState<PrivacyLevel>(listToEdit?.privacy || "public");
+  const [privacy, setPrivacy] = useState<PrivacyLevel>(
+    listToEdit?.privacy || profile?.default_privacy || "private"
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -235,18 +237,18 @@ function CreateListModalContent({
             <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
-                onClick={() => setPrivacy("public")}
+                onClick={() => setPrivacy("private")}
                 className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer flex flex-col gap-1 ${
-                  privacy === "public"
-                    ? "border-accent bg-accent/10 text-text"
+                  privacy === "private"
+                    ? "border-accent bg-accent/10 text-text ring-1 ring-accent"
                     : "border-border bg-bg/50 hover:bg-surface-hover text-text-muted"
                 }`}
               >
                 <div className="flex items-center gap-1.5">
-                  <Globe className={`w-3.5 h-3.5 ${privacy === "public" ? "text-accent" : ""}`} />
-                  <span className="text-xs font-semibold">Public</span>
+                  <Lock className={`w-3.5 h-3.5 ${privacy === "private" ? "text-accent" : ""}`} />
+                  <span className="text-xs font-semibold">Private</span>
                 </div>
-                <span className="text-[10px] opacity-75">Visible to all</span>
+                <span className="text-[10px] opacity-75">Only you</span>
               </button>
 
               <button
@@ -254,7 +256,7 @@ function CreateListModalContent({
                 onClick={() => setPrivacy("friends")}
                 className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer flex flex-col gap-1 ${
                   privacy === "friends"
-                    ? "border-accent bg-accent/10 text-text"
+                    ? "border-accent bg-accent/10 text-text ring-1 ring-accent"
                     : "border-border bg-bg/50 hover:bg-surface-hover text-text-muted"
                 }`}
               >
@@ -267,20 +269,25 @@ function CreateListModalContent({
 
               <button
                 type="button"
-                onClick={() => setPrivacy("private")}
+                onClick={() => setPrivacy("public")}
                 className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer flex flex-col gap-1 ${
-                  privacy === "private"
-                    ? "border-accent bg-accent/10 text-text"
+                  privacy === "public"
+                    ? "border-accent bg-accent/10 text-text ring-1 ring-accent"
                     : "border-border bg-bg/50 hover:bg-surface-hover text-text-muted"
                 }`}
               >
                 <div className="flex items-center gap-1.5">
-                  <Lock className={`w-3.5 h-3.5 ${privacy === "private" ? "text-accent" : ""}`} />
-                  <span className="text-xs font-semibold">Private</span>
+                  <Globe className={`w-3.5 h-3.5 ${privacy === "public" ? "text-accent" : ""}`} />
+                  <span className="text-xs font-semibold">Public</span>
                 </div>
-                <span className="text-[10px] opacity-75">Only you</span>
+                <span className="text-[10px] opacity-75">Visible to all</span>
               </button>
             </div>
+            <p className="text-[11px] text-text-muted leading-relaxed">
+              {privacy === "private" && "Only you"}
+              {privacy === "friends" && "People you follow who follow you back"}
+              {privacy === "public" && "Anyone, including visitors"}
+            </p>
           </div>
 
           {/* Action Buttons */}

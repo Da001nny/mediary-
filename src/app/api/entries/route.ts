@@ -193,7 +193,6 @@ export async function POST(request: NextRequest) {
       progress,
       review,
       contains_spoilers = false,
-      privacy = "public",
     } = body;
 
     const hasSpoilers = Boolean(contains_spoilers || progress?.contains_spoilers);
@@ -233,11 +232,15 @@ export async function POST(request: NextRequest) {
       progress && typeof progress === "object" ? { ...(progress as Record<string, unknown>) } : {};
     sanitizedProgress.contains_spoilers = hasSpoilers;
 
-    if (privacy && !VALID_PRIVACIES.includes(privacy)) {
-      return NextResponse.json(
-        { error: "Privacy must be 'public', 'friends', or 'private'" },
-        { status: 400 }
-      );
+    const rawPrivacy = body.privacy;
+
+    if (rawPrivacy !== undefined && rawPrivacy !== null && rawPrivacy !== "") {
+      if (!VALID_PRIVACIES.includes(rawPrivacy)) {
+        return NextResponse.json(
+          { error: "Privacy must be 'private', 'friends', or 'public'" },
+          { status: 400 }
+        );
+      }
     }
 
     const supabase = await createClient();
@@ -250,6 +253,8 @@ export async function POST(request: NextRequest) {
           { status: 503 }
         );
       }
+      const resolvedPrivacy: PrivacyLevel =
+        rawPrivacy && VALID_PRIVACIES.includes(rawPrivacy) ? rawPrivacy : "private";
       // Mock / Demo fallback response (development only)
       const mockEntry = {
         id: `mock-entry-${Date.now()}`,
@@ -260,7 +265,7 @@ export async function POST(request: NextRequest) {
         progress: sanitizedProgress,
         review: review ? String(review).trim() : null,
         contains_spoilers: hasSpoilers,
-        privacy,
+        privacy: resolvedPrivacy,
         started_at: status === "in_progress" ? new Date().toISOString() : null,
         completed_at: status === "completed" ? new Date().toISOString() : null,
         created_at: new Date().toISOString(),
@@ -279,6 +284,24 @@ export async function POST(request: NextRequest) {
         { error: "You must be signed in to log a title to your diary." },
         { status: 401 }
       );
+    }
+
+    let privacy: PrivacyLevel;
+    if (rawPrivacy !== undefined && rawPrivacy !== null && rawPrivacy !== "") {
+      privacy = rawPrivacy as PrivacyLevel;
+    } else {
+      // Load the signed-in user's profile default_privacy (normal client, filtered by session user id)
+      const { data: profileRow } = await supabase
+        .from("profiles")
+        .select("default_privacy")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      const profileDefault = profileRow?.default_privacy as PrivacyLevel | undefined;
+      privacy =
+        profileDefault && VALID_PRIVACIES.includes(profileDefault)
+          ? profileDefault
+          : "private";
     }
 
     // Resolve media_id via service-role admin client

@@ -81,7 +81,9 @@ function AddToListModalContent({
   const [showCreateInline, setShowCreateInline] = useState(false);
   const [newListName, setNewListName] = useState("");
   const [newListRanked, setNewListRanked] = useState(false);
-  const [newListPrivacy, setNewListPrivacy] = useState<PrivacyLevel>("public");
+  const [newListPrivacy, setNewListPrivacy] = useState<PrivacyLevel>(
+    profile?.default_privacy || "private"
+  );
   const [creatingInline, setCreatingInline] = useState(false);
 
   useEffect(() => {
@@ -409,9 +411,9 @@ function AddToListModalContent({
                   onChange={(e) => setNewListPrivacy(e.target.value as PrivacyLevel)}
                   className="px-2 py-1 text-[11px] rounded bg-bg border border-border text-text focus:outline-hidden"
                 >
-                  <option value="public">Public</option>
-                  <option value="friends">Friends</option>
                   <option value="private">Private</option>
+                  <option value="friends">Friends</option>
+                  <option value="public">Public</option>
                 </select>
               </div>
 

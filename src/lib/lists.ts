@@ -97,7 +97,7 @@ export async function createCustomList(params: {
       name: params.name.trim(),
       description: params.description?.trim() || null,
       is_ranked: Boolean(params.is_ranked),
-      privacy: params.privacy || "public",
+      privacy: params.privacy,
     }),
   });
 

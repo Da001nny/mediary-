@@ -156,7 +156,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, title, description = null, is_ranked = false, privacy = "public" } = body;
+    const { name, title, description = null, is_ranked = false } = body;
+    const rawPrivacy = body.privacy;
     const listTitle = String(title || name || "").trim();
 
     if (!listTitle) {
@@ -166,8 +167,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const validPrivacies: PrivacyLevel[] = ["public", "friends", "private"];
-    const resolvedPrivacy = validPrivacies.includes(privacy) ? privacy : "public";
+    const validPrivacies: PrivacyLevel[] = ["private", "friends", "public"];
+
+    if (rawPrivacy !== undefined && rawPrivacy !== null && rawPrivacy !== "") {
+      if (!validPrivacies.includes(rawPrivacy)) {
+        return NextResponse.json(
+          { error: "Privacy must be 'private', 'friends', or 'public'" },
+          { status: 400 }
+        );
+      }
+    }
+
+    let resolvedPrivacy: PrivacyLevel;
+    if (rawPrivacy !== undefined && rawPrivacy !== null && rawPrivacy !== "") {
+      resolvedPrivacy = rawPrivacy as PrivacyLevel;
+    } else {
+      // Load the signed-in user's profile default_privacy (normal client, filtered by session user id)
+      const { data: profileRow } = await supabase
+        .from("profiles")
+        .select("default_privacy")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      const profileDefault = profileRow?.default_privacy as PrivacyLevel | undefined;
+      resolvedPrivacy =
+        profileDefault && validPrivacies.includes(profileDefault)
+          ? profileDefault
+          : "private";
+    }
 
     // Use `title` column of lists table (there is no name column in public.lists)
     const insertPayload: TablesInsert<"lists"> = {

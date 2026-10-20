@@ -447,7 +447,10 @@ export function TopNav() {
                           {displayName}
                         </p>
                         <Badge variant="amber" size="sm">
-                          {profile?.default_privacy || "Public"}
+                          {profile?.default_privacy
+                            ? profile.default_privacy.charAt(0).toUpperCase() +
+                              profile.default_privacy.slice(1)
+                            : "Private"}
                         </Badge>
                       </div>
                       <p className="text-[11px] text-text-muted truncate">

@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { RatingInput } from "@/components/ui/RatingInput";
+import { useAuth } from "@/context/AuthContext";
 import type { MediaItem, EntryStatus, PrivacyLevel, MediaEntry } from "@/types/database.types";
 
 interface LogEntryModalProps {
@@ -198,8 +199,9 @@ function LogEntryModalContent({
     const prog = existingProgress as Record<string, unknown> | null | undefined;
     return Boolean(ex?.contains_spoilers || prog?.contains_spoilers);
   });
+  const { profile } = useAuth();
   const [privacy, setPrivacy] = useState<PrivacyLevel>(
-    existingEntry?.privacy || "public"
+    existingEntry?.privacy || profile?.default_privacy || "private"
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -666,15 +668,15 @@ function LogEntryModalContent({
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setPrivacy("public")}
+                onClick={() => setPrivacy("private")}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
-                  privacy === "public"
+                  privacy === "private"
                     ? "bg-accent/15 border-accent text-accent font-semibold"
                     : "bg-bg text-text-muted border-border hover:text-text"
                 }`}
               >
-                <Globe className="w-3.5 h-3.5" />
-                <span>Public</span>
+                <Lock className="w-3.5 h-3.5" />
+                <span>Private</span>
               </button>
 
               <button
@@ -692,17 +694,22 @@ function LogEntryModalContent({
 
               <button
                 type="button"
-                onClick={() => setPrivacy("private")}
+                onClick={() => setPrivacy("public")}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
-                  privacy === "private"
+                  privacy === "public"
                     ? "bg-accent/15 border-accent text-accent font-semibold"
                     : "bg-bg text-text-muted border-border hover:text-text"
                 }`}
               >
-                <Lock className="w-3.5 h-3.5" />
-                <span>Private</span>
+                <Globe className="w-3.5 h-3.5" />
+                <span>Public</span>
               </button>
             </div>
+            <p className="text-[11px] text-text-muted leading-relaxed">
+              {privacy === "private" && "Only you"}
+              {privacy === "friends" && "People you follow who follow you back"}
+              {privacy === "public" && "Anyone, including visitors"}
+            </p>
           </div>
 
           {/* Action Buttons */}

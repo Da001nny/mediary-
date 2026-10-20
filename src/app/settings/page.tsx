@@ -58,7 +58,7 @@ export default function SettingsPage() {
 
   const displayName = displayNameInput ?? (profile?.display_name || user?.user_metadata?.full_name || "");
   const bio = bioInput ?? (profile?.bio || "");
-  const defaultPrivacy = privacyInput ?? (profile?.default_privacy || "public");
+  const defaultPrivacy = privacyInput ?? (profile?.default_privacy || "private");
   const profileVisibility: ProfileVisibility =
     visibilityInput ??
     profile?.profile_visibility ??
@@ -406,13 +406,13 @@ export default function SettingsPage() {
 
             <div className="space-y-2.5 sm:space-y-3 pt-1 sm:pt-2">
               <label className="block text-xs font-bold uppercase tracking-wider text-text-muted">
-                Default Entry Privacy
+                Default privacy for new entries and lists
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3.5">
                 {[
-                  { id: "public", label: "Public", desc: "Visible to all", icon: Globe },
-                  { id: "friends", label: "Friends", desc: "Shared only", icon: Users },
                   { id: "private", label: "Private", desc: "Only you", icon: Lock },
+                  { id: "friends", label: "Friends", desc: "People you follow who follow you back", icon: Users },
+                  { id: "public", label: "Public", desc: "Anyone, including visitors", icon: Globe },
                 ].map((item) => {
                   const Icon = item.icon;
                   const isSelected = defaultPrivacy === item.id;
@@ -431,7 +431,7 @@ export default function SettingsPage() {
                         <Icon className={`w-4 h-4 ${isSelected ? "text-accent" : ""}`} />
                         <span className="text-xs sm:text-sm font-bold text-text">{item.label}</span>
                       </div>
-                      <span className="text-[11px] sm:text-xs text-text-muted">{item.desc}</span>
+                      <span className="text-[11px] sm:text-xs text-text-muted leading-relaxed">{item.desc}</span>
                     </button>
                   );
                 })}
