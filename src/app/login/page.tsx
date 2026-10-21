@@ -13,7 +13,7 @@ import { useAuth } from "@/context/AuthContext";
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect") || "/diary";
+  const redirectTo = searchParams.get("redirect") || searchParams.get("returnTo") || "/diary";
 
   const {
     user,

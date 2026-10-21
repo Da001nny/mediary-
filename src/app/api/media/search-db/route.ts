@@ -1,25 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import type { MediaItem } from "@/types/database.types";
 import { formatMediaForAlgolia } from "@/lib/algolia";
 
 /**
  * GET /api/media/search-db?q=fight+club&type=movie
- * Fallback endpoint querying public.media directly when Algolia keys are pending.
+ * Fallback endpoint querying public.media directly using normal Supabase client under RLS.
  */
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const query = searchParams.get("q") || "";
+    const rawQuery = (searchParams.get("q") || "").trim();
     const typeFilter = searchParams.get("type") || "all";
-    const limit = Math.min(parseInt(searchParams.get("limit") || "20", 10), 50);
 
-    if (!query.trim()) {
-      return NextResponse.json({ results: [], count: 0 });
+    if (rawQuery.length < 2 || rawQuery.length > 100) {
+      return NextResponse.json(
+        { error: "Search query must be between 2 and 100 characters.", results: [], count: 0 },
+        { status: 400 }
+      );
     }
 
-    const adminClient = createAdminClient();
-    if (!adminClient) {
+    const supabase = await createClient();
+    if (!supabase) {
       return NextResponse.json({
         results: [],
         count: 0,
@@ -27,10 +29,17 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    let dbQuery = adminClient
+    // Escape % and _ characters in q before building the ILIKE pattern
+    const escaped = rawQuery.replace(/[%_]/g, "\\$&");
+
+    // Return at most 20 rows
+    const rawLimit = parseInt(searchParams.get("limit") || "20", 10);
+    const limit = Math.min(isNaN(rawLimit) || rawLimit <= 0 ? 20 : rawLimit, 20);
+
+    let dbQuery = supabase
       .from("media")
       .select("*")
-      .ilike("title", `%${query.trim()}%`)
+      .ilike("title", `%${escaped}%`)
       .limit(limit);
 
     if (

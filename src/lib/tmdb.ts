@@ -722,7 +722,7 @@ export async function fetchTMDBPerson(
   try {
     const res = await fetch(config.url, {
       headers: config.headers,
-      next: { revalidate: 3600 },
+      next: { revalidate: 86400 },
     });
 
     if (!res.ok) {

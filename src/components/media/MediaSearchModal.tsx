@@ -19,6 +19,7 @@ import {
   Sparkles,
   Plus,
   AlertCircle,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -101,6 +102,7 @@ function MediaSearchModalContent({
   const [externalResults, setExternalResults] = useState<UnifiedSearchResult[]>([]);
   const [isExternalLoading, setIsExternalLoading] = useState(false);
   const [externalError, setExternalError] = useState<string | null>(null);
+  const [isUnauthorized, setIsUnauthorized] = useState(false);
   const [isMock, setIsMock] = useState(false);
 
   // Action states
@@ -118,6 +120,7 @@ function MediaSearchModalContent({
 
   const handleQueryChange = (val: string) => {
     setQuery(val);
+    setIsUnauthorized(false);
     if (!val.trim()) {
       setAlgoliaHits([]);
       setExternalResults([]);
@@ -193,8 +196,9 @@ function MediaSearchModalContent({
     const timer = setTimeout(async () => {
       setIsExternalLoading(true);
       setExternalError(null);
+      setIsUnauthorized(false);
       try {
-        const fetchPromises: Promise<{ source: string; items: UnifiedSearchResult[]; isMock?: boolean }>[] = [];
+        const fetchPromises: Promise<{ source: string; items: UnifiedSearchResult[]; isMock?: boolean; is401?: boolean }>[] = [];
 
         // TMDB (movies & TV)
         if (typeFilter === "all" || typeFilter === "movie" || typeFilter === "tv") {
@@ -204,6 +208,9 @@ function MediaSearchModalContent({
             }`
           )
             .then(async (res) => {
+              if (res.status === 401) {
+                return { source: "tmdb", items: [], is401: true };
+              }
               if (!res.ok) throw new Error(`TMDB HTTP ${res.status}`);
               const data = await res.json();
               const items: UnifiedSearchResult[] = (data.results || []).map(
@@ -233,6 +240,9 @@ function MediaSearchModalContent({
         if (typeFilter === "all" || typeFilter === "game") {
           const rawgPromise = fetch(`/api/games/search?q=${encodeURIComponent(trimmed)}`)
             .then(async (res) => {
+              if (res.status === 401) {
+                return { source: "rawg", items: [], is401: true };
+              }
               if (!res.ok) throw new Error(`RAWG HTTP ${res.status}`);
               const data = await res.json();
               const items: UnifiedSearchResult[] = (data.results || []).map(
@@ -264,6 +274,9 @@ function MediaSearchModalContent({
         if (typeFilter === "all" || typeFilter === "book") {
           const booksPromise = fetch(`/api/books/search?q=${encodeURIComponent(trimmed)}`)
             .then(async (res) => {
+              if (res.status === 401) {
+                return { source: "books", items: [], is401: true };
+              }
               if (!res.ok) throw new Error(`Google Books HTTP ${res.status}`);
               const data = await res.json();
               const items: UnifiedSearchResult[] = (data.results || []).map(
@@ -298,9 +311,11 @@ function MediaSearchModalContent({
 
         const combined: UnifiedSearchResult[] = [];
         let anyMock = false;
+        let any401 = false;
         let successfulSources = 0;
 
         for (const res of responses) {
+          if (res.is401) any401 = true;
           if (res.items.length > 0) {
             successfulSources++;
             combined.push(...res.items);
@@ -308,6 +323,7 @@ function MediaSearchModalContent({
           if (res.isMock) anyMock = true;
         }
 
+        setIsUnauthorized(any401);
         setExternalResults(combined);
         setIsMock(anyMock);
         setIsExternalLoading(false);
@@ -836,15 +852,39 @@ function MediaSearchModalContent({
                 </div>
 
                 {/* Inline message if external fetch encountered an error */}
-                {externalError && (
+                {externalError && !isUnauthorized && (
                   <div className="text-xs text-red-500/90 dark:text-red-400/90 flex items-center gap-1.5 py-2 px-3 rounded-lg bg-red-500/10 border border-red-500/20">
                     <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                     <span>External search error: {externalError}. You can retry or adjust your search term.</span>
                   </div>
                 )}
 
-                {/* Skeletons while external results load */}
-                {isExternalLoading && filteredExternalResults.length === 0 ? (
+                {/* Friendly sign-in prompt when external search requires authentication (401) */}
+                {isUnauthorized ? (
+                  <div className="p-6 rounded-2xl border border-accent/25 bg-surface/90 card-depth text-center flex flex-col items-center justify-center space-y-3 my-2">
+                    <div className="w-12 h-12 rounded-full bg-accent/15 border border-accent/25 flex items-center justify-center text-accent shadow-2xs">
+                      <Lock className="w-6 h-6" />
+                    </div>
+                    <div className="space-y-1 max-w-md">
+                      <h4 className="font-serif text-base font-bold text-text">
+                        Sign in to search and view details
+                      </h4>
+                      <p className="text-xs text-text-muted leading-relaxed">
+                        Searching external live databases (TMDB, RAWG, and Google Books) requires being signed in to your meDiary account.
+                      </p>
+                    </div>
+                    <div className="pt-2">
+                      <Link
+                        href={`/login?redirect=${encodeURIComponent(typeof window !== "undefined" ? window.location.pathname : "/")}`}
+                        onClick={handleClose}
+                      >
+                        <Button variant="primary" size="sm">
+                          Sign In
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                ) : isExternalLoading && filteredExternalResults.length === 0 ? (
                   <div className="py-1">
                     <SearchHitsSkeleton count={hasCatalogHits ? 2 : 4} />
                   </div>
@@ -997,7 +1037,7 @@ function MediaSearchModalContent({
                       );
                     })}
                   </div>
-                ) : !isExternalLoading && !hasCatalogHits ? (
+                ) : !isExternalLoading && !hasCatalogHits && !isUnauthorized ? (
                   /* Zero hits across both Algolia and External (Requirement 6) */
                   <div className="text-center py-10 sm:py-12 px-4 space-y-3 max-w-md mx-auto">
                     <div className="w-10 h-10 rounded-xl bg-surface border border-border text-text-muted mx-auto flex items-center justify-center">

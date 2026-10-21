@@ -363,6 +363,7 @@ export async function searchGoogleBooks(
   try {
     const res = await fetch(url.toString(), {
       headers: { Accept: "application/json" },
+      next: { revalidate: 3600 },
     });
 
     if (res.ok) {

@@ -522,7 +522,10 @@ export async function searchRAWGGames(
 
   if (apiKeyPresent && url) {
     try {
-      const res = await fetch(url, { headers });
+      const res = await fetch(url, {
+        headers,
+        next: { revalidate: 3600 },
+      });
       if (res.ok) {
         const data = await res.json();
         const results: RAWGGameSearchResult[] = (data.results || []).map(

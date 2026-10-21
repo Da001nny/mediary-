@@ -51,22 +51,28 @@ export async function PATCH(request: NextRequest) {
     const supabase = await createClient();
 
     if (!supabase) {
-      // Mock / Offline response
-      return NextResponse.json({
-        success: true,
-        isMock: true,
-        updated: body,
-      });
+      return NextResponse.json(
+        { error: "Unauthorized: Supabase client unavailable" },
+        { status: 401 }
+      );
     }
+
+    const authHeader = request.headers.get("authorization");
+    const bearerToken = authHeader?.startsWith("Bearer ")
+      ? authHeader.substring(7).trim()
+      : undefined;
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+      error: authError,
+    } = bearerToken
+      ? await supabase.auth.getUser(bearerToken)
+      : await supabase.auth.getUser();
 
-    if (!user) {
+    if (authError || !user) {
       return NextResponse.json(
-        { success: false, isMock: true, updated: body, message: "Unauthenticated; saved locally" },
-        { status: 200 }
+        { error: "Unauthorized: You must be signed in to update your profile" },
+        { status: 401 }
       );
     }
 
