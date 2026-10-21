@@ -20,6 +20,7 @@ import {
   Plus,
   AlertCircle,
   Lock,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -103,6 +104,7 @@ function MediaSearchModalContent({
   const [isExternalLoading, setIsExternalLoading] = useState(false);
   const [externalError, setExternalError] = useState<string | null>(null);
   const [isUnauthorized, setIsUnauthorized] = useState(false);
+  const [isRateLimited, setIsRateLimited] = useState(false);
   const [isMock, setIsMock] = useState(false);
 
   // Action states
@@ -121,6 +123,7 @@ function MediaSearchModalContent({
   const handleQueryChange = (val: string) => {
     setQuery(val);
     setIsUnauthorized(false);
+    setIsRateLimited(false);
     if (!val.trim()) {
       setAlgoliaHits([]);
       setExternalResults([]);
@@ -165,6 +168,9 @@ function MediaSearchModalContent({
         });
 
         if (!cancelled) {
+          if (algoliaRes.isRateLimited) {
+            setIsRateLimited(true);
+          }
           setAlgoliaHits(algoliaRes.hits);
           setIsAlgoliaLive(algoliaRes.isAlgoliaLive);
           setAlgoliaProcessingTime(algoliaRes.processingTimeMS ?? null);
@@ -198,7 +204,7 @@ function MediaSearchModalContent({
       setExternalError(null);
       setIsUnauthorized(false);
       try {
-        const fetchPromises: Promise<{ source: string; items: UnifiedSearchResult[]; isMock?: boolean; is401?: boolean }>[] = [];
+        const fetchPromises: Promise<{ source: string; items: UnifiedSearchResult[]; isMock?: boolean; is401?: boolean; is429?: boolean }>[] = [];
 
         // TMDB (movies & TV)
         if (typeFilter === "all" || typeFilter === "movie" || typeFilter === "tv") {
@@ -210,6 +216,9 @@ function MediaSearchModalContent({
             .then(async (res) => {
               if (res.status === 401) {
                 return { source: "tmdb", items: [], is401: true };
+              }
+              if (res.status === 429) {
+                return { source: "tmdb", items: [], is429: true };
               }
               if (!res.ok) throw new Error(`TMDB HTTP ${res.status}`);
               const data = await res.json();
@@ -242,6 +251,9 @@ function MediaSearchModalContent({
             .then(async (res) => {
               if (res.status === 401) {
                 return { source: "rawg", items: [], is401: true };
+              }
+              if (res.status === 429) {
+                return { source: "rawg", items: [], is429: true };
               }
               if (!res.ok) throw new Error(`RAWG HTTP ${res.status}`);
               const data = await res.json();
@@ -276,6 +288,9 @@ function MediaSearchModalContent({
             .then(async (res) => {
               if (res.status === 401) {
                 return { source: "books", items: [], is401: true };
+              }
+              if (res.status === 429) {
+                return { source: "books", items: [], is429: true };
               }
               if (!res.ok) throw new Error(`Google Books HTTP ${res.status}`);
               const data = await res.json();
@@ -312,10 +327,12 @@ function MediaSearchModalContent({
         const combined: UnifiedSearchResult[] = [];
         let anyMock = false;
         let any401 = false;
+        let any429 = false;
         let successfulSources = 0;
 
         for (const res of responses) {
           if (res.is401) any401 = true;
+          if (res.is429) any429 = true;
           if (res.items.length > 0) {
             successfulSources++;
             combined.push(...res.items);
@@ -324,6 +341,9 @@ function MediaSearchModalContent({
         }
 
         setIsUnauthorized(any401);
+        if (any429) {
+          setIsRateLimited(true);
+        }
         setExternalResults(combined);
         setIsMock(anyMock);
         setIsExternalLoading(false);
@@ -852,15 +872,29 @@ function MediaSearchModalContent({
                 </div>
 
                 {/* Inline message if external fetch encountered an error */}
-                {externalError && !isUnauthorized && (
+                {externalError && !isUnauthorized && !isRateLimited && (
                   <div className="text-xs text-red-500/90 dark:text-red-400/90 flex items-center gap-1.5 py-2 px-3 rounded-lg bg-red-500/10 border border-red-500/20">
                     <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                     <span>External search error: {externalError}. You can retry or adjust your search term.</span>
                   </div>
                 )}
 
-                {/* Friendly sign-in prompt when external search requires authentication (401) */}
-                {isUnauthorized ? (
+                {/* Friendly rate-limit prompt when rate limit is exceeded (429) */}
+                {isRateLimited ? (
+                  <div className="p-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 card-depth text-center flex flex-col items-center justify-center space-y-3 my-2 animate-in fade-in duration-200">
+                    <div className="w-12 h-12 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400 shadow-2xs">
+                      <Clock className="w-6 h-6" />
+                    </div>
+                    <div className="space-y-1 max-w-md">
+                      <h4 className="font-serif text-base font-bold text-text">
+                        You&apos;re searching too fast, try again in a minute
+                      </h4>
+                      <p className="text-xs text-text-muted leading-relaxed">
+                        To protect catalog stability and respect upstream quotas, requests are temporarily throttled. Please wait a moment before trying your search again.
+                      </p>
+                    </div>
+                  </div>
+                ) : isUnauthorized ? (
                   <div className="p-6 rounded-2xl border border-accent/25 bg-surface/90 card-depth text-center flex flex-col items-center justify-center space-y-3 my-2">
                     <div className="w-12 h-12 rounded-full bg-accent/15 border border-accent/25 flex items-center justify-center text-accent shadow-2xs">
                       <Lock className="w-6 h-6" />
@@ -1037,7 +1071,7 @@ function MediaSearchModalContent({
                       );
                     })}
                   </div>
-                ) : !isExternalLoading && !hasCatalogHits && !isUnauthorized ? (
+                ) : !isExternalLoading && !hasCatalogHits && !isUnauthorized && !isRateLimited ? (
                   /* Zero hits across both Algolia and External (Requirement 6) */
                   <div className="text-center py-10 sm:py-12 px-4 space-y-3 max-w-md mx-auto">
                     <div className="w-10 h-10 rounded-xl bg-surface border border-border text-text-muted mx-auto flex items-center justify-center">

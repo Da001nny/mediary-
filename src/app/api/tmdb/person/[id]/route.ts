@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { fetchTMDBPerson } from "@/lib/tmdb";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function GET(
   request: NextRequest,
@@ -42,6 +43,14 @@ export async function GET(
       return NextResponse.json(
         { error: "Person ID must be a positive integer." },
         { status: 400 }
+      );
+    }
+
+    const isAllowed = await checkRateLimit(`person:${user.id}`, 20, 60);
+    if (!isAllowed) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. You're searching too fast, try again in a minute." },
+        { status: 429, headers: { "Retry-After": "60" } }
       );
     }
 

@@ -49,6 +49,7 @@ export interface AlgoliaSearchResult {
   query: string;
   processingTimeMS?: number;
   error?: string | null;
+  isRateLimited?: boolean;
 }
 
 // -------------------------------------------------------------
@@ -182,6 +183,16 @@ export async function searchAlgolia(
       const typeParam = options?.typeFilter && options.typeFilter !== "all" ? `&type=${options.typeFilter}` : "";
       const limitParam = options?.hitsPerPage ? `&limit=${options.hitsPerPage}` : "";
       const res = await fetch(`/api/media/search-db?q=${encodeURIComponent(trimmed)}${typeParam}${limitParam}`);
+      if (res.status === 429) {
+        return {
+          hits: [],
+          totalHits: 0,
+          isAlgoliaLive: false,
+          query: trimmed,
+          error: "You're searching too fast, try again in a minute",
+          isRateLimited: true,
+        };
+      }
       if (res.ok) {
         const data = await res.json();
         return {

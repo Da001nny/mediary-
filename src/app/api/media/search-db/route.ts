@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { MediaItem } from "@/types/database.types";
 import { formatMediaForAlgolia } from "@/lib/algolia";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 /**
  * GET /api/media/search-db?q=fight+club&type=movie
@@ -17,6 +18,16 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(
         { error: "Search query must be between 2 and 100 characters.", results: [], count: 0 },
         { status: 400 }
+      );
+    }
+
+    const forwarded = req.headers.get("x-forwarded-for");
+    const clientIp = forwarded ? forwarded.split(",")[0].trim() : "unknown";
+    const isAllowed = await checkRateLimit(`dbsearch:${clientIp}`, 30, 60);
+    if (!isAllowed) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. You're searching too fast, try again in a minute.", results: [], count: 0 },
+        { status: 429, headers: { "Retry-After": "60" } }
       );
     }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { searchTMDB } from "@/lib/tmdb";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 /**
  * GET /api/tmdb/search?q=fight+club&type=all&page=1
@@ -46,6 +47,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(
         { error: "Search query must be between 2 and 100 characters." },
         { status: 400 }
+      );
+    }
+
+    const isAllowed = await checkRateLimit(`search:${user.id}`, 30, 60);
+    if (!isAllowed) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. You're searching too fast, try again in a minute." },
+        { status: 429, headers: { "Retry-After": "60" } }
       );
     }
 

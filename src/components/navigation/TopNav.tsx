@@ -49,6 +49,7 @@ export function TopNav() {
   const [navSearchHits, setNavSearchHits] = useState<AlgoliaMediaRecord[]>([]);
   const [isNavSearching, setIsNavSearching] = useState(false);
   const [isNavDropdownOpen, setIsNavDropdownOpen] = useState(false);
+  const [isNavRateLimited, setIsNavRateLimited] = useState(false);
   const [isAlgoliaLive, setIsAlgoliaLive] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
 
@@ -92,6 +93,7 @@ export function TopNav() {
 
   const handleNavSearchChange = (val: string) => {
     setNavSearchQuery(val);
+    setIsNavRateLimited(false);
     if (!val.trim()) {
       setNavSearchHits([]);
       setIsNavSearching(false);
@@ -110,6 +112,7 @@ export function TopNav() {
       try {
         const res = await searchAlgolia(trimmed, { hitsPerPage: 6 });
         if (!cancelled) {
+          setIsNavRateLimited(Boolean(res.isRateLimited));
           setNavSearchHits(res.hits);
           setIsAlgoliaLive(res.isAlgoliaLive);
           setIsNavDropdownOpen(true);
@@ -258,6 +261,10 @@ export function TopNav() {
                     <div className="p-4 text-center space-y-1">
                       {isNavSearching ? (
                         <p className="text-xs text-text-muted">Searching Algolia...</p>
+                      ) : isNavRateLimited ? (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                          You&apos;re searching too fast, try again in a minute
+                        </p>
                       ) : (
                         <>
                           <p className="text-xs font-medium text-text">No matches in catalog for &ldquo;{navSearchQuery}&rdquo;</p>
